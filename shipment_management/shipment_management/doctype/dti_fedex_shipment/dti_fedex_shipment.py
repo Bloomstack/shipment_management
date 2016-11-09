@@ -19,6 +19,8 @@ from frappe.utils import get_site_name, get_site_path, get_site_base_path, get_p
 from frappe.model.mapper import get_mapped_doc
 from frappe.model.document import Document
 
+from frappe.utils.file_manager import *
+
 from shipment_management.fedex_provider import FedexProvider, get_package_rate, estimate_delivery_time
 
 
@@ -28,9 +30,6 @@ ship_service = frappe.get_module("fedex.services.ship_service")
 FedexTrackRequest = fedex_track_service.FedexTrackRequest
 FedexConfig = fedex_config.FedexConfig
 FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
-
-
-IP = 'http://192.168.0.104:8000'
 
 
 class DTIFedexShipment(Document):
@@ -90,9 +89,9 @@ class DTIFedexShipment(Document):
 		shipment.RequestedShipment.PackagingType = self.packaging_type
 
 		# Shipper contact info.
-		shipment.RequestedShipment.Shipper.Contact.PersonName = 'Sender Name'
-		shipment.RequestedShipment.Shipper.Contact.CompanyName = 'Some Company'
-		shipment.RequestedShipment.Shipper.Contact.PhoneNumber = '9012638716'
+		shipment.RequestedShipment.Shipper.Contact.PersonName = 'Sender Name' # Company
+		shipment.RequestedShipment.Shipper.Contact.CompanyName = 'Some Company' # Company
+		shipment.RequestedShipment.Shipper.Contact.PhoneNumber = '9012638716' # Company
 
 		# Shipper address.
 		shipment.RequestedShipment.Shipper.Address.StreetLines = ['Address Line 1']
@@ -100,14 +99,14 @@ class DTIFedexShipment(Document):
 		shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = 'VA'
 		shipment.RequestedShipment.Shipper.Address.PostalCode = '20171'
 		shipment.RequestedShipment.Shipper.Address.CountryCode = 'US'
-		shipment.RequestedShipment.Shipper.Address.Residential = True
+		shipment.RequestedShipment.Shipper.Address.Residential = True # check
 
 		# Recipient contact info.
 		shipment.RequestedShipment.Recipient.Contact.PersonName = 'Recipient Name'
 		shipment.RequestedShipment.Recipient.Contact.CompanyName = 'Recipient Company'
 		shipment.RequestedShipment.Recipient.Contact.PhoneNumber = '9012637906'
 
-		# Recipient address
+		# Recipient addressStateOrProvinceCode
 		shipment.RequestedShipment.Recipient.Address.StreetLines = ['Address Line 1']
 		shipment.RequestedShipment.Recipient.Address.City = 'Herndon'
 		shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = 'VA'
@@ -155,19 +154,10 @@ class DTIFedexShipment(Document):
 
 		file_name = "label_%s.%s" % (master_tracking_number, GENERATE_IMAGE_TYPE.lower())
 
-		out_path = os.path.join(os.getcwd(), frappe.local.site, 'public', 'files', master_tracking_number)
-
-		print "Private folder:", out_path
-
-		if not os.path.exists(out_path):
-			os.makedirs(out_path)
-
-		out_file = open(os.path.join(out_path, file_name), 'wb')
-		out_file.write(label_binary_data)
-		out_file.close()
+		saved_file = save_file(file_name, label_binary_data, self.doctype, self.name, is_private=1)
 
 		frappe.db.set(self, 'tracking_number', master_tracking_number)
-		frappe.db.set(self, 'label_1', os.path.join(IP, "files", master_tracking_number, file_name))
+		frappe.db.set(self, 'label_1', saved_file.file_url)
 
 		# ===================================================
 
@@ -201,15 +191,11 @@ class DTIFedexShipment(Document):
 				ascii_label_data = label.Label.Parts[0].Image
 				label_binary_data = binascii.a2b_base64(ascii_label_data)
 
-				file_name = "label_%s.%s" % (child_tracking_number, GENERATE_IMAGE_TYPE.lower())
+				file_name = "label_%s_%s.%s" % (master_tracking_number, child_tracking_number, GENERATE_IMAGE_TYPE.lower())
 
-				out_path = os.path.join(os.getcwd(), frappe.local.site, 'public', 'files', master_tracking_number)
+				saved_file = save_file(file_name, label_binary_data, self.doctype, self.name, is_private=1)
 
-				out_file = open(os.path.join(out_path, file_name), 'wb')
-				out_file.write(label_binary_data)
-				out_file.close()
-
-				labels.append(os.path.join(IP, "files", master_tracking_number, file_name))
+				labels.append(saved_file.file_url)
 
 		for i, path in enumerate(labels):
 			i +=1
