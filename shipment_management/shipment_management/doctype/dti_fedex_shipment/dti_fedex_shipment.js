@@ -3,6 +3,17 @@
 
 frappe.ui.form.on('DTI Fedex Shipment', {
 	refresh: function(frm) {
-							console.log(frm);
+		console.log(frm);
+		        {
+		        if (cur_frm.doc.label_1)
+                    {
+                    cur_frm.add_custom_button(__('Print label'),
+                    function ()
+                        {
+                          window.href='/labels';
+                        });
+                }
+
+            }
 	}
 });

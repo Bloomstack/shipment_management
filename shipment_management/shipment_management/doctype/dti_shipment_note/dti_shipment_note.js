@@ -7,11 +7,17 @@ frappe.ui.form.on('DTI Shipment Note', {
 
 			$("[data-fieldname='cancel_shipment']", frm.body).css({'color': 'red'})
 			$("[data-fieldname='return_shipment']", frm.body).css({'color': 'red'})
-
+            $("[data-fieldname='shipment_status']", frm.body).css({"font-size": "18px", "color":"orange"})
 			cur_frm.refresh_fields();
 
 	}});
 
+//var r = confirm("Press a button");
+//if (r == true) {
+//    x = "You pressed OK!";
+//} else {
+//    x = "You pressed Cancel!";
+//}
 
 cur_frm.cscript.cancel_shipment = function(doc) {
     frappe.call({
