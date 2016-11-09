@@ -10,7 +10,10 @@ frappe.ui.form.on('DTI Fedex Shipment', {
                     cur_frm.add_custom_button(__('Print label'),
                     function ()
                         {
-                          window.href='/labels';
+//                          window.href='/labels';
+//                            window.location.assign('/labels?name=FedexShip-00084')
+                            var url = '/labels?name=' + cur_frm.doc.name
+                           window.location.assign(url)
                         });
                 }
 
