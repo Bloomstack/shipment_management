@@ -1,9 +1,16 @@
 // Copyright (c) 2016, DigiThinkit Inc. and contributors
 // For license information, please see license.txt
+// cur_frm.cscript.shipment_note_link = function(doc, cdt, cd){}
 
 frappe.ui.form.on('DTI Fedex Shipment', {
+
 	refresh: function(frm) {
-		console.log(frm);
+
+	    // $("[data-fieldname='shipment_status']", frm.body).css({"font-size": "18px", "color":"orange"})
+
+		//console.log("Before:", frm.doc);
+		frappe.model.set_value(frm.doc.doctype, frm.docname, "shipment_note_link", "!!!!!")
+		//console.log("After:", frm.doc);
 		        {
 		        if (cur_frm.doc.label_1)
                     {

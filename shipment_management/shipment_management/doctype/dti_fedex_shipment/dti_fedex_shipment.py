@@ -193,6 +193,11 @@ class DTIFedexShipment(Document):
 
 				file_name = "label_%s_%s.%s" % (master_tracking_number, child_tracking_number, GENERATE_IMAGE_TYPE.lower())
 
+				# out_path = os.path.join(os.getcwd(), frappe.local.site, 'public', 'files', master_tracking_number)
+				#
+				# out_file = open(os.path.join(out_path, file_name), 'wb')
+				# out_file.write(label_binary_data)
+				# out_file.close()
 				saved_file = save_file(file_name, label_binary_data, self.doctype, self.name, is_private=1)
 
 				labels.append(saved_file.file_url)

@@ -7,17 +7,11 @@ frappe.ui.form.on('DTI Shipment Note', {
 
 			$("[data-fieldname='cancel_shipment']", frm.body).css({'color': 'red'})
 			$("[data-fieldname='return_shipment']", frm.body).css({'color': 'red'})
-            $("[data-fieldname='shipment_status']", frm.body).css({"font-size": "18px", "color":"orange"})
+      // $("[data-fieldname='shipment_status']", frm.body).css({"font-size": "30px", "color":"#414958"})
 			cur_frm.refresh_fields();
 
 	}});
 
-//var r = confirm("Press a button");
-//if (r == true) {
-//    x = "You pressed OK!";
-//} else {
-//    x = "You pressed Cancel!";
-//}
 
 cur_frm.cscript.cancel_shipment = function(doc) {
     frappe.call({
@@ -55,6 +49,13 @@ get_delivery_items = function(doc) {
 		});
 };
 
+cur_frm.fields_dict['delivery_note'].get_query = function(doc) {
+	return {
+		filters: {
+			"docstatus": '1'
+		}
+	}
+}
 
 frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
         if (frm.doc.delivery_note)
@@ -82,12 +83,9 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
                     frappe.model.set_value(dt, new_row.name, 'item_name', item_list.message[i].item_name);
                     frappe.model.set_value(dt, new_row.name, 'item_group', item_list.message[i].item_group);
                     frappe.model.set_value(dt, new_row.name, 'installed_qty', item_list.message[i].installed_qty);
-                    //new_row.name = item_list.message[i].name;
-                    //new_row.item_code = item_list.message[i].item_code;
-                    //new_row.item_name = item_list.message[i].item_name;
-                    //new_row.item_group = item_list.message[i].item_group;
-                    //new_row.installed_qty = item_list.message[i].installed_qty;
 
+										frappe.model.set_value(dt, new_row.name, 'qty', item_list.message[i].qty);
+                    frappe.model.set_value(dt, new_row.name, 'description', item_list.message[i].description);
 
                     cur_frm.refresh_fields("delivery_items")
                 }

@@ -1,7 +1,69 @@
 <!doctype html>
 <html>
+
+<script src="bytescoutpdf.js" type="text/javascript" encoding="UTF-8"></script>
+
+<script>
+
+function CreatePDF(IsInternetExplorer8OrLower) {
+
+   // create BytescoutPDF object instance (from bytescoutpdf.js)
+   var pdf = new BytescoutPDF();
+   // set document properties: Title, subject, keywords, author name and creator name
+   pdf.propertiesSet("Sample document title", "Sample subject", "keyword1, keyword 2, keyword3", "Document Author Name", "Document Creator Name");
+
+   // add 1st page
+   pdf.pageAdd();
+   // add page header with anchor
+   pdf.textAdd(10, 20, 'sample pdf text', 0);
+
+   // return BytescoutPDF object instance
+   return pdf;
+}
+</script>
+
+
 <body>
-<img src="{{ label_url }}">
-TEST
+
+<input type="button" value="Generate PDF" onclick="CreatePDF()">
+
+<img src="{{ label_url_1 }}">
+
+{% if(label_url_2) %}
+<img src="{{ label_url_2 }}">
+{% endif %}
+
+{% if(label_url_3) %}
+<img src="{{ label_url_3 }}">
+{% endif %}
+
+{% if(label_url_4) %}
+<img src="{{ label_url_4 }}">
+{% endif %}
+
+{% if(label_url_5) %}
+<img src="{{ label_url_5 }}">
+{% endif %}
+
+{% if(label_url_6) %}
+<img src="{{ label_url_6 }}">
+{% endif %}
+
+{% if(label_url_7) %}
+<img src="{{ label_url_7 }}">
+{% endif %}
+
+{% if(label_url_8) %}
+<img src="{{ label_url_8 }}">
+{% endif %}
+
+{% if(label_url_9) %}
+<img src="{{ label_url_9 }}">
+{% endif %}
+
+{% if(label_url_10) %}
+<img src="{{ label_url_10 }}">
+{% endif %}
+
 </body>
 </html>
