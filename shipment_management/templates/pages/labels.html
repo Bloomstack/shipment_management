@@ -1,69 +1,115 @@
 <!doctype html>
 <html>
 
-<script src="bytescoutpdf.js" type="text/javascript" encoding="UTF-8"></script>
+<!--<script src="bytescoutpdf.js" type="text/javascript" encoding="UTF-8"></script>-->
 
-<script>
+<!--<script>-->
 
-function CreatePDF(IsInternetExplorer8OrLower) {
+<!--function CreatePDF(IsInternetExplorer8OrLower) {-->
 
-   // create BytescoutPDF object instance (from bytescoutpdf.js)
-   var pdf = new BytescoutPDF();
-   // set document properties: Title, subject, keywords, author name and creator name
-   pdf.propertiesSet("Sample document title", "Sample subject", "keyword1, keyword 2, keyword3", "Document Author Name", "Document Creator Name");
+   <!--// create BytescoutPDF object instance (from bytescoutpdf.js)-->
+   <!--var pdf = new BytescoutPDF();-->
+   <!--// set document properties: Title, subject, keywords, author name and creator name-->
+   <!--pdf.propertiesSet("Sample document title", "Sample subject", "keyword1, keyword 2, keyword3", "Document Author Name", "Document Creator Name");-->
 
-   // add 1st page
-   pdf.pageAdd();
-   // add page header with anchor
-   pdf.textAdd(10, 20, 'sample pdf text', 0);
+   <!--// add 1st page-->
+   <!--pdf.pageAdd();-->
+   <!--// add page header with anchor-->
+   <!--pdf.textAdd(10, 20, 'sample pdf text', 0);-->
 
-   // return BytescoutPDF object instance
-   return pdf;
-}
-</script>
+   <!--// return BytescoutPDF object instance-->
+   <!--return pdf;-->
+<!--}-->
+<!--</script>-->
+
+<style>
+    .div {
+        border: 1px solid red;
+        page-break-after:always;
+    }
+    div img {
+        page-break-after:always;
+        height: 80%;
+        width: 80%;
+    }
+</style>
+
 
 
 <body>
 
-<input type="button" value="Generate PDF" onclick="CreatePDF()">
+<!--<input type="button" value="Generate PDF" onclick="CreatePDF()">-->
 
-<img src="{{ label_url_1 }}">
+<div>
+    <img src="{{ label_url_1 }}">
+</div>
+<br clear="all" style="page-break-before:always" />
+
 
 {% if(label_url_2) %}
-<img src="{{ label_url_2 }}">
+<div>
+    <img src="{{ label_url_2 }}">
+</div>
+<br clear="all" style="page-break-before:always" />
 {% endif %}
 
+
 {% if(label_url_3) %}
-<img src="{{ label_url_3 }}">
+<div>
+    <img src="{{ label_url_3 }}">
+</div>
+<br clear="all" style="page-break-before:always" />
 {% endif %}
 
 {% if(label_url_4) %}
-<img src="{{ label_url_4 }}">
+<div>
+    <img src="{{ label_url_4 }}">
+</div>
+<br clear="all" style="page-break-before:always" />
 {% endif %}
 
 {% if(label_url_5) %}
-<img src="{{ label_url_5 }}">
+<div>
+    <img src="{{ label_url_5 }}">
+</div>
+<br clear="all" style="page-break-before:always" />
 {% endif %}
 
 {% if(label_url_6) %}
-<img src="{{ label_url_6 }}">
+<div>
+    <img src="{{ label_url_6 }}">
+</div>
+<br clear="all" style="page-break-before:always" />
 {% endif %}
 
 {% if(label_url_7) %}
-<img src="{{ label_url_7 }}">
+<div>
+    <img src="{{ label_url_7 }}">
+</div>
+<br clear="all" style="page-break-before:always" />
 {% endif %}
 
 {% if(label_url_8) %}
-<img src="{{ label_url_8 }}">
+<div>
+    <img src="{{ label_url_8 }}">
+</div>
+<br clear="all" style="page-break-before:always" />
 {% endif %}
 
 {% if(label_url_9) %}
-<img src="{{ label_url_9 }}">
+<div>
+    <img src="{{ label_url_9 }}">
+</div>
+<br clear="all" style="page-break-before:always" />
 {% endif %}
 
 {% if(label_url_10) %}
-<img src="{{ label_url_10 }}">
+<div>
+    <img src="{{ label_url_10 }}">
+</div>
+<br clear="all" style="page-break-before:always" />
 {% endif %}
+
 
 </body>
 </html>
