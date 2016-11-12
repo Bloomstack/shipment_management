@@ -87,3 +87,18 @@ def send_email_status_update(target_doc, old_status="NEW"):
 @frappe.whitelist()
 def cancel_shipment(target_doc):
 	send_email_status_update(target_doc, old_status="NEW")
+
+
+@check_permission()
+@frappe.whitelist()
+def make_fedex_shipment_from_shipment_note(source_name, target_doc=None):
+	doclist = get_mapped_doc("DTI Shipment Note", source_name, {
+		"DTI Shipment Note": {
+			"doctype": "DTI Fedex Shipment",
+			"field_map": {
+				"name": "shipment_note_link"
+			}
+		}
+	}, target_doc)
+
+	return doclist

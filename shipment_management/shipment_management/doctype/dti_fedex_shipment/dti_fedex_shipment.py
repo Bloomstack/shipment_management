@@ -46,6 +46,11 @@ class DTIFedexShipment(Document):
 	Once you have this master tracking number, you have to attach it to the shipping request
 	of the remaining packages.
 	"""
+	def after_insert(self):
+		shipment = frappe.get_doc('DTI Shipment Note', self.shipment_note_link)
+		shipment.fedex_shipment = self.name
+		shipment.save()
+
 
 	def on_submit(self):
 		self.create_shipment()

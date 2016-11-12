@@ -1,6 +1,15 @@
 // Copyright (c) 2016, DigiThinkit Inc. and contributors
 // For license information, please see license.txt
 
+function create_fedex_shipment() {
+	console.log('Works?');
+	frappe.model.open_mapped_doc({
+		method: "shipment_management.shipment.make_fedex_shipment_from_shipment_note",
+		frm: cur_frm
+	})
+}
+
+window.create_fedex_shipment = create_fedex_shipment;
 
 frappe.ui.form.on('DTI Shipment Note', {
 	refresh: function(frm) {
@@ -10,8 +19,18 @@ frappe.ui.form.on('DTI Shipment Note', {
       // $("[data-fieldname='shipment_status']", frm.body).css({"font-size": "30px", "color":"#414958"})
 			cur_frm.refresh_fields();
 
-	}});
+	},
 
+	shipment_courier: function(frm) {
+		console.log('updated?');
+		if (frm.doc.shipment_courier == 'Fedex' ) {
+			create_fedex_shipment();
+		}
+	}
+
+});
+
+cur_frm.cscript.fedex  = create_fedex_shipment;
 
 cur_frm.cscript.cancel_shipment = function(doc) {
     frappe.call({
@@ -72,11 +91,7 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
                 frappe.model.clear_table(cur_frm.doc, 'delivery_items');
                 for (i = 0; i < item_list.message.length; i++) {
 
-                    console.log("item_list.message = ", item_list.message)
-
                     var new_row = frappe.model.add_child(cur_frm.doc, "DTI Shipment Note Item", "delivery_items")
-
-                    console.log("item=", item_list.message[i])
 
                     var dt = "DTI Shipment Note Item";
                     frappe.model.set_value(dt, new_row.name, 'item_code', item_list.message[i].item_code);
