@@ -22,7 +22,7 @@ from frappe.model.document import Document
 from frappe.utils.file_manager import *
 
 from shipment_management.fedex_provider import FedexProvider, get_package_rate, estimate_delivery_time
-
+from shipment_management.fedex_status_controller import ShipmentNoteOperationalStatus
 
 fedex_track_service = frappe.get_module("fedex.services.track_service")
 fedex_config = frappe.get_module("fedex.config")
@@ -46,15 +46,18 @@ class DTIFedexShipment(Document):
 	Once you have this master tracking number, you have to attach it to the shipping request
 	of the remaining packages.
 	"""
-	def after_insert(self):
-		shipment = frappe.get_doc('DTI Shipment Note', self.shipment_note_link)
-		shipment.fedex_shipment = self.name
-		shipment.save()
-
 
 	def on_submit(self):
 		self.create_shipment()
-		frappe.db.set(self, 'shipment_status', 'InProgress')
+		frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
+
+		shipment = frappe.get_doc('DTI Shipment Note', self.shipment_note_link)
+		shipment.fedex_name = self.name
+		shipment.fedex_status = ShipmentNoteOperationalStatus.InProgress
+		shipment.submit()
+
+		frappe.clear_cache(doctype="DTI Fedex Shipment")
+		frappe.clear_cache(doctype="DTI Shipment Note")
 
 	def create_package(self, shipment, sequence_number=1, package_weight_value=1.0, package_weight_units="LB",
 					   physical_packaging="ENVELOPE"):
