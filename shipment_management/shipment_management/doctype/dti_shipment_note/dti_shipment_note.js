@@ -8,37 +8,47 @@ function create_fedex_shipment() {
 	})
 }
 
-//window.create_fedex_shipment = create_fedex_shipment;
+frappe.ui.form.on("DTI Shipment Note", "before_cancel", function(frm) {
+     if(frm.doc.clearance_date){
+        frappe.confirm('Are you sure?' ,
+                function(){
+                  show_alert('block one')
+                },
+                function(){
+                  show_alert('block two')
+                }
+            );
+     }
+});
 
 frappe.ui.form.on('DTI Shipment Note', {
 	onload_post_render: function(frm) {
 
-		// var status_style = {'color': '#595647', 'font-weight': 'bold'}
+					$("[data-fieldname='fedex_button']:button").css({'color':'white', 'background-color': '#5e64ff', 'border-color': '#444bff'})
 
-		$("[data-fieldname='fedex_button']:button").css({'color':'white', 'background-color': '#5e64ff', 'border-color': '#444bff'})
-		// $("[data-fieldname='shipment_note_status']").css(status_style)
-		// $("[data-fieldname='delivery_status']").css(status_style)
-		// $("[data-fieldname='fedex_status']").css(status_style)
+					if ((cur_frm.doc.fedex_name) && (cur_frm.doc.shipment_note_status != 'Cancelled') && (cur_frm.doc.shipment_note_status != 'Returned')){
 
-		if (cur_frm.doc.fedex_name) {
+			                cur_frm.add_custom_button(__('Cancel shipment process'),
+													function(doc) {
+																frappe.confirm('This action cannot be reverted! Do you really want to cancel shipment?' ,
+																				function(){
+																									show_alert('Cancel shipment procces.')
+																									frappe.call({
+																									            method:'shipment_management.shipment.cancel_shipment',
+																									            args: {source_name: cur_frm.doc.name}
+																														})
+																								  cur_frm.clear_custom_buttons();
+																									location.reload();
+																									},
+																				function(){
+																									show_alert('No canceling...')
+																									}
+																		   );
+																		    }
+																			).addClass("btn btn-primary");
 
-                cur_frm.add_custom_button(__('Cancel shipment process'),
-				function(doc) {
-                    frappe.call({
-                                method:'shipment_management.shipment.cancel_shipment',
-                                args: {target_doc: cur_frm.doc}
-                                })
-							  }).addClass("btn btn-primary"),
-
-			    cur_frm.add_custom_button(__('Return ship to Sender'),
-				function(doc) {
-                    frappe.call({
-                                method:'shipment_management.shipment.return_shipment',
-                                args: {target_doc: cur_frm.doc}
-                                })
-							  }).addClass("btn btn-primary")
-                                   }
-                                      },
+											            }
+				},
 
 	refresh: function(frm) {
 			cur_frm.refresh_fields();
@@ -51,24 +61,6 @@ frappe.ui.form.on('DTI Shipment Note', {
 
 });
 
-
-// cur_frm.cscript.cancel_shipment = function(doc) {
-//     frappe.call({
-// 			method:'shipment_management.shipment.cancel_shipment',
-// 			args: {
-// 			    target_doc: cur_frm.doc
-// 			      }
-// 			})
-// 		};
-//
-// cur_frm.cscript.return_shipment = function(doc) {
-//     frappe.call({
-// 			method:'shipment_management.shipment.return_shipment',
-// 			args: {
-// 			    target_doc: cur_frm.doc
-// 			      }
-// 			})
-// 		};
 
 get_company_email = function(doc) {
 		return frappe.call({

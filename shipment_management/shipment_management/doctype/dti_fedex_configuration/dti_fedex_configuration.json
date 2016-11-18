@@ -17,7 +17,7 @@
    "bold": 1, 
    "collapsible": 0, 
    "columns": 0, 
-   "default": "Fedex Server Connection", 
+   "default": "Fedex API Server Config",
    "fieldname": "fedex_config_name", 
    "fieldtype": "Data", 
    "hidden": 0, 

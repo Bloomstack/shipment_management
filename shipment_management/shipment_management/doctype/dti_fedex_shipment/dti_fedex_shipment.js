@@ -6,15 +6,6 @@
 frappe.ui.form.on('DTI Fedex Shipment', {
 
 	refresh: function(frm) {
-
-		// frappe.model.set_value(frm.doc.doctype, frm.docname, "shipment_note_link", "test")
-		// shipment_note = 'SHIP-00070'
-		//shipment_note_doc = create_fedex_shipment()
-		//cur_frm.set_value("shipment_note_link", shipment_note_doc.name);
-		//cur_frm.refresh_fields("shipment_note_link")
-		console.log("Debug:", cur_frm.doc)
-
-		        {
 		        if (cur_frm.doc.label_1)
                     {
                     cur_frm.add_custom_button(__('Print label'),
@@ -24,7 +15,6 @@ frappe.ui.form.on('DTI Fedex Shipment', {
                            window.location.assign(url)
                         });
                 }
-            }
 	}
 
 });

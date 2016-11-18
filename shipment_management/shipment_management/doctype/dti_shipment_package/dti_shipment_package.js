@@ -2,7 +2,5 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on('DTI Shipment Package', {
-	refresh: function(frm) {
-							console.log(frm);
-	}
+	refresh: function(frm) {}
 });

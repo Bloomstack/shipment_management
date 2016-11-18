@@ -46,7 +46,7 @@ app_include_js = "/assets/shipment_management/js/custom_script.js"
 # ------------
 
 # before_install = "shipment_management.install.before_install"
-# after_install = "shipment_management.install.after_install"
+after_install = "shipment_management.shipment.after_install"
 
 # Desk Notifications
 # ------------------

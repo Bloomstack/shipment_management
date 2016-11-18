@@ -21,8 +21,8 @@ from frappe.model.document import Document
 
 from frappe.utils.file_manager import *
 
-from shipment_management.fedex_provider import FedexProvider, get_package_rate, estimate_delivery_time
-from shipment_management.fedex_status_controller import ShipmentNoteOperationalStatus
+from shipment_management.provider_fedex import FedexProvider, get_package_rate, estimate_delivery_time
+from shipment_management.shipment import ShipmentNoteOperationalStatus
 
 fedex_track_service = frappe.get_module("fedex.services.track_service")
 fedex_config = frappe.get_module("fedex.config")
@@ -33,19 +33,6 @@ FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
 
 
 class DTIFedexShipment(Document):
-	"""
-	For FedEx, the first tracking # should provide you with the
-	links to the other packages in a Multi-parcel shipment.
-	There isn't a Master to cover them all.
-
-	We can rate multiple packages using one SOAP request; however, to ship an
-	Multiple Pieces Shipment (MPS), you have to perform a shipping request for each one of the packages.
-
-	The first package (the package in the first request),
-	will be your Master containing the master tracking number.
-	Once you have this master tracking number, you have to attach it to the shipping request
-	of the remaining packages.
-	"""
 
 	def on_submit(self):
 		self.create_shipment()
@@ -59,7 +46,8 @@ class DTIFedexShipment(Document):
 		frappe.clear_cache(doctype="DTI Fedex Shipment")
 		frappe.clear_cache(doctype="DTI Shipment Note")
 
-	def create_package(self, shipment, sequence_number=1, package_weight_value=1.0, package_weight_units="LB",
+	@staticmethod
+	def create_package(shipment, sequence_number=1, package_weight_value=1.0, package_weight_units="LB",
 					   physical_packaging="ENVELOPE"):
 		package_weight = shipment.create_wsdl_object_of_type('Weight')
 		package_weight.Value = package_weight_value
@@ -78,8 +66,6 @@ class DTIFedexShipment(Document):
 
 		if len(self.get_all_children()) > 9:
 			frappe.throw(_("Max amount of packages is 10"))
-
-		# ===================================================================
 
 		GENERATE_IMAGE_TYPE = 'PNG'
 
@@ -244,5 +230,53 @@ class DTIFedexShipment(Document):
 
 		frappe.msgprint("DONE!", "Tracking number:{}".format(master_tracking_number))
 
+	@staticmethod
+	def delete_shipment():
 
+		from fedex.services.ship_service import FedexDeleteShipmentRequest
+		from fedex.base_service import FedexError
 
+		# Un-comment to see the response from Fedex printed in stdout.
+		logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+
+		provider = FedexProvider()
+		CONFIG_OBJ = provider.get_fedex_config()
+
+		del_request = FedexDeleteShipmentRequest(CONFIG_OBJ)
+
+		# Either delete all packages in a shipment, or delete an individual package.
+		# Docs say this isn't required, but the WSDL won't validate without it.
+		# DELETE_ALL_PACKAGES, DELETE_ONE_PACKAGE
+		del_request.DeletionControlType = "DELETE_ALL_PACKAGES"
+
+		# The tracking number of the shipment to delete.
+		del_request.TrackingId.TrackingNumber = '794643682535'  # '111111111111' will also not delete
+
+		# What kind of shipment the tracking number used.
+		# Docs say this isn't required, but the WSDL won't validate without it.
+		# EXPRESS, GROUND, or USPS
+		del_request.TrackingId.TrackingIdType = 'EXPRESS'
+
+		# Fires off the request, sets the 'response' attribute on the object.
+		try:
+			del_request.send_request()
+		except FedexError as error:
+			if 'Unable to retrieve record' in str(error):
+				frappe.throw(_("WARNING: Unable to delete the shipment with the provided tracking number."))
+			else:
+				frappe.throw(_("%s"% error))
+
+		# See the response printed out.
+		# print(del_request.response)
+
+		# This will convert the response to a python dict object. To
+		# make it easier to work with.
+		# from fedex.tools.response_tools import basic_sobject_to_dict
+		# print(basic_sobject_to_dict(del_request.response))
+
+		# This will dump the response data dict to json.
+		# from fedex.tools.response_tools import sobject_to_json
+		# print(sobject_to_json(del_request.response))
+
+		# Here is the overall end result of the query.
+		print("HighestSeverity: {}".format(del_request.response.HighestSeverity))

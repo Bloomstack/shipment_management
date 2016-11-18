@@ -2,11 +2,6 @@
 # License: GNU General Public License v3. See license.txt
 
 from __future__ import unicode_literals
-import frappe
-
-from frappe.utils.password import get_decrypted_password
-from frappe import _
-import app_config
 
 import logging
 import sys
@@ -15,8 +10,13 @@ import binascii
 import datetime
 import sys
 import os
+
+import frappe
+from frappe.utils.password import get_decrypted_password
+from frappe import _
 from frappe.utils import get_site_name, get_site_path, get_site_base_path, get_path, cstr
 from frappe.model.mapper import get_mapped_doc
+import app_config
 
 
 fedex_track_service = frappe.get_module("fedex.services.track_service")
@@ -183,7 +183,7 @@ class FedexProvider:
 		self.config_message = ""
 		self.config_obj = self.get_fedex_config()
 
-	def get_fedex_config(self, general_doc_type_name=app_config.config["fedex_config"]):
+	def get_fedex_config(self, general_doc_type_name=app_config.PRIMARY_FEDEX_DOC_NAME):
 
 		_fedex_config = frappe.db.sql('''SELECT * from `tabDTI Fedex Configuration` WHERE name = "%s"''' % general_doc_type_name, as_dict=True)
 
