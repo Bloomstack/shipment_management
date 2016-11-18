@@ -22,7 +22,7 @@ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMA
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH 
 THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# 3. Installation
+# 3. Installation/ Uninstall
 
 ## 3.1. Clone app from git
 
@@ -57,14 +57,27 @@ New application is present in application list
 bench list-apps
 ```
 
-# 4.Deployment:
-Fedex Config should be created
+## 3.5. Uninstall
+```
+bench uninstall-app shipment_management
+```
 
-in progress
+# 4.Config:
+File _app-config_ is used for general fedex configuration. 
+PRIMARY_FEDEX_DOC_NAME - Used to switch from Fedex Test Server to Fedex Production Server
 
-# 5. Shipment providers
+# 5.DocTypes:
 
-## 5.1 FedEx
+- DTI Shipment Note (Primary Doc Type)
+- DTI Shipment Note Item (Items from Delivery Note, Table can be customised)
+- DTI Shipment Package (Physical shipment box)
+- DTI Fedex Shipment Configuration (Configuration DocType for Fedex Connection)
+- DTI Fedex Shipment (Shipment information, with tracking number, labels and etc.)
+- DTI Fedex Shipment Item (Items from Shipment Note, Table Read-Only)
+
+# 6. Supported Shipment providers
+
+## 6.1 FedEx
 
 ### Overview
 FedEx Corporation is a US multinational courier delivery services company.
@@ -75,9 +88,9 @@ that could track packages and provide real-time updates on package location.
 ### Status Check Web Page
 Added web page for customer to provide possibility to check status by tracking number
 
-{site_path}\fedex.html
+{site_path}\shipment_tracking.html
 
-# 6. Automation Testing
+# 7. Automation Testing
 Module was covered with functional testing. 
 
 For run tests you should execute command:
@@ -86,8 +99,6 @@ For run tests you should execute command:
 bench run-tests --app shipment_management
 ```
 
-# 7. Permissions
-in progress
-
-
-
+# 8. Permissions
+- Shipment Manager
+- Shipment User
