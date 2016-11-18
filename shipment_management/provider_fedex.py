@@ -16,6 +16,7 @@ from frappe.utils.password import get_decrypted_password
 from frappe import _
 from frappe.utils import get_site_name, get_site_path, get_site_base_path, get_path, cstr
 from frappe.model.mapper import get_mapped_doc
+
 import app_config
 
 
@@ -30,6 +31,52 @@ FedexTrackRequest = fedex_track_service.FedexTrackRequest
 FedexConfig = fedex_config.FedexConfig
 FedexRateServiceRequest = rate_service.FedexRateServiceRequest
 FedexAvailabilityCommitmentRequest = availability_commitment_service.FedexAvailabilityCommitmentRequest
+
+
+class FedexStatusCode(object):
+	def __init__(self, status_code, definition):
+		self.status_code = status_code
+		self.definition = definition
+
+
+class StatusMapFedexAndShipmentNote(object):
+	"""
+	ALL STATUSES:
+	AA - At Airport
+	PL - Plane Landed
+	AD - At Delivery
+	PM - In Progress
+	AF - At FedEx Facility
+	PU - Picked Up
+	AP - At Pickup
+	PX - Picked up (see Details)
+	AR - Arrived at
+	RR - CDO Requested
+	AX - At USPS facility
+	RM - CDO Modified
+	CA - Shipment Canceled
+	RC - CDO Cancelled
+	CH - Location Changed
+	RS - Return to Shipper
+	DD - Delivery Delay
+	DE - Delivery Exception
+	DL - Delivered
+	DP - Departed FedEx Location
+	SE - Shipment Exception
+	DS - Vehicle dispatched
+	SF - At Sort Facility
+	DY - Delay
+	SP - Split status - multiple statuses
+	EA - Enroute to Airport delay
+	TR - Transfer
+	"""
+	Completed = [FedexStatusCode("DL", "Delivered")]
+
+	Canceled = [FedexStatusCode("CA", "Shipment Canceled"),
+				FedexStatusCode("DE", "Delivery Exception"),
+				FedexStatusCode("SE", "Shipment Exception")]
+
+	Return = [FedexStatusCode("RS", "Return to Shipper")]
 
 
 @frappe.whitelist(allow_guest=True)
@@ -176,7 +223,9 @@ def estimate_delivery_time(OriginPostalCode, OriginCountryCode, DestinationPosta
 
 
 class FedexProvider:
-	"""It is responsible for fedex configuration"""
+	"""
+	It is responsible for fedex configuration
+	"""
 
 	def __init__(self):
 		self.fedex_server_doc_type = None
@@ -212,7 +261,10 @@ class FedexProvider:
 			use_test_server=_test_server)
 
 		return FedexConfig(key=self.fedex_server_doc_type['fedex_key'],
-						password=get_decrypted_password('DTI Fedex Configuration', general_doc_type_name, fieldname='password', raise_exception=True),
+						password=get_decrypted_password('DTI Fedex Configuration',
+														general_doc_type_name,
+														fieldname='password',
+														raise_exception=True),
 						account_number=self.fedex_server_doc_type['account_number'],
 						meter_number=self.fedex_server_doc_type['meter_number'],
 						freight_account_number=self.fedex_server_doc_type['freight_account_number'],
