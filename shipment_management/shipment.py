@@ -11,7 +11,6 @@ import frappe
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
 from hooks import app_email
-from frappe.utils.password import encrypt
 from functools import wraps
 from provider_fedex import FedexProvider
 
