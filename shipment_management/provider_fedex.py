@@ -4,21 +4,18 @@
 from __future__ import unicode_literals
 
 import logging
-import sys
 import json
-import binascii
-import datetime
 import sys
-import os
 
 import frappe
 from frappe.utils.password import get_decrypted_password
-from frappe import _
-from frappe.utils import get_site_name, get_site_path, get_site_base_path, get_path, cstr
-from frappe.model.mapper import get_mapped_doc
 
 import app_config
 
+# -------------------------------------------------------------------
+
+# Environment problem
+# https://discuss.erpnext.com/t/install-requirements-with-bench-problem-importerror/16558/5?u=katerina_romanchuk
 
 fedex_track_service = frappe.get_module("fedex.services.track_service")
 rate_service = frappe.get_module("fedex.services.rate_service")
@@ -31,6 +28,8 @@ FedexTrackRequest = fedex_track_service.FedexTrackRequest
 FedexConfig = fedex_config.FedexConfig
 FedexRateServiceRequest = rate_service.FedexRateServiceRequest
 FedexAvailabilityCommitmentRequest = availability_commitment_service.FedexAvailabilityCommitmentRequest
+
+# --------------------------------------------------------------------
 
 
 class FedexStatusCode(object):
