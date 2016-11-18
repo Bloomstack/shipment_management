@@ -56,6 +56,8 @@ class ShipmentNoteOperationalStatus(object):
 # --------------------------------------------------------------
 # Mapper
 
+@check_permission()
+@frappe.whitelist()
 def make_new_shipment_note_from_delivery_note(source_name, target_doc=None):
 	doclist = get_mapped_doc("Delivery Note", source_name, {
 		"Delivery Note": {
@@ -69,6 +71,8 @@ def make_new_shipment_note_from_delivery_note(source_name, target_doc=None):
 	return doclist
 
 
+@check_permission()
+@frappe.whitelist()
 def make_fedex_shipment_from_shipment_note(source_name, target_doc=None):
 	doclist = get_mapped_doc("DTI Shipment Note", source_name, {
 		"DTI Shipment Note": {
