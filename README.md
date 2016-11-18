@@ -33,7 +33,7 @@ cd frappe-bench
 
 Execute command:
 ```
-bench get-app shipment_management https://github.com/safo-bora/shipment_management.git
+bench get-app shipment_management https://github.com/DigiThinkIT/shipment_management.git
 
 ```
 
@@ -64,6 +64,7 @@ bench uninstall-app shipment_management
 
 # 4.Config:
 File _app-config_ is used for general fedex configuration. 
+
 PRIMARY_FEDEX_DOC_NAME - Used to switch from Fedex Test Server to Fedex Production Server
 
 # 5.DocTypes:
