@@ -16,3 +16,4 @@ recursive-include shipment_management *.py
 recursive-include shipment_management *.svg
 recursive-include shipment_management *.txt
 recursive-exclude shipment_management *.pyc
+recursive-exclude shipment_management *.idea
