@@ -40,7 +40,7 @@ def after_install():
 	FedexConfig.account_number = FedexTestServerConfiguration.account_number
 	FedexConfig.meter_number = FedexTestServerConfiguration.meter_number
 	FedexConfig.freight_account_number = FedexTestServerConfiguration.freight_account_number
-	FedexConfig.use_test_server = str(FedexTestServerConfiguration.use_test_server)
+	FedexConfig.use_test_server = FedexTestServerConfiguration.use_test_server
 
 	FedexConfig.submit()
 
