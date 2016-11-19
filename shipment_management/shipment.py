@@ -53,7 +53,7 @@ class ShipmentNoteOperationalStatus(object):
 	Failed = "Failed"
 
 
-# --------------------------------------------------------------
+##############################################################################
 # Mapper
 
 @check_permission()
@@ -85,13 +85,92 @@ def make_fedex_shipment_from_shipment_note(source_name, target_doc=None):
 
 	return doclist
 
-# --------------------------------------------------------------
+##############################################################################
 
 
 @check_permission()
 @frappe.whitelist()
 def get_carriers_list():
 	return [SupportedProviderList.Fedex]
+
+
+##############################################################################
+
+# Shipment Note Information Setup
+
+# Shipper contact info.
+# shipment.RequestedShipment.Shipper.Contact.PersonName = 'Sender Name'  # Company
+# shipment.RequestedShipment.Shipper.Contact.CompanyName = 'Some Company'  # Company
+# shipment.RequestedShipment.Shipper.Contact.PhoneNumber = '9012638716'  # Company
+#
+# # Shipper address.
+# shipment.RequestedShipment.Shipper.Address.StreetLines = ['Address Line 1']
+# shipment.RequestedShipment.Shipper.Address.City = 'Herndon'
+# shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = 'VA'
+# shipment.RequestedShipment.Shipper.Address.PostalCode = '20171'
+# shipment.RequestedShipment.Shipper.Address.CountryCode = 'US'
+
+#
+# # Recipient contact info.
+# shipment.RequestedShipment.Recipient.Contact.PersonName = 'Recipient Name'
+# shipment.RequestedShipment.Recipient.Contact.CompanyName = 'Recipient Company'
+# shipment.RequestedShipment.Recipient.Contact.PhoneNumber = '9012637906'
+#
+# # Recipient addressStateOrProvinceCode
+# shipment.RequestedShipment.Recipient.Address.StreetLines = ['Address Line 1']
+# shipment.RequestedShipment.Recipient.Address.City = 'Herndon'
+# shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = 'VA'
+# shipment.RequestedShipment.Recipient.Address.PostalCode = '20171'
+# shipment.RequestedShipment.Recipient.Address.CountryCode = 'US'
+
+
+class Contact(object):
+	def __init__(self):
+		self.PersonName = None
+		self.CompanyName = None
+		self.PhoneNumber = None
+
+
+class Address(object):
+	def __init__(self):
+		self.StreetLines = []
+		self.City = None
+		self.StateOrProvinceCode = None
+		self.PostalCode = None
+		self.CountryCode = None
+
+
+class ShipperCompany(object):
+	def __init__(self, delivery_note_company):
+		self.company = delivery_note_company
+
+		self.address = self.get_address()
+
+		self.contact = Contact()
+
+	def get_address(self):
+		address = Address()
+		address.StreetLines = ''
+		address.City = ''
+		address.StateOrProvinceCode = ''
+		address.PostalCode = ''
+		address.CountryCode = ''
+		return address
+
+	def get_company_info(self):
+		return frappe.db.sql('''SELECT *  from tabCompany WHERE name="%s"''' % self.company, as_dict=True)
+
+
+class Recipient(object):
+	def __init__(self, delivery_note):
+		self.address = Address()
+		self.address.StreetLines = ''
+		self.address.City = ''
+		self.address.StateOrProvinceCode = ''
+		self.address.PostalCode = ''
+		self.address.CountryCode = ''
+
+		self.contact = Contact()
 
 
 @check_permission()
@@ -102,8 +181,26 @@ def get_company_email(delivery_note_company):
 
 @check_permission()
 @frappe.whitelist()
+def get_shipper(delivery_note_company):
+	return ShipperCompany(delivery_note_company)
+
+
+@check_permission()
+@frappe.whitelist()
+def get_recipient(delivery_note):
+	return Recipient(delivery_note)
+
+
+@check_permission()
+@frappe.whitelist()
 def get_delivery_items(delivery_note_name):
 	return frappe.db.sql('''SELECT * from `tabDelivery Note Item` WHERE parent="%s"''' % delivery_note_name, as_dict=True)
+
+
+@check_permission()
+@frappe.whitelist()
+def get_shipment_items(shipment_note_name):
+	return frappe.db.sql('''SELECT * from `tabDTI Shipment Note Item` WHERE parent="%s"''' % shipment_note_name, as_dict=True)
 
 
 @check_permission()
