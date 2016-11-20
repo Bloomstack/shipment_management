@@ -99,6 +99,10 @@ For run tests you should execute command:
 ```
 bench run-tests --app shipment_management
 ```
+or
+```
+bench run-tests --module "shipment_management.shipment_management.test_shipment_management"
+```
 
 # 8. Permissions
 - Shipment Manager
