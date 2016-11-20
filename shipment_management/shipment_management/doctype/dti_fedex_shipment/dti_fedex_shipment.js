@@ -13,7 +13,7 @@ frappe.ui.form.on('DTI Fedex Shipment', {
                         {
                            var url = '/labels?name=' + cur_frm.doc.name
                            window.location.assign(url)
-                        });
+                        }).addClass("btn btn-primary");
                 }
 	}
 

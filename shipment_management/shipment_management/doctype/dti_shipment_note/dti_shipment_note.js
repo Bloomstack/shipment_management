@@ -45,7 +45,7 @@ frappe.ui.form.on('DTI Shipment Note', {
 																									}
 																		   );
 																		    }
-																			).addClass("btn btn-primary");
+																			).addClass("btn btn-default btn-xs btn-danger");
 
 											            }
 				},
