@@ -22,7 +22,11 @@ from frappe.model.document import Document
 from frappe.utils.file_manager import *
 
 from shipment_management.provider_fedex import FedexProvider, get_package_rate, estimate_delivery_time
-from shipment_management.shipment import ShipmentNoteOperationalStatus
+from shipment_management.shipment import ShipmentNoteOperationalStatus, check_permission
+from shipment_management.email_controller import send_email_status_update, TEMPLATE_PickedUP
+from shipment_management.comment_controller import CommentController
+
+
 
 fedex_track_service = frappe.get_module("fedex.services.track_service")
 fedex_config = frappe.get_module("fedex.config")
@@ -280,3 +284,14 @@ class DTIFedexShipment(Document):
 
 		# Here is the overall end result of the query.
 		print("HighestSeverity: {}".format(del_request.response.HighestSeverity))
+
+
+@check_permission()
+@frappe.whitelist()
+def set_fedex_status(fedex_name, new_status):
+	frappe.db.set_value('DTI Fedex Shipment', fedex_name, "fedex_status", new_status)
+	CommentController.add_comment('DTI Fedex Shipment', fedex_name, CommentController.Comment, "Status update = [%s]" % new_status)
+
+	if new_status == "Picked Up":
+		print "sent email.... ", fedex_name
+		send_email_status_update(target_doc=fedex_name, message=TEMPLATE_PickedUP)

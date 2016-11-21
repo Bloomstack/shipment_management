@@ -8,18 +8,6 @@ function create_fedex_shipment() {
 	})
 }
 
-frappe.ui.form.on("DTI Shipment Note", "before_cancel", function(frm) {
-     if(frm.doc.clearance_date){
-        frappe.confirm('Are you sure?' ,
-                function(){
-                  show_alert('block one')
-                },
-                function(){
-                  show_alert('block two')
-                }
-            );
-     }
-});
 
 frappe.ui.form.on('DTI Shipment Note', {
 	onload_post_render: function(frm) {
@@ -65,7 +53,7 @@ frappe.ui.form.on('DTI Shipment Note', {
 get_company_email = function(doc) {
 		return frappe.call({
 			method:'shipment_management.shipment.get_company_email',
-			args: { delivery_note_company: cur_frm.doc.delivery_note_company}
+			args: { delivery_note_company: cur_frm.doc.company_name}
 		});
 };
 

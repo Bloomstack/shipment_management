@@ -15,15 +15,6 @@ class FedexTestServerConfiguration(object):
     use_test_server = True
 
 
-EMAIL_SIGNATURE = """
-SincerelyYours,
-Jerry Harvey AudioJHA Team
-__________________________________
-
-This message is auto-generated. Please do not reply to it directly.
-If you have any questions or issues, please contact us by phone (866) 485-9111, fax (407) 814-0018 or drop us a note
-"""
-
 SHORT_COMPANY_NAME = """JH Audio"""
 
 

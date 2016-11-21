@@ -3,14 +3,13 @@
 
 from __future__ import unicode_literals
 
-import logging
 import json
+import logging
 import sys
 
 import frappe
 from frappe.utils.password import get_decrypted_password
-
-import app_config
+from config import app_config
 
 # -------------------------------------------------------------------
 
