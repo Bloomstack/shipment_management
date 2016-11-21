@@ -107,3 +107,36 @@ bench run-tests --module "shipment_management.shipment_management.test_shipment_
 # 8. Permissions
 - Shipment Manager
 - Shipment User
+
+# 9. Debug/testing:
+Debug command for set fedex status.
+
+Example statuses:
+
+AA - At Airport
+PL - Plane Landed
+AD - At Delivery
+PM - In Progress
+AF - At FedEx Facility
+PU - Picked Up
+AP - At Pickup
+PX - Picked up 
+AR - Arrived at
+RR - CDO Requested
+AX - At USPS facility
+RM - CDO Modified
+CA - Shipment Canceled
+RC - CDO Cancelled
+CH - Location Changed
+RS - Return to Shipper
+DD - Delivery Delay
+DE - Delivery Exception
+DL - Delivered
+DP - Departed FedEx Location
+SE - Shipment Exception
+DS - Vehicle dispatched
+SF - At Sort Facility
+DY - Delay
+SP - Split status - multiple statuses
+EA - Enroute to Airport delay
+TR - Transfer
