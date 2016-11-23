@@ -1,61 +1,49 @@
 // Copyright (c) 2016, DigiThinkit Inc. and contributors
 // For license information, please see license.txt
 
-function create_fedex_shipment() {
-	frappe.model.open_mapped_doc({
-		method: "shipment_management.shipment.make_fedex_shipment_from_shipment_note",
-		frm: cur_frm
-	})
-}
-
 
 frappe.ui.form.on('DTI Shipment Note', {
-	onload_post_render: function(frm) {
-
-					$("[data-fieldname='fedex_button']:button").css({'color':'white', 'background-color': '#5e64ff', 'border-color': '#444bff'})
-
-					if ((cur_frm.doc.fedex_name) && (cur_frm.doc.shipment_note_status != 'Cancelled') && (cur_frm.doc.shipment_note_status != 'Returned')){
-
-			                cur_frm.add_custom_button(__('Cancel shipment process'),
-													function(doc) {
-																frappe.confirm('This action cannot be reverted! Do you really want to cancel shipment?' ,
-																				function(){
-																									show_alert('Cancel shipment procces.')
-																									frappe.call({
-																									            method:'shipment_management.shipment.cancel_shipment',
-																									            args: {source_name: cur_frm.doc.name}
-																														})
-																								  cur_frm.clear_custom_buttons();
-																									location.reload();
-																									},
-																				function(){
-																									show_alert('No canceling...')
-																									}
-																		   );
-																		    }
-																			).addClass("btn btn-default btn-xs btn-danger");
-
-											            }
-				},
 
 	refresh: function(frm) {
 			cur_frm.refresh_fields();
+		    if (cur_frm.doc.label_1)
+                    {
+                    cur_frm.add_custom_button(__('Print label'),
+                    function ()
+                        {
+                           var url = '/labels?name=' + cur_frm.doc.name
+                           window.location.assign(url)
+                        }).addClass("btn btn-primary");
 
-	},
+			        cur_frm.add_custom_button(__('Cancel shipment process'),
+					function(doc) {
+                            frappe.confirm('This action cannot be reverted! Do you really want to cancel shipment?' ,
+                                            function(){
+                                                       show_alert('Cancel shipment procces.')
+                                                       frappe.call({
+                                                       method:'shipment_management.shipment.cancel_shipment',
+                                                       args: {source_name: cur_frm.doc.name}
+                                                                   })
+                                                        cur_frm.clear_custom_buttons();
+                                                        location.reload();
+                                                        },
+                                            function(){
+                                                      show_alert('No canceling...')
+                                                      }
+                                       );}
+                                        ).addClass("btn btn-default btn-xs btn-danger");
 
-	fedex_button: function(frm) {
-			create_fedex_shipment();
-		}
-
+                              }
+	                    },
 });
 
 
-get_company_email = function(doc) {
-		return frappe.call({
-			method:'shipment_management.shipment.get_company_email',
-			args: { delivery_note_company: cur_frm.doc.company_name}
-		});
-};
+//get_company_email = function(doc) {
+//		return frappe.call({
+//			method:'shipment_management.shipment.get_company_email',
+//			args: { delivery_note_company: cur_frm.doc.company_name}
+//		});
+//};
 
 get_delivery_items = function(doc) {
 		return frappe.call({
@@ -76,12 +64,6 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
         if (frm.doc.delivery_note)
             {
 
-            get_company_email()
-                .done(function(email_resp){
-                    frm.doc.delivery_email = email_resp.message[0].email;
-                    cur_frm.refresh_fields()
-                    });
-
             get_delivery_items()
                 .done(function(item_list){
                 frappe.model.clear_table(cur_frm.doc, 'delivery_items');
@@ -95,7 +77,7 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
                     frappe.model.set_value(dt, new_row.name, 'item_group', item_list.message[i].item_group);
                     frappe.model.set_value(dt, new_row.name, 'installed_qty', item_list.message[i].installed_qty);
 
-										frappe.model.set_value(dt, new_row.name, 'qty', item_list.message[i].qty);
+					frappe.model.set_value(dt, new_row.name, 'qty', item_list.message[i].qty);
                     frappe.model.set_value(dt, new_row.name, 'description', item_list.message[i].description);
 
                     cur_frm.refresh_fields("delivery_items")

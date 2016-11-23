@@ -18,3 +18,48 @@ class FedexTestServerConfiguration(object):
 SHORT_COMPANY_NAME = """JH Audio"""
 
 
+##################################################################
+
+class FedexStatusCode(object):
+    def __init__(self, status_code, definition):
+        self.status_code = status_code
+        self.definition = definition
+
+
+class StatusMapFedexAndShipmentNote(object):
+    """
+    ALL STATUSES:
+    AA - At Airport
+    PL - Plane Landed
+    AD - At Delivery
+    PM - In Progress
+    AF - At FedEx Facility
+    PU - Picked Up
+    AP - At Pickup
+    PX - Picked up (see Details)
+    AR - Arrived at
+    RR - CDO Requested
+    AX - At USPS facility
+    RM - CDO Modified
+    CA - Shipment Canceled
+    RC - CDO Cancelled
+    CH - Location Changed
+    RS - Return to Shipper
+    DD - Delivery Delay
+    DE - Delivery Exception
+    DL - Delivered
+    DP - Departed FedEx Location
+    SE - Shipment Exception
+    DS - Vehicle dispatched
+    SF - At Sort Facility
+    DY - Delay
+    EA - Enroute to Airport delay
+    TR - Transfer
+    """
+    Completed = [FedexStatusCode("DL", "Delivered")]
+
+    Canceled = [FedexStatusCode("CA", "Shipment Canceled")]
+
+    Failed = [FedexStatusCode("DE", "Delivery Exception"),
+              FedexStatusCode("SE", "Shipment Exception"),
+              FedexStatusCode("RS", "Return to Shipper")]

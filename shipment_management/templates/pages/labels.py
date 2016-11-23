@@ -7,7 +7,7 @@ def get_context(context):
 	try:
 		doc_name = frappe.request.args.get('name', '')
 
-		doc = frappe.get_doc('DTI Fedex Shipment', doc_name)
+		doc = frappe.get_doc('DTI Shipment Note', doc_name)
 
 		context.no_cache = 1
 		context.no_sitemap = 1

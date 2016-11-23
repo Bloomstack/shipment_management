@@ -3,22 +3,5 @@
 
 <body>
 
-{{customer_name}},
-
-This is to inform you upon a new shipment originated for you by JH Audio.
-
-Your Order is on its way!The following items have shipped to: <%ShipmentNote Address%>
-
-<% Table with Shipment Items from ShipmentNote %>
-
-Below are the shipment details for your reference:
-<li> Internal Sales OrderShipment ID at JH Audio: ‘<%SalesOrderShipmentNote ID%>’
-<li> Carrier: <% Carrier Name %>
-<li> Delivery option: <%Carrier’s Delivery option name%>
-<li> Shipment price: <% price as quoted and returned by Carrier’s API %>
-<li> <% Carrier Name %>Carrier’s Tracking number: <% Carrier’s Tracking Number %>
-<li> Estimated Delivery Date: <% Estimated Delivery Date as indicated by Carrier REST API %>
-You can track the status of your shipment online at <% dynamic url to Carrier’s tracking Web service with tracking number embedded as a parameter %>
-
 </body>
 </html>

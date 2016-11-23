@@ -11,7 +11,7 @@ function onClick()
 
     frappe.call({
                type: "POST",
-               method: "shipment_management.get_html_code_status_with_fedex_tracking_number.get_html_code_status_with_fedex_tracking_number",
+               method: "shipment_management.provider_fedex.get_html_code_status_with_fedex_tracking_number",
                args: {
                    track_value: number
                     },
