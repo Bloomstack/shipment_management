@@ -73,8 +73,6 @@ PRIMARY_FEDEX_DOC_NAME - Used to switch from Fedex Test Server to Fedex Producti
 - DTI Shipment Note Item (Items from Delivery Note, Table can be customised)
 - DTI Shipment Package (Physical shipment box)
 - DTI Fedex Shipment Configuration (Configuration DocType for Fedex Connection)
-- DTI Fedex Shipment (Shipment information, with tracking number, labels and etc.)
-- DTI Fedex Shipment Item (Items from Shipment Note, Table Read-Only)
 
 # 6. Supported Shipment providers
 
@@ -111,32 +109,35 @@ bench run-tests --module "shipment_management.shipment_management.test_shipment_
 # 9. Debug/testing:
 Debug command for set fedex status.
 
-Example statuses:
+Trigger event/ operational statuses:
+- Picked up - email to customer
 
-AA - At Airport
-PL - Plane Landed
-AD - At Delivery
-PM - In Progress
-AF - At FedEx Facility
-PU - Picked Up
-AP - At Pickup
-PX - Picked up 
-AR - Arrived at
-RR - CDO Requested
-AX - At USPS facility
-RM - CDO Modified
-CA - Shipment Canceled
-RC - CDO Cancelled
-CH - Location Changed
-RS - Return to Shipper
-DD - Delivery Delay
-DE - Delivery Exception
-DL - Delivered
-DP - Departed FedEx Location
-SE - Shipment Exception
-DS - Vehicle dispatched
-SF - At Sort Facility
-DY - Delay
-SP - Split status - multiple statuses
-EA - Enroute to Airport delay
-TR - Transfer
+
+All:
+
+At Airport
+Plane Landed
+At Delivery
+In Progress
+At FedEx Facility
+Picked Up
+At Pickup
+Picked up 
+Arrived at
+CDO Requested
+At USPS facility
+CDO Modified
+Shipment Canceled
+CDO Cancelled
+Location Changed
+Return to Shipper
+Delivery Delay
+Delivery Exception
+Delivered
+Departed FedEx Location
+Shipment Exception
+Vehicle dispatched
+At Sort Facility
+Delay
+Enroute to Airport delay
+Transfer
