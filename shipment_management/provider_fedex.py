@@ -44,21 +44,21 @@ def get_package_rate(DropoffType=None,
 					 PaymentType=None,
 					 package_list=None):
 	"""
-		Define package rate
-		:param DropoffType:
-		:param ServiceType:
-		:param PackagingType:
-		:param ShipperStateOrProvinceCode:
-		:param ShipperPostalCode:
-		:param ShipperCountryCode:
-		:param RecipientStateOrProvinceCode:
-		:param RecipientPostalCode:
-		:param RecipientCountryCode:
-		:param EdtRequestType:
-		:param PaymentType:
-		:param package_list:
-		:return: TotalNetChargeWithDutiesAndTaxes
-		"""
+	Define package rate
+	:param DropoffType:
+	:param ServiceType:
+	:param PackagingType:
+	:param ShipperStateOrProvinceCode:
+	:param ShipperPostalCode:
+	:param ShipperCountryCode:
+	:param RecipientStateOrProvinceCode:
+	:param RecipientPostalCode:
+	:param RecipientCountryCode:
+	:param EdtRequestType:
+	:param PaymentType:
+	:param package_list:
+	:return: TotalNetChargeWithDutiesAndTaxes
+	"""
 
 	fedex_configuration = FedexProvider()
 
@@ -103,13 +103,13 @@ def get_package_rate(DropoffType=None,
 @frappe.whitelist()
 def estimate_delivery_time(OriginPostalCode, OriginCountryCode, DestinationPostalCode, DestinationCountryCode):
 	"""
-		Projected package delivery date based on ship date, service, and destination
-		:param OriginPostalCode:
-		:param OriginCountryCode:
-		:param DestinationPostalCode:
-		:param DestinationCountryCode:
-		:return: ShipDate
-		"""
+	Projected package delivery date based on ship date, service, and destination
+	:param OriginPostalCode:
+	:param OriginCountryCode:
+	:param DestinationPostalCode:
+	:param DestinationCountryCode:
+	:return: ShipDate
+	"""
 	fedex_configuration = FedexProvider()
 
 	avc_request = FedexAvailabilityCommitmentRequest(fedex_configuration.config_obj)
@@ -174,8 +174,14 @@ class FedexProvider(object):
 						   use_test_server=_test_server)
 
 	@staticmethod
-	def create_package(shipment, sequence_number=1, package_weight_value=1.0, package_weight_units="LB",
-					   physical_packaging="ENVELOPE"):
+	def create_package(shipment,
+					   sequence_number=1,
+					   package_weight_value=1.0,
+					   package_weight_units="LB",
+					   physical_packaging="ENVELOPE",
+					   insure_currency=1.0,
+					   insure_amount = 'USD'):
+
 		package_weight = shipment.create_wsdl_object_of_type('Weight')
 		package_weight.Value = package_weight_value
 		package_weight.Units = package_weight_units
@@ -183,6 +189,10 @@ class FedexProvider(object):
 		package = shipment.create_wsdl_object_of_type('RequestedPackageLineItem')
 		package.PhysicalPackaging = physical_packaging
 		package.Weight = package_weight
+
+		package1_insure = shipment.create_wsdl_object_of_type('Money')
+		package1_insure.Currency = insure_currency
+		package1_insure.Amount = insure_amount
 
 		package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
 		package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'SERVICE_DEFAULT'
@@ -201,8 +211,6 @@ class FedexProvider(object):
 			frappe.throw(_("Please create shipment box packages!"))
 
 		GENERATE_IMAGE_TYPE = 'PNG'
-
-		logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 		customer_transaction_id = "*** ShipService Request v17 using Python ***"
 
@@ -226,7 +234,11 @@ class FedexProvider(object):
 		shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = source_doc.shipper_address_state_or_provincecode
 		shipment.RequestedShipment.Shipper.Address.PostalCode = source_doc.shipper_address_postalcode
 		shipment.RequestedShipment.Shipper.Address.CountryCode = source_doc.shipper_address_country_code
-		shipment.RequestedShipment.Shipper.Address.Residential = True
+
+		if source_doc.shipper_address_residential:
+			shipment.RequestedShipment.Shipper.Address.Residential = True
+		else:
+			shipment.RequestedShipment.Shipper.Address.Residential = False
 
 		# Recipient contact info.
 		shipment.RequestedShipment.Recipient.Contact.PersonName = source_doc.recipient_contact_person_name
@@ -239,8 +251,12 @@ class FedexProvider(object):
 		shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = source_doc.recipient_address_state_or_provincecode
 		shipment.RequestedShipment.Recipient.Address.PostalCode = source_doc.recipient_address_postalcode
 		shipment.RequestedShipment.Recipient.Address.CountryCode = source_doc.recipient_address_countrycode
-		# This is needed to ensure an accurate rate quote with the response. Use AddressValidation to get ResidentialStatus
-		shipment.RequestedShipment.Recipient.Address.Residential = True
+
+		if source_doc.recipient_address_residential:
+			shipment.RequestedShipment.Recipient.Address.Residential = True
+		else:
+			shipment.RequestedShipment.Recipient.Address.Residential = False
+
 		shipment.RequestedShipment.EdtRequestType = 'NONE'
 
 		# Senders account information
@@ -261,8 +277,8 @@ class FedexProvider(object):
 
 		package1 = FedexProvider.create_package(shipment=shipment,
 												sequence_number=1,
-												package_weight_value=5.0,
-												package_weight_units="LB",
+												package_weight_value=BOXES[0].weight_value,
+												package_weight_units=BOXES[0].weight_units,
 												physical_packaging="ENVELOPE")
 
 		shipment.RequestedShipment.RequestedPackageLineItems = [package1]
@@ -302,7 +318,7 @@ class FedexProvider(object):
 
 			i += 1
 
-			package = source_doc.create_package(shipment=shipment,
+			package = FedexProvider.create_package(shipment=shipment,
 												sequence_number=i + 1,
 												package_weight_value=5.0,
 												package_weight_units="LB",
@@ -378,26 +394,20 @@ class FedexProvider(object):
 		from fedex.services.ship_service import FedexDeleteShipmentRequest
 		from fedex.base_service import FedexError
 
-		# Un-comment to see the response from Fedex printed in stdout.
-		logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-
 		provider = FedexProvider()
 		CONFIG_OBJ = provider.get_fedex_config()
 
 		del_request = FedexDeleteShipmentRequest(CONFIG_OBJ)
 
-		# Either delete all packages in a shipment, or delete an individual package.
-		# Docs say this isn't required, but the WSDL won't validate without it.
-		# DELETE_ALL_PACKAGES, DELETE_ONE_PACKAGE
 		del_request.DeletionControlType = "DELETE_ALL_PACKAGES"
 
-		# The tracking number of the shipment to delete.
 		del_request.TrackingId.TrackingNumber = source_doc.tracking_number
 
 		# What kind of shipment the tracking number used.
 		# Docs say this isn't required, but the WSDL won't validate without it.
 		# EXPRESS, GROUND, or USPS
-		del_request.TrackingId.TrackingIdType = 'EXPRESS'
+		# TODO
+		del_request.TrackingId.TrackingIdType = FedexProvider.master_tracking_id_type
 
 		# Fires off the request, sets the 'response' attribute on the object.
 		try:
@@ -408,19 +418,8 @@ class FedexProvider(object):
 			else:
 				frappe.throw(_("%s" % error))
 
-		# See the response printed out.
-		# print(del_request.response)
+		frappe.throw(_("%s" % del_request.response))
 
-		# This will convert the response to a python dict object. To
-		# make it easier to work with.
-		# from fedex.tools.response_tools import basic_sobject_to_dict
-		# print(basic_sobject_to_dict(del_request.response))
-
-		# This will dump the response data dict to json.
-		# from fedex.tools.response_tools import sobject_to_json
-		# print(sobject_to_json(del_request.response))
-
-		# Here is the overall end result of the query.
 		print("HighestSeverity: {}".format(del_request.response.HighestSeverity))
 
 
