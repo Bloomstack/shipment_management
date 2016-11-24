@@ -4,10 +4,8 @@
 from __future__ import unicode_literals
 
 import json
-import logging
 import binascii
 import datetime
-import sys
 
 from frappe.utils.password import get_decrypted_password
 from frappe import _
@@ -22,6 +20,10 @@ conversion = frappe.get_module("fedex.tools.conversion")
 availability_commitment_service = frappe.get_module("fedex.services.availability_commitment_service")
 ship_service = frappe.get_module("fedex.services.ship_service")
 
+# TODO fix import
+from fedex.services.ship_service import FedexDeleteShipmentRequest
+from fedex.base_service import FedexError
+
 subject_to_json = conversion.sobject_to_json
 FedexTrackRequest = fedex_track_service.FedexTrackRequest
 FedexConfig = fedex_config.FedexConfig
@@ -29,6 +31,73 @@ FedexRateServiceRequest = rate_service.FedexRateServiceRequest
 FedexAvailabilityCommitmentRequest = availability_commitment_service.FedexAvailabilityCommitmentRequest
 FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
 
+CUSTOMER_TRANSACTION_ID = "*** TrackService Request v10 using Python ***"
+
+
+################################################################################
+################################################################################
+################################################################################
+
+# Fedex Configuration
+
+
+def _get_configuration():
+	fedex_server_doc_type = frappe.db.sql(
+		'''SELECT * from `tabDTI Fedex Configuration` WHERE name = "%s"''' % PRIMARY_FEDEX_DOC_NAME, as_dict=True)
+
+	if not fedex_server_doc_type:
+		frappe.throw(_("Please create Fedex Configuration: %s" % PRIMARY_FEDEX_DOC_NAME))
+
+	return fedex_server_doc_type[0]
+
+
+def get_fedex_server_info():
+	fedex_server_doc_type = _get_configuration()
+
+	config_message = """<b>FEDEX CONFIG:</b>
+	<br><b>key </b>                   : '{key}'
+	<br><b>password </b>              : '{password}'
+	<br><b>account_number </b>        : '{account_number}'
+	<br><b>meter_number </b>          : '{meter_number}'
+	<br><b>freight_account_number</b> : '{freight_account_number}'
+	<br><b>use_test_server </b>       : '{use_test_server}'""".format(
+		key=fedex_server_doc_type['fedex_key'],
+		password=fedex_server_doc_type['password'],
+		account_number=fedex_server_doc_type['account_number'],
+		meter_number=fedex_server_doc_type['meter_number'],
+		freight_account_number=fedex_server_doc_type['freight_account_number'],
+		use_test_server=fedex_server_doc_type['use_test_server'])
+
+	return config_message
+
+
+def get_fedex_config():
+	fedex_server_doc_type = _get_configuration()
+
+	if fedex_server_doc_type['use_test_server']:
+		_test_server = True
+	else:
+		_test_server = False
+
+	return FedexConfig(key=fedex_server_doc_type['fedex_key'],
+					   password=get_decrypted_password('DTI Fedex Configuration',
+													   PRIMARY_FEDEX_DOC_NAME,
+													   fieldname='password',
+													   raise_exception=True),
+					   account_number=fedex_server_doc_type['account_number'],
+					   meter_number=fedex_server_doc_type['meter_number'],
+					   freight_account_number=fedex_server_doc_type['freight_account_number'],
+					   use_test_server=_test_server)
+
+
+CONFIG_OBJ = get_fedex_config()
+
+
+################################################################################
+################################################################################
+################################################################################
+
+# API:
 
 @frappe.whitelist()
 def get_package_rate(DropoffType=None,
@@ -60,9 +129,7 @@ def get_package_rate(DropoffType=None,
 	:return: TotalNetChargeWithDutiesAndTaxes
 	"""
 
-	fedex_configuration = FedexProvider()
-
-	rate = FedexRateServiceRequest(fedex_configuration.config_obj)
+	rate = FedexRateServiceRequest(CONFIG_OBJ)
 
 	rate.RequestedShipment.DropoffType = DropoffType
 	rate.RequestedShipment.ServiceType = ServiceType
@@ -89,6 +156,10 @@ def get_package_rate(DropoffType=None,
 		package1.PhysicalPackaging = package["physical_packaging"]
 		package1.GroupPackageCount = package["group_package_count"]
 
+		package_insure = rate.create_wsdl_object_of_type('Money')
+		package_insure.Currency = "USD"
+		package_insure.Amount = package["insured_amount"]
+
 		rate.add_package(package1)
 
 	rate.send_request()
@@ -101,7 +172,10 @@ def get_package_rate(DropoffType=None,
 
 
 @frappe.whitelist()
-def estimate_delivery_time(OriginPostalCode, OriginCountryCode, DestinationPostalCode, DestinationCountryCode):
+def estimate_delivery_time(OriginPostalCode=None,
+						   OriginCountryCode=None,
+						   DestinationPostalCode=None,
+						   DestinationCountryCode=None):
 	"""
 	Projected package delivery date based on ship date, service, and destination
 	:param OriginPostalCode:
@@ -110,9 +184,8 @@ def estimate_delivery_time(OriginPostalCode, OriginCountryCode, DestinationPosta
 	:param DestinationCountryCode:
 	:return: ShipDate
 	"""
-	fedex_configuration = FedexProvider()
 
-	avc_request = FedexAvailabilityCommitmentRequest(fedex_configuration.config_obj)
+	avc_request = FedexAvailabilityCommitmentRequest(CONFIG_OBJ)
 
 	avc_request.Origin.PostalCode = OriginPostalCode
 	avc_request.Origin.CountryCode = OriginCountryCode
@@ -127,314 +200,290 @@ def estimate_delivery_time(OriginPostalCode, OriginCountryCode, DestinationPosta
 ################################################################################
 ################################################################################
 
+# SHIPMENT
 
-class FedexProvider(object):
-	def __init__(self):
-		self.fedex_server_doc_type = None
-		self.config_message = ""
-		self.config_obj = self.get_fedex_config()
 
-	def get_fedex_config(self, general_doc_type_name=PRIMARY_FEDEX_DOC_NAME):
+def _create_fedex_package(shipment,
+						  sequence_number=None,
+						  package_weight_value=0,
+						  package_weight_units=None,
+						  physical_packaging=None,
+						  insure_currency=None,
+						  insured_amount=None):
+	package_weight = shipment.create_wsdl_object_of_type('Weight')
+	package_weight.Value = package_weight_value
+	package_weight.Units = package_weight_units
 
-		_fedex_config = frappe.db.sql(
-			'''SELECT * from `tabDTI Fedex Configuration` WHERE name = "%s"''' % general_doc_type_name, as_dict=True)
+	package = shipment.create_wsdl_object_of_type('RequestedPackageLineItem')
 
-		if not _fedex_config:
-			raise Exception("Please create Fedex Configuration: %s" % general_doc_type_name)
+	package.PhysicalPackaging = physical_packaging
+	package.Weight = package_weight
 
-		self.fedex_server_doc_type = _fedex_config[0]
+	if insure_currency and insured_amount:
+		package_insure = shipment.create_wsdl_object_of_type('Money')
+		package_insure.Currency = insure_currency
+		package_insure.Amount = insured_amount
+		package.InsuredValue = package_insure
 
-		if self.fedex_server_doc_type['use_test_server']:
-			_test_server = True
-		else:
-			_test_server = False
+	package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
+	package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'SERVICE_DEFAULT'
+	package.SequenceNumber = sequence_number
+	return package
 
-		self.config_message = """<b>FEDEX CONFIG:</b>
-<br><b>key </b>                   : '{key}'
-<br><b>password </b>              : '{password}'
-<br><b>account_number </b>        : '{account_number}'
-<br><b>meter_number </b>          : '{meter_number}'
-<br><b>freight_account_number</b> : '{freight_account_number}'
-<br><b>use_test_server </b>       : '{use_test_server}'""".format(
-			key=self.fedex_server_doc_type['fedex_key'],
-			password=self.fedex_server_doc_type['password'],
-			account_number=self.fedex_server_doc_type['account_number'],
-			meter_number=self.fedex_server_doc_type['meter_number'],
-			freight_account_number=self.fedex_server_doc_type['freight_account_number'],
-			use_test_server=_test_server)
 
-		return FedexConfig(key=self.fedex_server_doc_type['fedex_key'],
-						   password=get_decrypted_password('DTI Fedex Configuration',
-														   general_doc_type_name,
-														   fieldname='password',
-														   raise_exception=True),
-						   account_number=self.fedex_server_doc_type['account_number'],
-						   meter_number=self.fedex_server_doc_type['meter_number'],
-						   freight_account_number=self.fedex_server_doc_type['freight_account_number'],
-						   use_test_server=_test_server)
+def create_fedex_shipment(source_doc):
+	BOXES = source_doc.get_all_children("DTI Shipment Package")
 
-	@staticmethod
-	def create_package(shipment,
-					   sequence_number=1,
-					   package_weight_value=1.0,
-					   package_weight_units="LB",
-					   physical_packaging="ENVELOPE",
-					   insure_currency=1.0,
-					   insure_amount = 'USD'):
+	if len(BOXES) > 9:
+		frappe.throw(_("Max amount of packages is 10"))
 
-		package_weight = shipment.create_wsdl_object_of_type('Weight')
-		package_weight.Value = package_weight_value
-		package_weight.Units = package_weight_units
+	if not BOXES:
+		frappe.throw(_("Please create shipment box packages!"))
 
-		package = shipment.create_wsdl_object_of_type('RequestedPackageLineItem')
-		package.PhysicalPackaging = physical_packaging
-		package.Weight = package_weight
+	GENERATE_IMAGE_TYPE = 'PNG'
 
-		package1_insure = shipment.create_wsdl_object_of_type('Money')
-		package1_insure.Currency = insure_currency
-		package1_insure.Amount = insure_amount
+	shipment = FedexProcessShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
 
-		package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
-		package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'SERVICE_DEFAULT'
-		package.SequenceNumber = sequence_number
-		return package
+	shipment.RequestedShipment.DropoffType = source_doc.drop_off_type
+	shipment.RequestedShipment.ServiceType = source_doc.service_type
 
-	@staticmethod
-	def create_shipment(source_doc):
+	shipment.RequestedShipment.PackagingType = source_doc.packaging_type
 
-		BOXES = source_doc.get_all_children("DTI Shipment Package")
+	# Shipper contact info.
+	shipment.RequestedShipment.Shipper.Contact.PersonName = source_doc.shipper_contact_person_name
+	shipment.RequestedShipment.Shipper.Contact.CompanyName = source_doc.shipper_contact_company_name
+	shipment.RequestedShipment.Shipper.Contact.PhoneNumber = source_doc.shipper_contact_phone_number
 
-		if len(BOXES) > 9:
-			frappe.throw(_("Max amount of packages is 10"))
+	# Shipper address.
+	shipment.RequestedShipment.Shipper.Address.StreetLines = [source_doc.shipper_address_streetlines]
+	shipment.RequestedShipment.Shipper.Address.City = source_doc.shipper_address_city
+	shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = source_doc.shipper_address_state_or_provincecode
+	shipment.RequestedShipment.Shipper.Address.PostalCode = source_doc.shipper_address_postalcode
+	shipment.RequestedShipment.Shipper.Address.CountryCode = source_doc.shipper_address_country_code
 
-		if not BOXES:
-			frappe.throw(_("Please create shipment box packages!"))
+	if source_doc.shipper_address_residential:
+		shipment.RequestedShipment.Shipper.Address.Residential = True
+	else:
+		shipment.RequestedShipment.Shipper.Address.Residential = False
 
-		GENERATE_IMAGE_TYPE = 'PNG'
+	# Recipient contact info.
+	shipment.RequestedShipment.Recipient.Contact.PersonName = source_doc.recipient_contact_person_name
+	shipment.RequestedShipment.Recipient.Contact.CompanyName = source_doc.recipient_company_name
+	shipment.RequestedShipment.Recipient.Contact.PhoneNumber = source_doc.recipient_contact_phone_number
 
-		customer_transaction_id = "*** ShipService Request v17 using Python ***"
+	# Recipient addressStateOrProvinceCode
+	shipment.RequestedShipment.Recipient.Address.StreetLines = [source_doc.recipient_address_street_lines]
+	shipment.RequestedShipment.Recipient.Address.City = source_doc.recipient_address_city
+	shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = source_doc.recipient_address_state_or_provincecode
+	shipment.RequestedShipment.Recipient.Address.PostalCode = source_doc.recipient_address_postalcode
+	shipment.RequestedShipment.Recipient.Address.CountryCode = source_doc.recipient_address_countrycode
 
-		provider = FedexProvider()
-		CONFIG_OBJ = provider.get_fedex_config()
+	if source_doc.recipient_address_residential:
+		shipment.RequestedShipment.Recipient.Address.Residential = True
+	else:
+		shipment.RequestedShipment.Recipient.Address.Residential = False
 
-		shipment = FedexProcessShipmentRequest(CONFIG_OBJ, customer_transaction_id=customer_transaction_id)
+	shipment.RequestedShipment.EdtRequestType = 'NONE'
 
-		shipment.RequestedShipment.DropoffType = source_doc.drop_off_type
-		shipment.RequestedShipment.ServiceType = source_doc.service_type
-		shipment.RequestedShipment.PackagingType = source_doc.packaging_type
+	# Senders account information
+	shipment.RequestedShipment.ShippingChargesPayment.Payor.ResponsibleParty.AccountNumber = CONFIG_OBJ.account_number
+	shipment.RequestedShipment.ShippingChargesPayment.PaymentType = source_doc.payment_type
+	shipment.RequestedShipment.LabelSpecification.LabelFormatType = 'COMMON2D'
+	shipment.RequestedShipment.LabelSpecification.ImageType = GENERATE_IMAGE_TYPE
+	shipment.RequestedShipment.LabelSpecification.LabelStockType = source_doc.label_stock_type
+	shipment.RequestedShipment.ShipTimestamp = datetime.datetime.now().replace(microsecond=0).isoformat()
+	shipment.RequestedShipment.LabelSpecification.LabelPrintingOrientation = 'TOP_EDGE_OF_TEXT_FIRST'
 
-		# Shipper contact info.
-		shipment.RequestedShipment.Shipper.Contact.PersonName = source_doc.shipper_contact_person_name
-		shipment.RequestedShipment.Shipper.Contact.CompanyName = source_doc.shipper_contact_company_name
-		shipment.RequestedShipment.Shipper.Contact.PhoneNumber = source_doc.shipper_contact_phone_number
+	if hasattr(shipment.RequestedShipment.LabelSpecification, 'LabelOrder'):
+		del shipment.RequestedShipment.LabelSpecification.LabelOrder  # Delete, not using.
 
-		# Shipper address.
-		shipment.RequestedShipment.Shipper.Address.StreetLines = [source_doc.shipper_address_streetlines]
-		shipment.RequestedShipment.Shipper.Address.City = source_doc.shipper_address_city
-		shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = source_doc.shipper_address_state_or_provincecode
-		shipment.RequestedShipment.Shipper.Address.PostalCode = source_doc.shipper_address_postalcode
-		shipment.RequestedShipment.Shipper.Address.CountryCode = source_doc.shipper_address_country_code
+	# ===================================================
 
-		if source_doc.shipper_address_residential:
-			shipment.RequestedShipment.Shipper.Address.Residential = True
-		else:
-			shipment.RequestedShipment.Shipper.Address.Residential = False
+	# First/Master Package
 
-		# Recipient contact info.
-		shipment.RequestedShipment.Recipient.Contact.PersonName = source_doc.recipient_contact_person_name
-		shipment.RequestedShipment.Recipient.Contact.CompanyName = source_doc.recipient_company_name
-		shipment.RequestedShipment.Recipient.Contact.PhoneNumber = source_doc.recipient_contact_phone_number
+	package1 = _create_fedex_package(shipment=shipment,
+									 sequence_number=1,
+									 package_weight_value=BOXES[0].weight_value,
+									 package_weight_units=BOXES[0].weight_units,
+									 physical_packaging=BOXES[0].physical_packaging,
+									 insure_currency=BOXES[0].currency,
+									 insured_amount=BOXES[0].insured_amount)
 
-		# Recipient addressStateOrProvinceCode
-		shipment.RequestedShipment.Recipient.Address.StreetLines = [source_doc.recipient_address_street_lines]
-		shipment.RequestedShipment.Recipient.Address.City = source_doc.recipient_address_city
-		shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = source_doc.recipient_address_state_or_provincecode
-		shipment.RequestedShipment.Recipient.Address.PostalCode = source_doc.recipient_address_postalcode
-		shipment.RequestedShipment.Recipient.Address.CountryCode = source_doc.recipient_address_countrycode
+	shipment.RequestedShipment.RequestedPackageLineItems = [package1]
 
-		if source_doc.recipient_address_residential:
-			shipment.RequestedShipment.Recipient.Address.Residential = True
-		else:
-			shipment.RequestedShipment.Recipient.Address.Residential = False
+	shipment.RequestedShipment.PackageCount = len(BOXES)
 
-		shipment.RequestedShipment.EdtRequestType = 'NONE'
+	try:
+		shipment.send_request()
+	except Exception as error:
+		frappe.throw(_("Error in box # 1 - %s" % error))
 
-		# Senders account information
-		shipment.RequestedShipment.ShippingChargesPayment.Payor.ResponsibleParty.AccountNumber = CONFIG_OBJ.account_number
-		shipment.RequestedShipment.ShippingChargesPayment.PaymentType = source_doc.payment_type
-		shipment.RequestedShipment.LabelSpecification.LabelFormatType = 'COMMON2D'
-		shipment.RequestedShipment.LabelSpecification.ImageType = GENERATE_IMAGE_TYPE
-		shipment.RequestedShipment.LabelSpecification.LabelStockType = source_doc.label_stock_type
-		shipment.RequestedShipment.ShipTimestamp = datetime.datetime.now().replace(microsecond=0).isoformat()
-		shipment.RequestedShipment.LabelSpecification.LabelPrintingOrientation = 'TOP_EDGE_OF_TEXT_FIRST'
+	master_label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
-		if hasattr(shipment.RequestedShipment.LabelSpecification, 'LabelOrder'):
-			del shipment.RequestedShipment.LabelSpecification.LabelOrder  # Delete, not using.
+	master_tracking_number = master_label.TrackingIds[0].TrackingNumber
+	master_tracking_id_type = master_label.TrackingIds[0].TrackingIdType
+	master_tracking_form_id = master_label.TrackingIds[0].FormId
 
-		# ===================================================
+	ascii_label_data = master_label.Label.Parts[0].Image
+	label_binary_data = binascii.a2b_base64(ascii_label_data)
 
-		# First/Master Package
+	file_name = "label_%s.%s" % (master_tracking_number, GENERATE_IMAGE_TYPE.lower())
 
-		package1 = FedexProvider.create_package(shipment=shipment,
-												sequence_number=1,
-												package_weight_value=BOXES[0].weight_value,
-												package_weight_units=BOXES[0].weight_units,
-												physical_packaging="ENVELOPE")
+	saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
 
-		shipment.RequestedShipment.RequestedPackageLineItems = [package1]
+	frappe.db.set(source_doc, 'tracking_number', master_tracking_number)
+	frappe.db.set(source_doc, 'label_1', saved_file.file_url)
 
-		shipment.RequestedShipment.PackageCount = len(BOXES)
+	# ################################################
+
+	# Track additional package in shipment :
+
+	labels = []
+
+	frappe.db.set(BOXES[0], 'tracking_number', master_tracking_number)
+
+	############################################################
+
+	rate_box_list = []
+
+	master_box_dict = {'weight_value': BOXES[0].weight_value,
+					   'weight_units': BOXES[0].weight_units,
+					   'physical_packaging': BOXES[0].physical_packaging,
+					   'group_package_count': 1,
+					   'insured_amount': BOXES[0].insured_amount}
+
+	rate_box_list.append(master_box_dict)
+
+	############################################################
+
+	for i, child_package in enumerate(BOXES[1:]):
+
+		i += 1
+
+		package = _create_fedex_package(shipment=shipment,
+										sequence_number=i + 1,
+										package_weight_value=child_package.weight_value,
+										package_weight_units=child_package.weight_units,
+										insure_currency=child_package.currency,
+										physical_packaging=child_package.physical_packaging,
+										insured_amount=child_package.insured_amount)
+
+		shipment.RequestedShipment.RequestedPackageLineItems = [package]
+		shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
+		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
+		shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
+
+		#########################
+
+		child_box_dict = {'weight_value': child_package.weight_value,
+						  'weight_units': child_package.weight_units,
+						  'physical_packaging': child_package.physical_packaging,
+						  'group_package_count': i + 1,
+						  'insured_amount': child_package.insured_amount}
+
+		rate_box_list.append(child_box_dict)
+
+		#########################
 
 		try:
 			shipment.send_request()
 		except Exception as error:
-			frappe.throw(_(error))
+			frappe.throw(_("Error in box # %s - %s" % (i, error)))
 
-		master_label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
+		for label in shipment.response.CompletedShipmentDetail.CompletedPackageDetails:
+			child_tracking_number = label.TrackingIds[0].TrackingNumber
+			ascii_label_data = label.Label.Parts[0].Image
+			label_binary_data = binascii.a2b_base64(ascii_label_data)
 
-		master_tracking_number = master_label.TrackingIds[0].TrackingNumber
-		master_tracking_id_type = master_label.TrackingIds[0].TrackingIdType
-		master_tracking_form_id = master_label.TrackingIds[0].FormId
+			frappe.db.set(child_package, 'tracking_number', child_tracking_number)
 
-		ascii_label_data = master_label.Label.Parts[0].Image
-		label_binary_data = binascii.a2b_base64(ascii_label_data)
+			file_name = "label_%s_%s.%s" % (
+				master_tracking_number, child_tracking_number, GENERATE_IMAGE_TYPE.lower())
 
-		file_name = "label_%s.%s" % (master_tracking_number, GENERATE_IMAGE_TYPE.lower())
+			saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
 
-		saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
+			labels.append(saved_file.file_url)
 
-		frappe.db.set(source_doc, 'tracking_number', master_tracking_number)
-		frappe.db.set(source_doc, 'label_1', saved_file.file_url)
+	for i, path in enumerate(labels):
+		i += 1
+		frappe.db.set(source_doc, 'label_' + str(i + 1), path)
 
-		# ################################################
+	# ################################################
 
-		# Track additional package in shipment :
+	try:
+		delivery_time = estimate_delivery_time(OriginPostalCode=source_doc.shipper_address_postalcode,
+											   OriginCountryCode=source_doc.shipper_address_country_code,
+											   DestinationPostalCode=source_doc.recipient_address_postalcode,
+											   DestinationCountryCode=source_doc.recipient_address_countrycode)
+		frappe.db.set(source_doc, 'delivery_time', delivery_time)
+	except Exception as error:
+		frappe.throw(_("Delivery time error - %s" % error))
 
-		labels = []
+	# ################################################
 
-		frappe.db.set(BOXES[0], 'tracking_number', master_tracking_number)
+	try:
+		rate = get_package_rate(DropoffType=source_doc.drop_off_type,
+								ServiceType=source_doc.service_type,
+								PackagingType=source_doc.packaging_type,
+								ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_provincecode,
+								ShipperPostalCode=source_doc.shipper_address_postalcode,
+								ShipperCountryCode=source_doc.shipper_address_country_code,
+								RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_provincecode,
+								RecipientPostalCode=source_doc.recipient_address_postalcode,
+								RecipientCountryCode=source_doc.recipient_address_countrycode,
+								EdtRequestType='NONE',
+								PaymentType=source_doc.payment_type,
+								package_list=rate_box_list)
 
-		for i, child_package in enumerate(BOXES[1:]):
+		frappe.db.set(source_doc, 'rate', "%s (%s)" % (rate["Amount"], rate["Currency"]))
+	except Exception as error:
+		frappe.throw(_("Rate error - %s" % error))
 
-			i += 1
+	# ################################################
 
-			package = FedexProvider.create_package(shipment=shipment,
-												sequence_number=i + 1,
-												package_weight_value=5.0,
-												package_weight_units="LB",
-												physical_packaging="ENVELOPE")
+	frappe.msgprint("DONE!", "Tracking number:{}".format(master_tracking_number))
 
-			shipment.RequestedShipment.RequestedPackageLineItems = [package]
-			shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
-			shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
-			shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
 
-			try:
-				shipment.send_request()
-			except Exception as error:
-				frappe.throw(_(error))
+def delete_fedex_shipment(source_doc):
 
-			for label in shipment.response.CompletedShipmentDetail.CompletedPackageDetails:
-				child_tracking_number = label.TrackingIds[0].TrackingNumber
-				ascii_label_data = label.Label.Parts[0].Image
-				label_binary_data = binascii.a2b_base64(ascii_label_data)
+	del_request = FedexDeleteShipmentRequest(CONFIG_OBJ)
 
-				frappe.db.set(child_package, 'tracking_number', child_tracking_number)
+	del_request.DeletionControlType = "DELETE_ALL_PACKAGES"
 
-				file_name = "label_%s_%s.%s" % (
-					master_tracking_number, child_tracking_number, GENERATE_IMAGE_TYPE.lower())
+	del_request.TrackingId.TrackingNumber = source_doc.tracking_number
 
-				saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
+	# What kind of shipment the tracking number used.
+	# Docs say this isn't required, but the WSDL won't validate without it.
+	# EXPRESS, GROUND, or USPS
+	# TODO!!!!!!!!!!!
+	# del_request.TrackingId.TrackingIdType = FedexProvider.master_tracking_id_type
 
-				labels.append(saved_file.file_url)
+	# Fires off the request, sets the 'response' attribute on the object.
+	try:
+		del_request.send_request()
+	except FedexError as error:
+		if 'Unable to retrieve record' in str(error):
+			frappe.throw(_("WARNING: Unable to delete the shipment with the provided tracking number."))
+		else:
+			frappe.throw(_("%s" % error))
 
-		for i, path in enumerate(labels):
-			i += 1
-			frappe.db.set(source_doc, 'label_' + str(i + 1), path)
+	frappe.throw(_("%s" % del_request.response))
 
-		# ################################################
+	print("HighestSeverity: {}".format(del_request.response.HighestSeverity))
 
-		try:
-			delivery_time = estimate_delivery_time(OriginPostalCode=source_doc.shipper_address_postalcode,
-												   OriginCountryCode=source_doc.shipper_address_country_code,
-												   DestinationPostalCode=source_doc.recipient_address_postalcode,
-												   DestinationCountryCode=source_doc.recipient_address_countrycode)
-			frappe.db.set(source_doc, 'delivery_time', delivery_time)
-		except Exception as error:
-			frappe.throw(_(error))
 
-		# ################################################
+################################################################################
+################################################################################
+################################################################################
 
-		try:
-			rate = get_package_rate(DropoffType=source_doc.drop_off_type,
-									ServiceType=source_doc.service_type,
-									PackagingType=source_doc.packaging_type,
-									ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_provincecode,
-									ShipperPostalCode=source_doc.shipper_address_postalcode,
-									ShipperCountryCode=source_doc.shipper_address_country_code,
-									RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_provincecode,
-									RecipientPostalCode=source_doc.recipient_address_postalcode,
-									RecipientCountryCode=source_doc.recipient_address_countrycode,
-									EdtRequestType='NONE',
-									PaymentType=source_doc.payment_type,
-									package_list=[{'weight_value': 1.0,
-												   'weight_units': "LB",
-												   'physical_packaging': 'BOX',
-												   'group_package_count': 1}])
-			frappe.db.set(source_doc, 'rate', "%s (%s)" % (rate["Amount"], rate["Currency"]))
-		except Exception as error:
-			frappe.throw(_(error))
-
-		# ################################################
-
-		frappe.msgprint("DONE!", "Tracking number:{}".format(master_tracking_number))
-
-	@staticmethod
-	def delete_shipment(source_doc):
-		from fedex.services.ship_service import FedexDeleteShipmentRequest
-		from fedex.base_service import FedexError
-
-		provider = FedexProvider()
-		CONFIG_OBJ = provider.get_fedex_config()
-
-		del_request = FedexDeleteShipmentRequest(CONFIG_OBJ)
-
-		del_request.DeletionControlType = "DELETE_ALL_PACKAGES"
-
-		del_request.TrackingId.TrackingNumber = source_doc.tracking_number
-
-		# What kind of shipment the tracking number used.
-		# Docs say this isn't required, but the WSDL won't validate without it.
-		# EXPRESS, GROUND, or USPS
-		# TODO
-		del_request.TrackingId.TrackingIdType = FedexProvider.master_tracking_id_type
-
-		# Fires off the request, sets the 'response' attribute on the object.
-		try:
-			del_request.send_request()
-		except FedexError as error:
-			if 'Unable to retrieve record' in str(error):
-				frappe.throw(_("WARNING: Unable to delete the shipment with the provided tracking number."))
-			else:
-				frappe.throw(_("%s" % error))
-
-		frappe.throw(_("%s" % del_request.response))
-
-		print("HighestSeverity: {}".format(del_request.response.HighestSeverity))
-
+# FOR WEB PAGE WITH SHIPMENT TRACKING - shipment_tracking.html
 
 @frappe.whitelist(allow_guest=True)
 def get_html_code_status_with_fedex_tracking_number(track_value):
 	if not track_value:
 		return "Track value can't be empty"
 
-	logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-
-	customer_transaction_id = "*** TrackService Request v10 using Python ***"  # Optional transaction_id
-
-	fedex_configuration = FedexProvider()
-
-	track = FedexTrackRequest(fedex_configuration.get_fedex_config(), customer_transaction_id=customer_transaction_id)
+	track = FedexTrackRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
 
 	track.SelectionDetails.PackageIdentifier.Type = 'TRACKING_NUMBER_OR_DOORTAG'
 	track.SelectionDetails.PackageIdentifier.Value = track_value
@@ -470,4 +519,5 @@ def get_html_code_status_with_fedex_tracking_number(track_value):
 		return html
 
 	except Exception as error:
-		return """<b>ERROR :</b><br> Fedex invalid configuration error! <br>{0}<br><br>{1} """.format(error.value, fedex_configuration.config_message)
+		return """<b>ERROR :</b><br> Fedex invalid configuration error! <br>{0}<br><br>{1} """.format(error.value,
+																									  get_fedex_server_info())
