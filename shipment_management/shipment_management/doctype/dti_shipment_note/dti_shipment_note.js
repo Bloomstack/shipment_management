@@ -14,7 +14,7 @@ frappe.ui.form.on('DTI Shipment Note', {
                            var url = '/labels?name=' + cur_frm.doc.name
                            window.location.assign(url)
                         }).addClass("btn btn-primary");
-                              }
+                    }
 	                    },
 });
 
@@ -61,12 +61,46 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
                     var new_row = frappe.model.add_child(cur_frm.doc, "DTI Shipment Note Item", "delivery_items")
 
                     var dt = "DTI Shipment Note Item";
+
+                    frappe.model.set_value(dt, new_row.name, 'barcode', item_list.message[i].barcode);
                     frappe.model.set_value(dt, new_row.name, 'item_code', item_list.message[i].item_code);
                     frappe.model.set_value(dt, new_row.name, 'item_name', item_list.message[i].item_name);
-                    frappe.model.set_value(dt, new_row.name, 'item_group', item_list.message[i].item_group);
-                    frappe.model.set_value(dt, new_row.name, 'installed_qty', item_list.message[i].installed_qty);
-					frappe.model.set_value(dt, new_row.name, 'qty', item_list.message[i].qty);
+                    frappe.model.set_value(dt, new_row.name, 'customer_item_code', item_list.message[i].customer_item_code);
                     frappe.model.set_value(dt, new_row.name, 'description', item_list.message[i].description);
+                    frappe.model.set_value(dt, new_row.name, 'image', item_list.message[i].image);
+                    frappe.model.set_value(dt, new_row.name, 'image_view', item_list.message[i].image_view);
+                    frappe.model.set_value(dt, new_row.name, 'qty', item_list.message[i].qty);
+                    frappe.model.set_value(dt, new_row.name, 'price_list_rate', item_list.message[i].price_list_rate);
+                    frappe.model.set_value(dt, new_row.name, 'stock_uom', item_list.message[i].stock_uom);
+                    frappe.model.set_value(dt, new_row.name, 'base_price_list_rate', item_list.message[i].base_price_list_rate);
+                    frappe.model.set_value(dt, new_row.name, 'discount_percentage', item_list.message[i].discount_percentage);
+                    frappe.model.set_value(dt, new_row.name, 'margin_rate_or_amount', item_list.message[i].margin_rate_or_amount);
+                    frappe.model.set_value(dt, new_row.name, 'total_margin', item_list.message[i].total_margin);
+                    frappe.model.set_value(dt, new_row.name, 'rate', item_list.message[i].rate);
+                    frappe.model.set_value(dt, new_row.name, 'amount', item_list.message[i].amount);
+                    frappe.model.set_value(dt, new_row.name, 'base_rate', item_list.message[i].base_rate);
+                    frappe.model.set_value(dt, new_row.name, 'base_amount', item_list.message[i].base_amount);
+                    frappe.model.set_value(dt, new_row.name, 'pricing_rule', item_list.message[i].pricing_rule);
+                    frappe.model.set_value(dt, new_row.name, 'net_rate', item_list.message[i].net_rate);
+                    frappe.model.set_value(dt, new_row.name, 'net_amount', item_list.message[i].net_amount);
+                    frappe.model.set_value(dt, new_row.name, 'base_net_rate', item_list.message[i].base_net_rate);
+                    frappe.model.set_value(dt, new_row.name, 'base_net_amount', item_list.message[i].base_net_amount);
+                    frappe.model.set_value(dt, new_row.name, 'warehouse', item_list.message[i].warehouse);
+                    frappe.model.set_value(dt, new_row.name, 'target_warehouse', item_list.message[i].target_warehouse);
+                    frappe.model.set_value(dt, new_row.name, 'serial_no', item_list.message[i].serial_no);
+                    frappe.model.set_value(dt, new_row.name, 'batch_no', item_list.message[i].batch_no);
+                    frappe.model.set_value(dt, new_row.name, 'actual_qty', item_list.message[i].actual_qty);
+                    frappe.model.set_value(dt, new_row.name, 'actual_batch_qty', item_list.message[i].actual_batch_qty);
+                    frappe.model.set_value(dt, new_row.name, 'item_group', item_list.message[i].item_group);
+                    frappe.model.set_value(dt, new_row.name, 'brand', item_list.message[i].brand);
+                    frappe.model.set_value(dt, new_row.name, 'expense_account', item_list.message[i].expense_account);
+                    frappe.model.set_value(dt, new_row.name, 'cost_center', item_list.message[i].cost_center);
+                    frappe.model.set_value(dt, new_row.name, 'against_sales_order', item_list.message[i].against_sales_order);
+                    frappe.model.set_value(dt, new_row.name, 'against_sales_invoice', item_list.message[i].against_sales_invoice);
+                    frappe.model.set_value(dt, new_row.name, 'so_detail', item_list.message[i].so_detail);
+                    frappe.model.set_value(dt, new_row.name, 'si_detail', item_list.message[i].si_detail);
+                    frappe.model.set_value(dt, new_row.name, 'installed_qty', item_list.message[i].installed_qty);
+                    frappe.model.set_value(dt, new_row.name, 'billed_amt', item_list.message[i].billed_amt);
 
                     cur_frm.refresh_fields("delivery_items")
                                                         }
@@ -83,6 +117,11 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
                  frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'recipient_address_state_or_province_code', resp['recipient_address_state_or_province_code']);
                  frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'recipient_address_country_code', resp['recipient_address_country_code']);
                  frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'recipient_address_postal_code', resp['recipient_address_postal_code']);
+                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'recipient_address_postal_code', resp['recipient_address_postal_code']);
+
+                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'contact_email', resp['contact_email']);
+
+
                  });
 
             get_shipper_info()
