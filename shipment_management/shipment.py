@@ -237,11 +237,12 @@ def get_recipient_details(delivery_note_name):
 	return {"recipient_contact_person_name": recipient.contact.PersonName or "",
 			"recipient_company_name": recipient.contact.CompanyName or "",
 			"recipient_contact_phone_number": recipient.contact.PhoneNumber or "",
-			"recipient_address_street_lines": " ".join(recipient.address.StreetLines) or "",
+			"recipient_address_street_lines": " ".join(recipient.address.StreetLines),
 			"recipient_address_city": recipient.address.City or "",
 			"recipient_address_state_or_province_code":  recipient.address.StateOrProvinceCode or "",
 			"recipient_address_country_code": recipient.address.CountryCode or "",
-			"recipient_address_postal_code": recipient.address.PostalCode or ""}
+			"recipient_address_postal_code": recipient.address.PostalCode or "",
+			"contact_email": ", ".join(recipient.contact.Email_List)}
 
 
 @check_permission()
@@ -269,16 +270,16 @@ def get_delivery_items(delivery_note_name):
 ##############################################################################
 
 
-@check_permission()
-@frappe.whitelist()
-def cancel_shipment(source_name):
-	shipment = frappe.get_doc('DTI Shipment Note', source_name)
-
-	frappe.db.set(shipment, "shipment_note_status", ShipmentNoteOperationalStatus.Cancelled)
-
-	if shipment.shipment_provider == 'FEDEX':
-		delete_fedex_shipment(source_doc=source_name)
-		CommentController.add_comment('DTI Shipment Note',
-									  source_name,
-									  CommentController.Comment,
-									  "Shipment has been cancelled.")
+# @check_permission()
+# @frappe.whitelist()
+# def cancel_shipment(source_name):
+# 	shipment = frappe.get_doc('DTI Shipment Note', source_name)
+#
+# 	frappe.db.set(shipment, "shipment_note_status", ShipmentNoteOperationalStatus.Cancelled)
+#
+# 	if shipment.shipment_provider == 'FEDEX':
+# 		delete_fedex_shipment(source_doc=source_name)
+# 		CommentController.add_comment('DTI Shipment Note',
+# 									  source_name,
+# 									  CommentController.Comment,
+# 									  "Shipment has been cancelled.")
