@@ -246,8 +246,16 @@ def get_recipient_details(delivery_note_name):
 
 @check_permission()
 @frappe.whitelist()
-def get_shipper_details():
-	return {}
+def get_shipper_details(delivery_note_name):
+	recipient = get_shipper(delivery_note_name)
+	return {"shipper_contact_person_name": recipient.contact.PersonName or "",
+			"shipper_company_name": recipient.contact.CompanyName or "",
+			"shipper_contact_phone_number": recipient.contact.PhoneNumber or "",
+			"shipper_address_street_lines": " ".join(recipient.address.StreetLines) or "",
+			"shipper_address_city": recipient.address.City or "",
+			"shipper_address_state_or_province_code":  recipient.address.StateOrProvinceCode or "",
+			"shipper_address_country_code": recipient.address.CountryCode or "",
+			"shipper_address_postal_code": recipient.address.PostalCode or ""}
 
 
 ##############################################################################
