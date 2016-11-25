@@ -109,6 +109,7 @@ class Address(object):
 		self.City = None
 		self.StateOrProvinceCode = None
 		self.PostalCode = None
+		self.Country = None
 		self.CountryCode = None
 
 
@@ -129,7 +130,8 @@ class RequestedShipment(object):
 		Address City                  = {5}
 		Address StateOrProvinceCode   = {6}
 		Address PostalCode            = {7}
-		Address CountryCode           = {8} """.format(self.contact.PersonName,
+		Address Country               = {8}
+		Address CountryCode           = {9} """.format(self.contact.PersonName,
 													   self.contact.CompanyName,
 													   self.contact.PhoneNumber,
 													   self.contact.Email_List,
@@ -137,64 +139,52 @@ class RequestedShipment(object):
 													   self.address.City,
 													   self.address.StateOrProvinceCode,
 													   self.address.PostalCode,
+													   self.address.Country,
 													   self.address.CountryCode)
 
 
 @check_permission()
 @frappe.whitelist()
 def get_shipper(delivery_note_name):
-	"""
-	EXAMPLE
-	___________________
-	# Shipper contact info.
-	# shipment.RequestedShipment.Shipper.Contact.PersonName = 'Sender Name'
-	# shipment.RequestedShipment.Shipper.Contact.CompanyName = 'Some Company' # Company
-	# shipment.RequestedShipment.Shipper.Contact.PhoneNumber = '9012638716' # Company
-
-	# # Shipper address.
-	# shipment.RequestedShipment.Shipper.Address.StreetLines = ['Address Line 1']
-	# shipment.RequestedShipment.Shipper.Address.City = 'Herndon'
-	# shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = 'VA'
-	# shipment.RequestedShipment.Shipper.Address.PostalCode = '20171'
-	# shipment.RequestedShipment.Shipper.Address.CountryCode = 'US'
-	# shipment.RequestedShipment.Shipper.Address.Residential = True
-	"""
-
-	print "DELIVERY NOTE: ", delivery_note_name
-
-	delivery_note = frappe.db.sql('''SELECT * from `tabDelivery Note` WHERE name="%s"''' % delivery_note_name, as_dict=True)
-
-	company_response = frappe.db.sql('''SELECT *  from tabCompany WHERE name="%s"''' % delivery_note[0].company, as_dict=True)
 
 	shipper = RequestedShipment()
 
-	# if not company_response:
-	# 	frappe.throw(_("Company is mandatory for = {}").format(delivery_note.name))
-	#
-	# # ---------------------------------------------
-	#
-	# shipper.contact.CompanyName = company_response[0].company_name
-	#
-	# shipper.contact.PersonName = company_response[0].name
-	#
-	# shipper.contact.PhoneNumber = company_response[0].phone_no
-	#
-	# # ---------------------------------------------
-	#
-	# address_response = frappe.db.sql(
-	# 	'''SELECT company from `tabAddress` WHERE company="%s"''' % delivery_note[0].company, as_dict=True)
-	#
-	# # ----------------------------------------------
-	#
-	# if address_response:
-	#
-	# 	shipper.address.StreetLines = [address_response[0].address_line1] + [address_response[0].address_line2]
-	# 	shipper.address.City = address_response[0].city
-	# 	shipper.address.PostalCode = address_response[0].pincode
-	#
-	# print "SHIPPER:"
-	# print "_________________________"
-	# print shipper
+	delivery_note = frappe.db.sql('''SELECT * from `tabDelivery Note` WHERE name="%s"''' % delivery_note_name, as_dict=True)
+
+	if delivery_note[0].company:
+		shipper.contact.PersonName = delivery_note[0].company
+		shipper.contact.CompanyName = delivery_note[0].company
+
+		company = frappe.db.sql('''SELECT *  from tabCompany WHERE name="%s"''' % delivery_note[0].company, as_dict=True)
+
+		if company:
+			if company[0].phone_no:
+				shipper.contact.PhoneNumber = company[0].phone_no
+
+			if company[0].country:
+				shipper.address.Country = company[0].country
+				shipper.address.CountryCode = get_country_code(shipper.address.Country)
+
+			company_address = frappe.db.sql('''SELECT * from tabAddress WHERE company="%s" AND is_your_company_address=1''' % delivery_note[0].company, as_dict=True)
+
+			if company_address:
+				if company_address[0].address_line1:
+					shipper.address.StreetLines.append(company_address[0].address_line1)
+
+				if company_address[0].address_line2:
+					shipper.address.StreetLines.append(company_address[0].address_line2)
+
+				if company_address[0].city:
+					shipper.address.City = company_address[0].city
+
+				if company_address[0].pincode:
+					shipper.address.PostalCode = company_address[0].pincode
+
+				if company_address[0].state:
+					shipper.address.StateOrProvinceCode = get_country_state_code(country=shipper.address.Country,
+																				   state=shipper[0].state)
+
+	print shipper
 
 	return shipper
 
@@ -202,23 +192,6 @@ def get_shipper(delivery_note_name):
 @check_permission()
 @frappe.whitelist()
 def get_recipient(delivery_note_name):
-	"""
-	EXAMPLE
-	______________
-	# shipment.RequestedShipment.Recipient.Contact.PersonName = 'Recipient Name'
-	# shipment.RequestedShipment.Recipient.Contact.CompanyName = 'Recipient Company'
-	# shipment.RequestedShipment.Recipient.Contact.PhoneNumber = '9012637906'
-	#
-	#
-	# # Recipient addressStateOrProvinceCode
-	# shipment.RequestedShipment.Recipient.Address.StreetLines = ['Address Line 1']
-	# shipment.RequestedShipment.Recipient.Address.City = 'Herndon'
-	# shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = 'VA'
-	# shipment.RequestedShipment.Recipient.Address.PostalCode = '20171'
-	# shipment.RequestedShipment.Recipient.Address.CountryCode = 'US'
-	"""
-
-	print "DELIVERY NOTE: ", delivery_note_name
 
 	recipient = RequestedShipment()
 
@@ -260,8 +233,6 @@ def get_recipient(delivery_note_name):
 
 		if primary_contact[0].email_id:
 			recipient.contact.Email_List.append(primary_contact[0].email_id)
-
-	print recipient
 
 	return recipient
 
