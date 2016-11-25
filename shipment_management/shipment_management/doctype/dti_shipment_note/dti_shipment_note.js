@@ -85,6 +85,19 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
                  frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'recipient_address_postal_code', resp['recipient_address_postal_code']);
                  });
 
+            get_shipper_info()
+                 .done(function(shipper){
+                 var resp = shipper.message
+                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_contact_person_name', resp['shipper_contact_person_name']);
+                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_company_name', resp['shipper_company_name']);
+                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_contact_phone_number', resp['shipper_contact_phone_number']);
+                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_address_street_lines', resp['shipper_address_street_lines']);
+                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_address_city', resp['shipper_address_city']);
+                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_address_state_or_province_code', resp['shipper_address_state_or_province_code']);
+                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_address_country_code', resp['shipper_address_country_code']);
+                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_address_postal_code', resp['shipper_address_postal_code']);
+                 });
+
             }
      }
 )
