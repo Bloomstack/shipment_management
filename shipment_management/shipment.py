@@ -10,6 +10,7 @@ from country_code_config import get_country_code, get_country_state_code
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
 from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NAME, SupportedProviderList
+from provider_fedex import delete_fedex_shipment
 
 
 def check_permission():
@@ -49,6 +50,7 @@ class ShipmentNoteOperationalStatus(object):
 
 
 ##############################################################################
+
 # Mapper
 
 @check_permission()
@@ -95,18 +97,19 @@ def get_carriers_list():
 
 class Contact(object):
 	def __init__(self):
-		self.PersonName = "UNDEFINED"
-		self.CompanyName = "UNDEFINED"
-		self.PhoneNumber = "UNDEFINED"
+		self.PersonName = None
+		self.CompanyName = None
+		self.PhoneNumber = None
+		self.Email_List = []
 
 
 class Address(object):
 	def __init__(self):
 		self.StreetLines = []
-		self.City = "UNDEFINED"
-		self.StateOrProvinceCode = "UNDEFINED"
-		self.PostalCode = "UNDEFINED"
-		self.CountryCode = "UNDEFINED"
+		self.City = None
+		self.StateOrProvinceCode = None
+		self.PostalCode = None
+		self.CountryCode = None
 
 
 class RequestedShipment(object):
@@ -119,15 +122,17 @@ class RequestedShipment(object):
 		Contact PersonName            = {0}
 		Contact CompanyName           = {1}
 		Contact PhoneNumber           = {2}
+		Email list                    = {3}
 		___________________________________________
 
-		Address StreetLines           = {3}
-		Address City                  = {4}
-		Address StateOrProvinceCode   = {5}
-		Address PostalCode            = {6}
-		Address CountryCode           = {7} """.format(self.contact.PersonName,
+		Address StreetLines           = {4}
+		Address City                  = {5}
+		Address StateOrProvinceCode   = {6}
+		Address PostalCode            = {7}
+		Address CountryCode           = {8} """.format(self.contact.PersonName,
 													   self.contact.CompanyName,
 													   self.contact.PhoneNumber,
+													   self.contact.Email_List,
 													   self.address.StreetLines,
 													   self.address.City,
 													   self.address.StateOrProvinceCode,
@@ -135,34 +140,25 @@ class RequestedShipment(object):
 													   self.address.CountryCode)
 
 
-def get_address_templates(address):
-	result = frappe.db.get_value("Address Template", {"country": address.get("country")}, ["name", "template"])
-
-	if not result:
-		result = frappe.db.get_value("Address Template", {"is_default": 1}, ["name", "template"])
-
-	if not result:
-		frappe.throw(_(
-			"No default Address Template found. Please create a new one from Setup > Printing and Branding > Address Template."))
-	else:
-		return result
-
-
-@frappe.whitelist()
-def get_shipping_address(company):
-	filters = {"company": company, "is_your_company_address" : 1}
-	fieldname = ["name", "address_line1", "address_line2", "city", "state", "country"]
-
-	address_as_dict = frappe.db.get_value("Address", filters=filters, fieldname=fieldname, as_dict=True)
-
-	if address_as_dict:
-		name, address_template = get_address_templates(address_as_dict)
-		return address_as_dict.get("name"), frappe.render_template(address_template, address_as_dict)
-
-
 @check_permission()
 @frappe.whitelist()
 def get_shipper(delivery_note_name):
+	"""
+	EXAMPLE
+	___________________
+	# Shipper contact info.
+	# shipment.RequestedShipment.Shipper.Contact.PersonName = 'Sender Name'
+	# shipment.RequestedShipment.Shipper.Contact.CompanyName = 'Some Company' # Company
+	# shipment.RequestedShipment.Shipper.Contact.PhoneNumber = '9012638716' # Company
+
+	# # Shipper address.
+	# shipment.RequestedShipment.Shipper.Address.StreetLines = ['Address Line 1']
+	# shipment.RequestedShipment.Shipper.Address.City = 'Herndon'
+	# shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = 'VA'
+	# shipment.RequestedShipment.Shipper.Address.PostalCode = '20171'
+	# shipment.RequestedShipment.Shipper.Address.CountryCode = 'US'
+	# shipment.RequestedShipment.Shipper.Address.Residential = True
+	"""
 
 	print "DELIVERY NOTE: ", delivery_note_name
 
@@ -172,66 +168,33 @@ def get_shipper(delivery_note_name):
 
 	shipper = RequestedShipment()
 
-	if not company_response:
-		frappe.throw(_("Company is mandatory for = {}").format(delivery_note.name))
-
-	# ---------------------------------------------
-
-	if company_response[0].company_name:
-		shipper.contact.CompanyName = company_response[0].company_name
-	else:
-		frappe.throw(_("<company_name> is mandatory for = {}").format(delivery_note[0].company))
-
-	if company_response[0].name:
-		shipper.contact.PersonName = company_response[0].name
-	else:
-		frappe.throw(_("<name> is mandatory for = {}").format(delivery_note[0].company))
-
-	if company_response[0].phone_no:
-		shipper.contact.PhoneNumber = company_response[0].phone_no
-	else:
-		frappe.throw(_("<phone_no> is mandatory for = {}").format(delivery_note[0].company))
-
-	# ---------------------------------------------
-
-	address_response = frappe.db.sql(
-		'''SELECT company from `tabAddress` WHERE company="%s"''' % delivery_note[0].company, as_dict=True)
-
-	# ----------------------------------------------
-
-	if not address_response:
-		frappe.throw(_("Address is mandatory for = {}").format(delivery_note[0].company))
-
-	print "ADDRESS", address_response[0]
-
-	if address_response[0].address_line1:
-		shipper.address.StreetLines = [address_response[0].address_line1] + [address_response[0].address_line2]
-	else:
-		frappe.throw(_("<address_line1> is mandatory for address = {}").format(delivery_note[0].company))
-
-	if address_response[0].city:
-		shipper.address.City = address_response[0].city
-	else:
-		frappe.throw(_("<city> is mandatory for address = {}").format(delivery_note[0].company))
-
-	if address_response[0].pincode:
-		shipper.address.PostalCode = address_response[0].pincode
-	else:
-		frappe.throw(_("<pincode> is mandatory for address = {}").format(delivery_note[0].company))
-
-	if address_response[0].country:
-		shipper.address.CountryCode = get_country_code(address_response[0].country)
-	else:
-		frappe.throw(_("<country> is mandatory for address = {}").format(delivery_note[0].company))
-
-	if address_response[0].state:
-		get_country_state_code(address_response[0].country, address_response[0].state)
-	else:
-		frappe.throw(_("<state> is mandatory for address = {}").format(delivery_note[0].company))
-
-	print "SHIPPER:"
-	print "_________________________"
-	print shipper
+	# if not company_response:
+	# 	frappe.throw(_("Company is mandatory for = {}").format(delivery_note.name))
+	#
+	# # ---------------------------------------------
+	#
+	# shipper.contact.CompanyName = company_response[0].company_name
+	#
+	# shipper.contact.PersonName = company_response[0].name
+	#
+	# shipper.contact.PhoneNumber = company_response[0].phone_no
+	#
+	# # ---------------------------------------------
+	#
+	# address_response = frappe.db.sql(
+	# 	'''SELECT company from `tabAddress` WHERE company="%s"''' % delivery_note[0].company, as_dict=True)
+	#
+	# # ----------------------------------------------
+	#
+	# if address_response:
+	#
+	# 	shipper.address.StreetLines = [address_response[0].address_line1] + [address_response[0].address_line2]
+	# 	shipper.address.City = address_response[0].city
+	# 	shipper.address.PostalCode = address_response[0].pincode
+	#
+	# print "SHIPPER:"
+	# print "_________________________"
+	# print shipper
 
 	return shipper
 
@@ -239,40 +202,65 @@ def get_shipper(delivery_note_name):
 @check_permission()
 @frappe.whitelist()
 def get_recipient(delivery_note_name):
+	"""
+	EXAMPLE
+	______________
+	# shipment.RequestedShipment.Recipient.Contact.PersonName = 'Recipient Name'
+	# shipment.RequestedShipment.Recipient.Contact.CompanyName = 'Recipient Company'
+	# shipment.RequestedShipment.Recipient.Contact.PhoneNumber = '9012637906'
+	#
+	#
+	# # Recipient addressStateOrProvinceCode
+	# shipment.RequestedShipment.Recipient.Address.StreetLines = ['Address Line 1']
+	# shipment.RequestedShipment.Recipient.Address.City = 'Herndon'
+	# shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = 'VA'
+	# shipment.RequestedShipment.Recipient.Address.PostalCode = '20171'
+	# shipment.RequestedShipment.Recipient.Address.CountryCode = 'US'
+	"""
 
 	print "DELIVERY NOTE: ", delivery_note_name
 
 	recipient = RequestedShipment()
 
-	delivery_note = frappe.db.sql('''SELECT * from `tabDelivery Note` WHERE name="%s"''' % delivery_note_name, as_dict=True)
-	company_response = frappe.db.sql('''SELECT *  from tabCompany WHERE name="%s"''' % delivery_note[0].company, as_dict=True)
+	recipient.contact.PersonName = frappe.db.sql('''SELECT customer_name from `tabDelivery Note` WHERE name="%s"''' % delivery_note_name, as_dict=True)[0].customer_name
 
-	recipient.contact.CompanyName = company_response[0].company_name
-	recipient.contact.PersonName = delivery_note[0].customer
+	recipient.contact.CompanyName = frappe.db.sql('''SELECT * from tabCustomer WHERE name="%s"''' % recipient.contact.PersonName, as_dict=True)[0].name
 
-	if not delivery_note[0].shipping_address_name:
-		raise Exception('Delivery Note %s should has shipping address' % delivery_note_name)
+	shipping_address = frappe.db.sql('''SELECT * from tabAddress WHERE customer_name="%s" AND is_shipping_address=1''' % recipient.contact.PersonName, as_dict=True)
+	primary_contact = frappe.db.sql('''SELECT * from tabContact WHERE customer="%s" and is_primary_contact=1''' % recipient.contact.PersonName, as_dict=True)
 
-	address_response = frappe.db.sql('''SELECT * from `tabAddress` WHERE name="%s"''' % delivery_note[0].shipping_address_name, as_dict=True)
+	if shipping_address:
+		if shipping_address[0].phone:
+			recipient.contact.PhoneNumber = shipping_address[0].phone
 
-	recipient.contact.PhoneNumber = address_response[0].phone
+		if shipping_address[0].email_id:
+			recipient.contact.Email_List.append(shipping_address[0].email_id)
 
-	recipient.address.StreetLines = [address_response[0].address_line1 + address_response[0].address_line2]
-	recipient.address.City = address_response[0].city
-	recipient.address.PostalCode = address_response[0].pincode
+		if shipping_address[0].address_line1:
+			recipient.address.StreetLines.append(shipping_address[0].address_line1)
 
-	if not address_response[0].country:
-		raise Exception("Address validation error - Country is absent!")
+		if shipping_address[0].address_line2:
+			recipient.address.StreetLines.append(shipping_address[0].address_line2)
 
-	if not address_response[0].state:
-		raise Exception("Address validation error - State is absent!")
+		if shipping_address[0].city:
+			recipient.address.City = shipping_address[0].city
 
-	recipient.address.CountryCode = get_country_code(address_response[0].country)
+		if shipping_address[0].pincode:
+			recipient.address.PostalCode = shipping_address[0].pincode
 
-	recipient.address.StateOrProvinceCode = get_country_state_code(address_response[0].country, address_response[0].state)
+		if shipping_address[0].country:
+			recipient.address.Country = shipping_address[0].country
+			recipient.address.CountryCode = get_country_code(recipient.address.Country)
+			recipient.address.StateOrProvinceCode = get_country_state_code(country=recipient.address.Country, state=shipping_address[0].state)
 
-	print "RECIPIENT:"
-	print "_________________________"
+	if primary_contact:
+		if not recipient.contact.PhoneNumber:
+			recipient.contact.PersonName = "{} {}".format(primary_contact[0].first_name, primary_contact[0].last_name)
+			recipient.contact.PhoneNumber = primary_contact[0].phone
+
+		if primary_contact[0].email_id:
+			recipient.contact.Email_List.append(primary_contact[0].email_id)
+
 	print recipient
 
 	return recipient
@@ -283,20 +271,8 @@ def get_recipient(delivery_note_name):
 
 @check_permission()
 @frappe.whitelist()
-def get_company_email(delivery_note_company):
-	return frappe.db.sql('''SELECT email, name from tabCompany WHERE name="%s"''' % delivery_note_company, as_dict=True)
-
-
-@check_permission()
-@frappe.whitelist()
 def get_delivery_items(delivery_note_name):
 	return frappe.db.sql('''SELECT * from `tabDelivery Note Item` WHERE parent="%s"''' % delivery_note_name, as_dict=True)
-
-
-@check_permission()
-@frappe.whitelist()
-def get_shipment_items(shipment_note_name):
-	return frappe.db.sql('''SELECT * from `tabDTI Shipment Note Item` WHERE parent="%s"''' % shipment_note_name, as_dict=True)
 
 
 @check_permission()
@@ -305,155 +281,10 @@ def cancel_shipment(source_name):
 	shipment = frappe.get_doc('DTI Shipment Note', source_name)
 
 	frappe.db.set(shipment, "shipment_note_status", ShipmentNoteOperationalStatus.Cancelled)
-	CommentController.add_comment('DTI Shipment Note',
-								  source_name,
-								  CommentController.Comment,
-								  "Shipment has been cancelled.")
 
 	if shipment.shipment_provider == 'FEDEX':
-		fedex = frappe.get_doc('DTI Fedex Shipment', shipment.fedex_name)
-		fedex.delete_shipment()
-
-##############################################################################
-
-# class DocTypeStatus(object):
-# 	Open = 0
-# 	Submitted = 1
-# 	Cancelled = 2
-#
-#
-# class DeliveryNoteOperationalStatus(object):
-# 	ToBill = "To Bill"
-# 	Completed = "Completed"
-# 	Cancelled = "Cancelled"
-# 	Closed = "Closed"
-
-# def get_related_shipment_note():
-# 	shipment_note = None
-# 	return shipment_note
-#
-#
-# def get_related_fedex_shipment():
-# 	fedex_shipment = None
-# 	return fedex_shipment
-#
-#
-# def get_related_shipment_package():
-# 	shipment_package = None
-# 	return shipment_package
-#
-#
-# def _close_delivery_note(shipment_note=None, fedex_shipment=None, shipment_package=None):
-# 	if shipment_note:
-# 		shipment_note.status = DocTypeStatus.Cancelled
-# 		shipment_note.shipment_status = ShipmentNoteOperationalStatus.Cancelled
-#
-# 		shipment_note.save()
-#
-# 	if fedex_shipment:
-# 		fedex_shipment.status = DocTypeStatus.Cancelled
-# 		fedex_shipment.shipment_status = FedexOperationalStatus.Canceled
-#
-# 		fedex_shipment.save()
-#
-# 	if shipment_package:
-# 		shipment_package.status = DocTypeStatus.Cancelled
-#
-# 		shipment_package.save()
-#
-#
-# def _close_shipment_note(fedex_shipment=None, shipment_package=None):
-#
-# 	if fedex_shipment:
-# 		fedex_shipment.status = DocTypeStatus.Cancelled
-# 		fedex_shipment.shipment_status = FedexOperationalStatus.Canceled
-#
-# 		fedex_shipment.save()
-#
-# 	if shipment_package:
-# 		shipment_package.status = DocTypeStatus.Cancelled
-#
-# 		shipment_package.save()
-#
-#
-# def delivery_note_status_sync(target_doc=None, status=None):
-# 	shipment_note = get_related_shipment_note()
-# 	fedex_shipment = get_related_fedex_shipment()
-# 	shipment_package = get_related_shipment_package()
-#
-# 	if status == DeliveryNoteOperationalStatus.Completed:
-# 		_close_delivery_note(shipment_note=shipment_note,
-# 							 fedex_shipment=fedex_shipment,
-# 							 shipment_package = shipment_package)
-#
-# 	elif status == DeliveryNoteOperationalStatus.Cancelled:
-# 		_close_delivery_note(shipment_note=shipment_note,
-# 							 fedex_shipment=fedex_shipment,
-# 							 shipment_package = shipment_package)
-#
-# 	elif status == DeliveryNoteOperationalStatus.Closed:
-# 		_close_delivery_note(shipment_note=shipment_note,
-# 							 fedex_shipment=fedex_shipment,
-# 							 shipment_package = shipment_package)
-#
-# 	else:
-# 		raise Exception("Can't mach Delivery Note status = %s (%s)", (target_doc, status))
-#
-#
-# def shipment_note_status_sync(target_doc, status):
-# 	"""
-# 	Our own Shipment Note statuses
-# 	- In progress – the shipment and its parcels handed to a Delivery Service to pick up and do delivery
-# 	- Completed – successfully delivered to a customer
-# 	- Returned – the shipment returned to Sender by Customer
-# 	- Cancelled – the delivery of the shipment cancelled by Customer
-# 	- Failed – there is an error or physical failure delivering
-# 	"""
-#
-# 	fedex_shipment = get_related_fedex_shipment()
-# 	shipment_package = get_related_shipment_package()
-#
-# 	if status == ShipmentNoteOperationalStatus.Failed:
-# 		_close_shipment_note(fedex_shipment=fedex_shipment,
-# 							 shipment_package = shipment_package)
-#
-# 	elif status == ShipmentNoteOperationalStatus.Cancelled:
-# 		_close_shipment_note(fedex_shipment=fedex_shipment,
-# 							 shipment_package = shipment_package)
-#
-# 	elif status == ShipmentNoteOperationalStatus.Returned:
-# 		_close_shipment_note(fedex_shipment=fedex_shipment,
-# 							 shipment_package = shipment_package)
-#
-# 	elif status == DeliveryNoteOperationalStatus.Completed:
-# 		if fedex_shipment:
-# 			fedex_shipment.status = DocTypeStatus.Submitted
-# 			fedex_shipment.shipment_status = FedexOperationalStatus.Canceled
-#
-# 			fedex_shipment.save()
-#
-# 		if shipment_package:
-# 			shipment_package.status = DocTypeStatus.Cancelled
-#
-# 			shipment_package.save()
-#
-#
-# def fedex_shipment_status_sync(target_doc, status):
-# 	shipment_note = get_related_shipment_note()
-# 	shipment_package = get_related_shipment_package()
-#
-# 	if status in FedexOperationalStatus.Completed:
-# 		if shipment_note:
-# 			shipment_note.status = DocTypeStatus.Submitted
-# 			shipment_note.shipment_status = ShipmentNoteOperationalStatus.Completed
-#
-# 		if shipment_package:
-# 			shipment_note.status = DocTypeStatus.Submitted
-#
-# 	if status in FedexOperationalStatus.Canceled:
-# 		if shipment_note:
-# 			shipment_note.status = DocTypeStatus.Cancelled
-# 			shipment_note.shipment_status = ShipmentNoteOperationalStatus.Cancelled
-#
-# 		if shipment_package:
-# 			shipment_note.status = DocTypeStatus.Submitted
+		delete_fedex_shipment(source_doc=source_name)
+		CommentController.add_comment('DTI Shipment Note',
+									  source_name,
+									  CommentController.Comment,
+									  "Shipment has been cancelled.")
