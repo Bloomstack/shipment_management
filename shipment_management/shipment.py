@@ -142,8 +142,6 @@ class RequestedShipment(object):
 													   self.address.CountryCode)
 
 
-@check_permission()
-@frappe.whitelist()
 def get_shipper(delivery_note_name):
 
 	shipper = RequestedShipment()
@@ -186,8 +184,6 @@ def get_shipper(delivery_note_name):
 	return shipper
 
 
-@check_permission()
-@frappe.whitelist()
 def get_recipient(delivery_note_name):
 
 	recipient = RequestedShipment()
@@ -234,6 +230,26 @@ def get_recipient(delivery_note_name):
 	return recipient
 
 
+@check_permission()
+@frappe.whitelist()
+def get_recipient_details(delivery_note_name):
+	recipient = get_recipient(delivery_note_name)
+	return {"recipient_contact_person_name": recipient.contact.PersonName or "",
+			"recipient_company_name": recipient.contact.CompanyName or "",
+			"recipient_contact_phone_number": recipient.contact.PhoneNumber or "",
+			"recipient_address_street_lines": " ".join(recipient.address.StreetLines) or "",
+			"recipient_address_city": recipient.address.City or "",
+			"recipient_address_state_or_province_code":  recipient.address.StateOrProvinceCode or "",
+			"recipient_address_country_code": recipient.address.CountryCode or "",
+			"recipient_address_postal_code": recipient.address.PostalCode or ""}
+
+
+@check_permission()
+@frappe.whitelist()
+def get_shipper_details():
+	return {}
+
+
 ##############################################################################
 
 
@@ -241,6 +257,8 @@ def get_recipient(delivery_note_name):
 @frappe.whitelist()
 def get_delivery_items(delivery_note_name):
 	return frappe.db.sql('''SELECT * from `tabDelivery Note Item` WHERE parent="%s"''' % delivery_note_name, as_dict=True)
+
+##############################################################################
 
 
 @check_permission()
