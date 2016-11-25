@@ -7,7 +7,6 @@ from __future__ import unicode_literals
 import frappe
 from comment_controller import CommentController
 from country_code_config import get_country_code, get_country_state_code
-from frappe import _
 from frappe.model.mapper import get_mapped_doc
 from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NAME, SupportedProviderList
 from provider_fedex import delete_fedex_shipment
