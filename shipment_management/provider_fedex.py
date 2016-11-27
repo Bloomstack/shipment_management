@@ -7,9 +7,11 @@ import json
 import binascii
 import datetime
 
+import frappe
 from frappe.utils.password import get_decrypted_password
 from frappe import _
 from frappe.utils.file_manager import *
+
 
 from config.app_config import PRIMARY_FEDEX_DOC_NAME
 
@@ -33,12 +35,11 @@ FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
 
 CUSTOMER_TRANSACTION_ID = "*** TrackService Request v10 using Python ***"
 
+# http://help.deposco.com/w/index.php/FedEx_Error_Handling
 
 ################################################################################
 ################################################################################
 ################################################################################
-
-# Fedex Configuration
 
 
 def _get_configuration():
@@ -251,14 +252,14 @@ def create_fedex_shipment(source_doc):
 
 	# Shipper contact info.
 	shipment.RequestedShipment.Shipper.Contact.PersonName = source_doc.shipper_contact_person_name
-	shipment.RequestedShipment.Shipper.Contact.CompanyName = source_doc.shipper_contact_company_name
+	shipment.RequestedShipment.Shipper.Contact.CompanyName = source_doc.shipper_company_name
 	shipment.RequestedShipment.Shipper.Contact.PhoneNumber = source_doc.shipper_contact_phone_number
 
 	# Shipper address.
-	shipment.RequestedShipment.Shipper.Address.StreetLines = [source_doc.shipper_address_streetlines]
+	shipment.RequestedShipment.Shipper.Address.StreetLines = [source_doc.shipper_address_street_lines]
 	shipment.RequestedShipment.Shipper.Address.City = source_doc.shipper_address_city
-	shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = source_doc.shipper_address_state_or_provincecode
-	shipment.RequestedShipment.Shipper.Address.PostalCode = source_doc.shipper_address_postalcode
+	shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = source_doc.shipper_address_state_or_province_code
+	shipment.RequestedShipment.Shipper.Address.PostalCode = source_doc.shipper_address_postal_code
 	shipment.RequestedShipment.Shipper.Address.CountryCode = source_doc.shipper_address_country_code
 
 	if source_doc.shipper_address_residential:
@@ -274,9 +275,9 @@ def create_fedex_shipment(source_doc):
 	# Recipient addressStateOrProvinceCode
 	shipment.RequestedShipment.Recipient.Address.StreetLines = [source_doc.recipient_address_street_lines]
 	shipment.RequestedShipment.Recipient.Address.City = source_doc.recipient_address_city
-	shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = source_doc.recipient_address_state_or_provincecode
-	shipment.RequestedShipment.Recipient.Address.PostalCode = source_doc.recipient_address_postalcode
-	shipment.RequestedShipment.Recipient.Address.CountryCode = source_doc.recipient_address_countrycode
+	shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = source_doc.recipient_address_state_or_province_code
+	shipment.RequestedShipment.Recipient.Address.PostalCode = source_doc.recipient_address_postal_code
+	shipment.RequestedShipment.Recipient.Address.CountryCode = source_doc.recipient_address_country_code
 
 	if source_doc.recipient_address_residential:
 		shipment.RequestedShipment.Recipient.Address.Residential = True
@@ -316,7 +317,31 @@ def create_fedex_shipment(source_doc):
 	try:
 		shipment.send_request()
 	except Exception as error:
-		frappe.throw(_("Error in box # 1 - %s" % error))
+
+		# __message = """{0}<hr>
+		# Shipper.Address.StreetLines = {1} <br>
+		# Shipper.Address.City        = {2} <br>
+		# Shipper.Address.StateOrProvinceCode = {3} <br>
+		# Shipper.Address.PostalCode  = {4} <br>
+		# Shipper.Address.CountryCode = {5} <br>
+		# <hr>
+		# Recipient.Address.StreetLines = {6} <br>
+		# Recipient.Address.City        = {7} <br>
+		# Recipient.Address.StateOrProvinceCode = {8} <br>
+		# Recipient.Address.PostalCode = {9} <br>
+		# Recipient.Address.CountryCode = {10}""".format(error,
+		# shipment.RequestedShipment.Shipper.Address.StreetLines,
+		# shipment.RequestedShipment.Shipper.Address.City,
+		# shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode,
+		# shipment.RequestedShipment.Shipper.Address.PostalCode,
+		# shipment.RequestedShipment.Shipper.Address.CountryCode,
+		# shipment.RequestedShipment.Recipient.Address.StreetLines,
+		# shipment.RequestedShipment.Recipient.Address.City,
+		# shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode,
+		# shipment.RequestedShipment.Recipient.Address.PostalCode,
+		# shipment.RequestedShipment.Recipient.Address.CountryCode)
+
+		frappe.throw(_(error))
 
 	master_label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
@@ -411,10 +436,10 @@ def create_fedex_shipment(source_doc):
 	# ################################################
 
 	try:
-		delivery_time = estimate_delivery_time(OriginPostalCode=source_doc.shipper_address_postalcode,
+		delivery_time = estimate_delivery_time(OriginPostalCode=source_doc.shipper_address_postal_code,
 											   OriginCountryCode=source_doc.shipper_address_country_code,
-											   DestinationPostalCode=source_doc.recipient_address_postalcode,
-											   DestinationCountryCode=source_doc.recipient_address_countrycode)
+											   DestinationPostalCode=source_doc.recipient_address_postal_code,
+											   DestinationCountryCode=source_doc.recipient_address_country_code)
 		frappe.db.set(source_doc, 'delivery_time', delivery_time)
 	except Exception as error:
 		frappe.throw(_("Delivery time error - %s" % error))
@@ -425,12 +450,12 @@ def create_fedex_shipment(source_doc):
 		rate = get_package_rate(DropoffType=source_doc.drop_off_type,
 								ServiceType=source_doc.service_type,
 								PackagingType=source_doc.packaging_type,
-								ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_provincecode,
-								ShipperPostalCode=source_doc.shipper_address_postalcode,
+								ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
+								ShipperPostalCode=source_doc.shipper_address_postal_code,
 								ShipperCountryCode=source_doc.shipper_address_country_code,
-								RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_provincecode,
-								RecipientPostalCode=source_doc.recipient_address_postalcode,
-								RecipientCountryCode=source_doc.recipient_address_countrycode,
+								RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_province_code,
+								RecipientPostalCode=source_doc.recipient_address_postal_code,
+								RecipientCountryCode=source_doc.recipient_address_country_code,
 								EdtRequestType='NONE',
 								PaymentType=source_doc.payment_type,
 								package_list=rate_box_list)
@@ -521,3 +546,5 @@ def get_html_code_status_with_fedex_tracking_number(track_value):
 	except Exception as error:
 		return """<b>ERROR :</b><br> Fedex invalid configuration error! <br>{0}<br><br>{1} """.format(error.value,
 																									  get_fedex_server_info())
+
+
