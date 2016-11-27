@@ -3,9 +3,20 @@
 
 <body>
 
-<%Customer Name%>,
-This is to inform you  that your Order # <%SalesOrder ID%>the shipment ‘<% ShipmentNote ID%>’,
-tracking number <% Carrier’s tracking number %>, has been delivered completed.
+{{customer_name}},
+<br>
+This is to inform you that your Order #
+
+{% if(sales_order_id) %}
+{{sales_order_id}}
+{% else %}
+{{delivery_note}}
+{% endif %}
+
+<br>
+Tracking number <b>{{tracking_number}}</b>, has been delivered.
+
+<br>
 Thank you for choosing JH Audio’s products.
 
 </body>

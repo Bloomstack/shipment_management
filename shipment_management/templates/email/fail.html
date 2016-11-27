@@ -2,11 +2,23 @@
 <html>
 
 <body>
-<%Customer Name%>,
-This is to inform you that your Order # <%SalesOrder ID%>the shipment ‘<% ShipmentNote ID%>’ ,
-tracking number <% Carrier’s tracking number%>, has been failed.
+{{customer_name}},
+<br>
+This is to inform you that your Order <b>#
+{% if(sales_order_id) %}
+{{sales_order_id}}
+{% else %}
+{{delivery_note}}
+{% endif %}</b>
+the shipment <b>{{shipment_note}}</b> ,
+tracking number <b>{{tracking_number}}</b> has been failed.
+<br>
 Below are the career details for the shipment failure
-<% Detailed problem description returned by Carrier’s Shipment API %>
+<br>
+<i>
+{{error}}
+</i>
+<br>
 Please feel free to contact Shipment department at JH Audio if you have any questions or issues.
 
 </body>

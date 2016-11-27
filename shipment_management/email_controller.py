@@ -5,12 +5,18 @@ from shipment import check_permission
 from frappe.model.document import get_doc
 
 
-def get_content_picked_up(shipment_note):
-
+def get_sales_order(company_name):
 	sales_order = None
-	sales_order_response = frappe.db.sql('''SELECT * from `tabSales Order` WHERE customer_name="%s"'''% shipment_note.recipient_company_name , as_dict=True)
+	sales_order_response = frappe.db.sql('''SELECT * from `tabSales Order` WHERE customer_name="%s"'''% company_name , as_dict=True)
 	if sales_order_response:
 		sales_order = sales_order_response[0].name
+
+	return sales_order
+
+
+def get_content_picked_up(shipment_note):
+
+	sales_order = get_sales_order(shipment_note.recipient_company_name)
 
 	address_string = """<b>Street Lines:</b> {0} <br>
 		<b>City:</b> {1} <br>
@@ -65,6 +71,41 @@ def get_content_picked_up(shipment_note):
 																				   "tracking_number": shipment_note.tracking_number,
 																				   "delivery_time": shipment_note.delivery_time})
 	return template_picked_up
+
+
+def get_content_completed(shipment_note):
+	sales_order = get_sales_order(shipment_note.recipient_company_name)
+
+	template_completed = frappe.render_template("templates/email/completed.html", {"customer_name": shipment_note.recipient_company_name,
+																				   "sales_order_id": sales_order,
+																				   "delivery_note": shipment_note.delivery_note,
+																				   "tracking_number": shipment_note.tracking_number})
+	return template_completed
+
+
+def get_content_cancel(shipment_note):
+
+	sales_order = get_sales_order(shipment_note.recipient_company_name)
+
+	template_cancel = frappe.render_template("templates/email/cancel.html",
+												{"customer_name": shipment_note.recipient_company_name,
+												 "sales_order_id": sales_order,
+												 "delivery_note": shipment_note.delivery_note,
+												 "tracking_number": shipment_note.tracking_number})
+	return template_cancel
+
+
+def get_content_fail(shipment_note, error_from_fedex="Delivery has been failed"):
+	sales_order = get_sales_order(shipment_note.recipient_company_name)
+
+	template_fail = frappe.render_template("templates/email/fail.html",
+												{"customer_name": shipment_note.recipient_company_name,
+												 "sales_order_id": sales_order,
+												 "delivery_note": shipment_note.delivery_note,
+												 "tracking_number": shipment_note.tracking_number,
+												 "shipment_note": shipment_note.name,
+												 "error" : error_from_fedex})
+	return template_fail
 
 
 def get_sender_email():

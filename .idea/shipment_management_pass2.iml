@@ -6,5 +6,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="jhaudio_warranty_management" />
     <orderEntry type="module" module-name="fedex" />
+    <orderEntry type="module" module-name="erpnextgit" />
   </component>
 </module>

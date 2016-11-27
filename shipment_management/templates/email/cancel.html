@@ -2,9 +2,17 @@
 <html>
 
 <body>
-<%Customer Name%>,
-This is to inform you that your Order # <%SalesOrder ID%>the shipment ‘<% ShipmentNote ID%>’, with tracking number <% Carrier’s tracking number %>, has been cancelled by JH Audio.
-Please feel free to contact Shipment department at JH Audio if you have any questions or issues.
+{{customer_name}},
+<br>
+This is to inform you that your Order #
+{% if(sales_order_id) %}
+{{sales_order_id}}
+{% else %}
+{{delivery_note}}
+{% endif %} with tracking number <b>{{tracking_number}}</b>,
+has been cancelled by JH Audio.
+<br>
+Please contact Shipment department at JH Audio if you have any questions.
 
 </body>
 </html>
