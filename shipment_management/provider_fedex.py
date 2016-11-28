@@ -35,10 +35,7 @@ FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
 
 CUSTOMER_TRANSACTION_ID = "*** TrackService Request v10 using Python ***"
 
-# http://help.deposco.com/w/index.php/FedEx_Error_Handling
 
-################################################################################
-################################################################################
 ################################################################################
 
 
@@ -317,36 +314,12 @@ def create_fedex_shipment(source_doc):
 	try:
 		shipment.send_request()
 	except Exception as error:
-
-		# __message = """{0}<hr>
-		# Shipper.Address.StreetLines = {1} <br>
-		# Shipper.Address.City        = {2} <br>
-		# Shipper.Address.StateOrProvinceCode = {3} <br>
-		# Shipper.Address.PostalCode  = {4} <br>
-		# Shipper.Address.CountryCode = {5} <br>
-		# <hr>
-		# Recipient.Address.StreetLines = {6} <br>
-		# Recipient.Address.City        = {7} <br>
-		# Recipient.Address.StateOrProvinceCode = {8} <br>
-		# Recipient.Address.PostalCode = {9} <br>
-		# Recipient.Address.CountryCode = {10}""".format(error,
-		# shipment.RequestedShipment.Shipper.Address.StreetLines,
-		# shipment.RequestedShipment.Shipper.Address.City,
-		# shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode,
-		# shipment.RequestedShipment.Shipper.Address.PostalCode,
-		# shipment.RequestedShipment.Shipper.Address.CountryCode,
-		# shipment.RequestedShipment.Recipient.Address.StreetLines,
-		# shipment.RequestedShipment.Recipient.Address.City,
-		# shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode,
-		# shipment.RequestedShipment.Recipient.Address.PostalCode,
-		# shipment.RequestedShipment.Recipient.Address.CountryCode)
-
 		frappe.throw(_(error))
 
 	master_label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
 	master_tracking_number = master_label.TrackingIds[0].TrackingNumber
-	master_tracking_id_type = master_label.TrackingIds[0].TrackingIdType
+	source_doc.master_tracking_id_type = master_label.TrackingIds[0].TrackingIdType
 	master_tracking_form_id = master_label.TrackingIds[0].FormId
 
 	ascii_label_data = master_label.Label.Parts[0].Image
@@ -395,7 +368,7 @@ def create_fedex_shipment(source_doc):
 
 		shipment.RequestedShipment.RequestedPackageLineItems = [package]
 		shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
-		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
+		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = source_doc.master_tracking_id_type
 		shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
 
 		#########################
@@ -470,31 +443,34 @@ def create_fedex_shipment(source_doc):
 
 
 def delete_fedex_shipment(source_doc):
-
 	del_request = FedexDeleteShipmentRequest(CONFIG_OBJ)
-
 	del_request.DeletionControlType = "DELETE_ALL_PACKAGES"
-
 	del_request.TrackingId.TrackingNumber = source_doc.tracking_number
+	del_request.TrackingId.TrackingIdType = source_doc.master_tracking_id_type
 
-	# What kind of shipment the tracking number used.
-	# Docs say this isn't required, but the WSDL won't validate without it.
-	# EXPRESS, GROUND, or USPS
-	# TODO!!!!!!!!!!!
-	# del_request.TrackingId.TrackingIdType = FedexProvider.master_tracking_id_type
-
-	# Fires off the request, sets the 'response' attribute on the object.
 	try:
 		del_request.send_request()
-	except FedexError as error:
-		if 'Unable to retrieve record' in str(error):
-			frappe.throw(_("WARNING: Unable to delete the shipment with the provided tracking number."))
+	except FedexError as e:
+		if 'Unable to retrieve record' in str(e):
+			raise Exception("WARNING: Unable to delete the shipment with the provided tracking number.")
 		else:
-			frappe.throw(_("%s" % error))
+			raise Exception("Error", e)
 
-	frappe.throw(_("%s" % del_request.response))
 
-	print("HighestSeverity: {}".format(del_request.response.HighestSeverity))
+def get_shipment_status(track_value):
+	track = FedexTrackRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
+
+	track.SelectionDetails.PackageIdentifier.Type = 'TRACKING_NUMBER_OR_DOORTAG'
+	track.SelectionDetails.PackageIdentifier.Value = track_value
+
+	del track.SelectionDetails.OperatingCompany
+
+	try:
+		track.send_request()
+		return track.response
+	except Exception as error:
+		frappe.throw(__("Fedex invalid configuration error! {} {}".format(error.value, get_fedex_server_info())))
+
 
 
 ################################################################################

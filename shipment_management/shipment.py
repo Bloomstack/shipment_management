@@ -266,20 +266,3 @@ def get_shipper_details(delivery_note_name):
 @frappe.whitelist()
 def get_delivery_items(delivery_note_name):
 	return frappe.db.sql('''SELECT * from `tabDelivery Note Item` WHERE parent="%s"''' % delivery_note_name, as_dict=True)
-
-##############################################################################
-
-
-# @check_permission()
-# @frappe.whitelist()
-# def cancel_shipment(source_name):
-# 	shipment = frappe.get_doc('DTI Shipment Note', source_name)
-#
-# 	frappe.db.set(shipment, "shipment_note_status", ShipmentNoteOperationalStatus.Cancelled)
-#
-# 	if shipment.shipment_provider == 'FEDEX':
-# 		delete_fedex_shipment(source_doc=source_name)
-# 		CommentController.add_comment('DTI Shipment Note',
-# 									  source_name,
-# 									  CommentController.Comment,
-# 									  "Shipment has been cancelled.")

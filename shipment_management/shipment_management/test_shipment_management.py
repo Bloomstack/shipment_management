@@ -7,6 +7,7 @@ import unittest
 from shipment_management.shipment import *
 from shipment_management.email_controller import send_email, get_content_picked_up, get_content_completed, get_content_cancel, get_content_fail
 from frappe.model.document import get_doc
+from shipment_management.provider_fedex import get_shipment_status
 
 
 class TestCaseAddress(unittest.TestCase):
@@ -41,11 +42,14 @@ class TestCaseAddress(unittest.TestCase):
 		# 														shipment_note.name),
 		# 		   recipient_list=shipment_note.contact_email.split(","))
 
-		message = get_content_fail(shipment_note)
-		send_email(message=message,
-				   subject="Shipment to %s [%s] - Failed" % (shipment_note.recipient_company_name,
-																shipment_note.name),
-				   recipient_list=shipment_note.contact_email.split(","))
+		# message = get_content_fail(shipment_note)
+		# send_email(message=message,
+		# 		   subject="Shipment to %s [%s] - Failed" % (shipment_note.recipient_company_name,
+		# 														shipment_note.name),
+		# 		   recipient_list=shipment_note.contact_email.split(","))
+
+		resp = get_shipment_status("111111111111")
+		print resp
 
 if __name__ == '__main__':
 	unittest.main()
