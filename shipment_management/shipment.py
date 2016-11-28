@@ -290,16 +290,24 @@ def shipment_status_update_controller():
 	print "--------------> Status controller in progress < ----------------------"
 	print "=" * 120
 
-	for ship in frappe.db.sql(
-			'''SELECT * from `tabDTI Shipment Note` WHERE shipment_status="%s"''' % ShipmentNoteOperationalStatus.InProgress,
-			as_dict=True):
+	all_ships = frappe.db.sql(
+			'''SELECT * from `tabDTI Shipment Note` WHERE shipment_note_status="%s"''' % ShipmentNoteOperationalStatus.InProgress,
+			as_dict=True)
+
+	completed = [i.status_code for i in StatusMapFedexAndShipmentNote.Completed]
+	failed = [i.status_code for i in StatusMapFedexAndShipmentNote.Failed]
+
+	for ship in all_ships:
+		print "Tracking number", ship.tracking_number
 		status = get_fedex_shipment_status(ship.tracking_number)
-		if status != get_fedex_shipment_status:
+		print "Status", status
 
-			CommentController.add_comment("DTI Shipment Note", ship.name, CommentController.Comment,
-										  "Status updated to [%s]" % status)
+		if status != ship.fedex_status:
 
-			# -----------------------------------------------
+			CommentController.add_comment("DTI Shipment Note", ship.name,
+										  CommentController.Comment, "Status updated to [%s]" % status)
+
+			# ------------------------------------------------------------------------------
 
 			shipment_note = get_doc("DTI Shipment Note", ship.name)
 
@@ -310,7 +318,7 @@ def shipment_status_update_controller():
 																		shipment_note.name),
 						   recipient_list=shipment_note.contact_email.split(","))
 
-			elif status in StatusMapFedexAndShipmentNote.Completed:
+			elif status in completed:
 
 				message = get_content_completed(shipment_note)
 				send_email(message=message,
@@ -318,7 +326,7 @@ def shipment_status_update_controller():
 																		shipment_note.name),
 						   recipient_list=shipment_note.contact_email.split(","))
 
-			elif status in StatusMapFedexAndShipmentNote.Failed:
+			elif status in failed:
 				message = get_content_fail(shipment_note)
 				send_email(message=message,
 						   subject="Shipment to %s [%s] - Failed" % (shipment_note.recipient_company_name,

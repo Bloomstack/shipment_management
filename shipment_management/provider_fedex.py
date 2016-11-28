@@ -458,6 +458,8 @@ def create_fedex_shipment(source_doc):
 	source_doc.sales_order = get_sales_order(source_doc.recipient_company_name)
 
 
+################################################################################
+
 def delete_fedex_shipment(source_doc):
 	del_request = FedexDeleteShipmentRequest(CONFIG_OBJ)
 	del_request.DeletionControlType = "DELETE_ALL_PACKAGES"
@@ -472,6 +474,8 @@ def delete_fedex_shipment(source_doc):
 		else:
 			raise Exception("ERROR: %s. Tracking number: %s. Type: %s" % (e, source_doc.tracking_number, source_doc.master_tracking_id_type))
 
+################################################################################
+
 
 def get_fedex_shipment_status(track_value):
 	track = FedexTrackRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
@@ -484,8 +488,10 @@ def get_fedex_shipment_status(track_value):
 	try:
 		track.send_request()
 		return track.response[4][0].TrackDetails[0].Events[0].EventType
-	except Exception as error:
-		frappe.throw(_("Fedex invalid configuration error! {} {}".format(error, get_fedex_server_info())))
+	except AttributeError:
+			return None
+	except FedexError as error:
+		frappe.throw(_("Fedex error! {} {}".format(error, get_fedex_server_info())))
 
 
 ################################################################################
