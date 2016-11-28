@@ -49,6 +49,8 @@ cur_frm.fields_dict['delivery_note'].get_query = function(doc) {
 	}
 }
 
+//frappe.ui.form.on('DTI Shipment Note', "rate", function(frm) {}
+
 frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
         if (frm.doc.delivery_note)
             {

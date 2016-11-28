@@ -8,6 +8,7 @@ import frappe
 from comment_controller import CommentController
 from country_code_config import get_country_code, get_country_state_code
 from frappe.model.document import get_doc
+from frappe.model.mapper import get_mapped_doc
 from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NAME, SupportedProviderList, \
 	StatusMapFedexAndShipmentNote
 from provider_fedex import get_fedex_shipment_status
@@ -16,7 +17,7 @@ from email_controller import send_email, get_content_picked_up, get_content_fail
 
 def check_permission():
 	def innerfn(fn):
-		# TODO - Fix during permission pass
+		# TODO - Fix during permission final pass
 		# if not frappe.has_permission("DTI Shipment Note", "read"):
 		# 	frappe.throw(_("Permission denied"), frappe.PermissionError)
 		return fn
@@ -48,40 +49,6 @@ class ShipmentNoteOperationalStatus(object):
 	Returned = "Returned"
 	Cancelled = "Cancelled"
 	Failed = "Failed"
-
-
-##############################################################################
-
-# Mapper
-
-@check_permission()
-@frappe.whitelist()
-def make_new_shipment_note_from_delivery_note(source_name, target_doc=None):
-	doclist = get_mapped_doc("Delivery Note", source_name, {
-		"Delivery Note": {
-			"doctype": "DTI Shipment Note",
-			"field_map": {
-				"name": "delivery_note",
-			}
-		}
-	}, target_doc)
-
-	return doclist
-
-
-@check_permission()
-@frappe.whitelist()
-def make_fedex_shipment_from_shipment_note(source_name, target_doc=None):
-	doclist = get_mapped_doc("DTI Shipment Note", source_name, {
-		"DTI Shipment Note": {
-			"doctype": "DTI Fedex Shipment",
-			"field_map": {
-				"name": "shipment_note_link"
-			}
-		}
-	}, target_doc)
-
-	return doclist
 
 
 ##############################################################################
@@ -260,15 +227,15 @@ def get_recipient_details(delivery_note_name):
 @check_permission()
 @frappe.whitelist()
 def get_shipper_details(delivery_note_name):
-	recipient = get_shipper(delivery_note_name)
-	return {"shipper_contact_person_name": recipient.contact.PersonName or "",
-			"shipper_company_name": recipient.contact.CompanyName or "",
-			"shipper_contact_phone_number": recipient.contact.PhoneNumber or "",
-			"shipper_address_street_lines": " ".join(recipient.address.StreetLines) or "",
-			"shipper_address_city": recipient.address.City or "",
-			"shipper_address_state_or_province_code": recipient.address.StateOrProvinceCode or "",
-			"shipper_address_country_code": recipient.address.CountryCode or "",
-			"shipper_address_postal_code": recipient.address.PostalCode or ""}
+	shipper = get_shipper(delivery_note_name)
+	return {"shipper_contact_person_name": shipper.contact.PersonName or "",
+			"shipper_company_name": shipper.contact.CompanyName or "",
+			"shipper_contact_phone_number": shipper.contact.PhoneNumber or "",
+			"shipper_address_street_lines": " ".join(shipper.address.StreetLines) or "",
+			"shipper_address_city": shipper.address.City or "",
+			"shipper_address_state_or_province_code": shipper.address.StateOrProvinceCode or "",
+			"shipper_address_country_code": shipper.address.CountryCode or "",
+			"shipper_address_postal_code": shipper.address.PostalCode or ""}
 
 
 ##############################################################################
@@ -300,14 +267,12 @@ def shipment_status_update_controller():
 	for ship in all_ships:
 		print "Tracking number", ship.tracking_number
 		status = get_fedex_shipment_status(ship.tracking_number)
-		print "Status", status
+		print "Fedex Status", status
 
 		if status != ship.fedex_status:
 
 			CommentController.add_comment("DTI Shipment Note", ship.name,
 										  CommentController.Comment, "Status updated to [%s]" % status)
-
-			# ------------------------------------------------------------------------------
 
 			shipment_note = get_doc("DTI Shipment Note", ship.name)
 
@@ -332,3 +297,42 @@ def shipment_status_update_controller():
 						   subject="Shipment to %s [%s] - Failed" % (shipment_note.recipient_company_name,
 																	 shipment_note.name),
 						   recipient_list=shipment_note.contact_email.split(","))
+
+
+##############################################################################
+
+@check_permission()
+@frappe.whitelist()
+def make_new_shipment_note_from_delivery_note(source_name, target_doc=None):
+	# TODO add mapping for all fields + items table
+	doclist = get_mapped_doc("Delivery Note", source_name, {
+		"Delivery Note": {
+			"doctype": "DTI Shipment Note",
+			"field_map": {
+				"name": "delivery_note",
+			}
+		}
+	}, target_doc)
+
+	# recipient = get_recipient(source_name)
+	# shipper = get_shipper(source_name)
+	#
+	# target_doc.update({"recipient_contact_person_name": recipient.contact.PersonName or "",
+	# 		"recipient_company_name": recipient.contact.CompanyName or "",
+	# 		"recipient_contact_phone_number": recipient.contact.PhoneNumber or "",
+	# 		"recipient_address_street_lines": " ".join(recipient.address.StreetLines),
+	# 		"recipient_address_city": recipient.address.City or "",
+	# 		"recipient_address_state_or_province_code": recipient.address.StateOrProvinceCode or "",
+	# 		"recipient_address_country_code": recipient.address.CountryCode or "",
+	# 		"recipient_address_postal_code": recipient.address.PostalCode or "",
+	# 		"contact_email": ", ".join(recipient.contact.Email_List),
+	#  		"shipper_contact_person_name": shipper.contact.PersonName or "",
+	# 		"shipper_company_name": recipient.contact.CompanyName or "",
+	# 		"shipper_contact_phone_number": recipient.contact.PhoneNumber or "",
+	# 		"shipper_address_street_lines": " ".join(recipient.address.StreetLines) or "",
+	# 		"shipper_address_city": recipient.address.City or "",
+	# 		"shipper_address_state_or_province_code": recipient.address.StateOrProvinceCode or "",
+	# 		"shipper_address_country_code": recipient.address.CountryCode or "",
+	# 		"shipper_address_postal_code": recipient.address.PostalCode or ""})
+
+	return doclist
