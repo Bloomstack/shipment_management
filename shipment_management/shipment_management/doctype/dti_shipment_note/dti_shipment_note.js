@@ -24,35 +24,80 @@
 //		});
 //};
 
+all_required = function(frm, fields) {
+    for(var i in fields) {
+        if ( !frm.doc[fields[i]] ) {
+            return false;
+        }
+    }
+    return true;
+}
 
-frappe.ui.form.on('DTI Shipment Note', {
+multifield_events = function(fields, callback) {
+    var obj = {};
+    for(var i in fields) {
+        console.log("watching for ", fields[i], i);
+        (function(field) {
+            obj[field] = function(frm) { callback(field, frm, all_required(frm, fields)); };
+        }(fields[i]));
+    }
+    return obj;
+}
 
-	refresh: function(frm) {
-			cur_frm.refresh_fields();
-		    if ((cur_frm.doc.label_1) && (cur_frm.doc.docstatus==1))
-                    {
-                    cur_frm.add_custom_button(__('Print label'),
-                    function ()
+frappe.ui.form.on('DTI Shipment Note', $.extend(multifield_events([
+        'recipient_contact_person_name',
+        'recipient_company_name'
+    ], function(field, frm, all_fields_set) {
+        console.log("field change", field, frm);
+        console.log((all_fields_set)?"ALL REQUIRED FIELDS ARE SET":"MISSING REQUIRED FIELDS");
+    }), {
+
+        refresh: function(frm) {
+                cur_frm.refresh_fields();
+                if ((cur_frm.doc.label_1) && (cur_frm.doc.docstatus==1))
                         {
-                           var url = '/labels?name=' + cur_frm.doc.name
-                           window.location.assign(url)
-                        }).addClass("btn btn-primary");
-                    }
-	                    },
+                        cur_frm.add_custom_button(__('Print label'),
+                        function ()
+                            {
+                               var url = '/labels?name=' + cur_frm.doc.name
+                               window.location.assign(url)
+                            }).addClass("btn btn-primary");
+                        }
+                            },
 
-	onload_post_render: function(frm) {
-	    //TODO Run Time Reload
-//	    var total = get_insurance()
-//      var rate = get_rate()
-//      var delivery_time = get_delivery_time()
+        onload_post_render: function(frm) {
+            //TODO Run Time Reload
+            //var total = get_insurance()
+    //      var rate = get_rate()
+    //      var delivery_time = get_delivery_time()
+            console.log(cur_frm.doc.package);
 
-//	    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'total_insurance', "100");
-//	    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'rate', "100");
-//	    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'delivery_time', "100");
+            //frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'total_insurance', total);
+    //	    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'rate', "100");
+    //	    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'delivery_time', "100");
 
-	}
+        },
+
+        package: function(frm) {
+            console.log(cur_frm.doc.package);
+
+        },
+
+        package_add: function(frm) {
+            console.log("package_add?", frm);
+        },
+        package_remove: function(frm) {
+            console.log("package_remove?", frm);
+        }
+}));
+
+frappe.ui.form.on("DTI Shipment Package", "insured_amount", function(frm) {
+    console.log("FROM CHILD  TABLE? ", frm);
 });
 
+frappe.ui.form.on("DTI Shipment Note", "recipient_adress", "shipper_addres", function(frm) {
+    console.log("FROM CHILD  TABLE? ", frm);
+});
 
 get_recipient_info = function(doc) {
 		return frappe.call({
@@ -177,4 +222,5 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
 //                frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'total_insurance', total_insurance)});
         }
         }
+
 )
