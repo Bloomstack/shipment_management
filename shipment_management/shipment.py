@@ -254,7 +254,7 @@ def get_delivery_items(delivery_note_name):
 @frappe.whitelist()
 def shipment_status_update_controller():
 	print "=" * 120
-	print "--------------> Status controller in progress < ----------------------"
+	print "--------------> Shipment Management Status Controller in progress < ----------------------"
 	print "=" * 120
 
 	all_ships = frappe.db.sql(
@@ -270,7 +270,6 @@ def shipment_status_update_controller():
 		print "Fedex Status", status
 
 		if status != ship.fedex_status:
-
 			CommentController.add_comment("DTI Shipment Note", ship.name,
 										  CommentController.Comment, "Status updated to [%s]" % status)
 
@@ -284,7 +283,6 @@ def shipment_status_update_controller():
 						   recipient_list=shipment_note.contact_email.split(","))
 
 			elif status in completed:
-
 				message = get_content_completed(shipment_note)
 				send_email(message=message,
 						   subject="Shipment to %s [%s] - Completed" % (shipment_note.recipient_company_name,
@@ -304,7 +302,6 @@ def shipment_status_update_controller():
 @check_permission()
 @frappe.whitelist()
 def make_new_shipment_note_from_delivery_note(source_name, target_doc=None):
-	# TODO add mapping for all fields + items table
 	doclist = get_mapped_doc("Delivery Note", source_name, {
 		"Delivery Note": {
 			"doctype": "DTI Shipment Note",
@@ -314,25 +311,38 @@ def make_new_shipment_note_from_delivery_note(source_name, target_doc=None):
 		}
 	}, target_doc)
 
-	# recipient = get_recipient(source_name)
-	# shipper = get_shipper(source_name)
-	#
-	# target_doc.update({"recipient_contact_person_name": recipient.contact.PersonName or "",
-	# 		"recipient_company_name": recipient.contact.CompanyName or "",
-	# 		"recipient_contact_phone_number": recipient.contact.PhoneNumber or "",
-	# 		"recipient_address_street_lines": " ".join(recipient.address.StreetLines),
-	# 		"recipient_address_city": recipient.address.City or "",
-	# 		"recipient_address_state_or_province_code": recipient.address.StateOrProvinceCode or "",
-	# 		"recipient_address_country_code": recipient.address.CountryCode or "",
-	# 		"recipient_address_postal_code": recipient.address.PostalCode or "",
-	# 		"contact_email": ", ".join(recipient.contact.Email_List),
-	#  		"shipper_contact_person_name": shipper.contact.PersonName or "",
-	# 		"shipper_company_name": recipient.contact.CompanyName or "",
-	# 		"shipper_contact_phone_number": recipient.contact.PhoneNumber or "",
-	# 		"shipper_address_street_lines": " ".join(recipient.address.StreetLines) or "",
-	# 		"shipper_address_city": recipient.address.City or "",
-	# 		"shipper_address_state_or_province_code": recipient.address.StateOrProvinceCode or "",
-	# 		"shipper_address_country_code": recipient.address.CountryCode or "",
-	# 		"shipper_address_postal_code": recipient.address.PostalCode or ""})
+	recipient = get_recipient(source_name)
+	shipper = get_shipper(source_name)
+
+	# TODO add Table with items from delivery note
+	#items = doclist.get_all_children("DTI Shipment Package")
+
+	doclist.update({"recipient_contact_person_name": recipient.contact.PersonName or "",
+			"recipient_company_name": recipient.contact.CompanyName or "",
+			"recipient_contact_phone_number": recipient.contact.PhoneNumber or "",
+			"recipient_address_street_lines": " ".join(recipient.address.StreetLines),
+			"recipient_address_city": recipient.address.City or "",
+			"recipient_address_state_or_province_code": recipient.address.StateOrProvinceCode or "",
+			"recipient_address_country_code": recipient.address.CountryCode or "",
+			"recipient_address_postal_code": recipient.address.PostalCode or "",
+			"contact_email": ", ".join(recipient.contact.Email_List),
+	 		"shipper_contact_person_name": shipper.contact.PersonName or "",
+			"shipper_company_name": shipper.contact.CompanyName or "",
+			"shipper_contact_phone_number": shipper.contact.PhoneNumber or "",
+			"shipper_address_street_lines": " ".join(shipper.address.StreetLines) or "",
+			"shipper_address_city": shipper.address.City or "",
+			"shipper_address_state_or_province_code": shipper.address.StateOrProvinceCode or "",
+			"shipper_address_country_code": shipper.address.CountryCode or "",
+			"shipper_address_postal_code": shipper.address.PostalCode or ""})
 
 	return doclist
+
+
+#################################################################################
+
+@check_permission()
+@frappe.whitelist()
+def get_total_insurance(source_doc):
+	#shipment_note = get_doc("DTI Shipment Note", source.name)
+	BOXES = source_doc.get_all_children("DTI Shipment Package")
+	return sum([box.insured_amount for box in BOXES])

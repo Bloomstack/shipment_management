@@ -2,6 +2,29 @@
 // For license information, please see license.txt
 
 
+//get_insurance = function(doc) {
+//		return frappe.call({
+//			method:'shipment_management.shipment.get_total_insurance',
+//			args: { source: cur_frm.doc}
+//		});
+//};
+//get_rate = function(doc) {
+//		return frappe.call({
+//			method:'shipment_management.provider_fedex.get_package_rate',
+//			args: { source: cur_frm.doc}
+//		});
+//};
+//get_delivery_time = function(doc) {
+//		return frappe.call({
+//			method:'shipment_management.provider_fedex.estimate_delivery_time',
+//			args: { OriginPostalCode:doc.recipient_address_postal_code,
+//					OriginCountryCode:'CA',
+//					DestinationPostalCode:'27577',
+ //					DestinationCountryCode:'US'}
+//		});
+//};
+
+
 frappe.ui.form.on('DTI Shipment Note', {
 
 	refresh: function(frm) {
@@ -16,6 +39,18 @@ frappe.ui.form.on('DTI Shipment Note', {
                         }).addClass("btn btn-primary");
                     }
 	                    },
+
+	onload_post_render: function(frm) {
+	    //TODO Run Time Reload
+//	    var total = get_insurance()
+//      var rate = get_rate()
+//      var delivery_time = get_delivery_time()
+
+//	    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'total_insurance', "100");
+//	    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'rate', "100");
+//	    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'delivery_time', "100");
+
+	}
 });
 
 
@@ -49,7 +84,6 @@ cur_frm.fields_dict['delivery_note'].get_query = function(doc) {
 	}
 }
 
-//frappe.ui.form.on('DTI Shipment Note', "rate", function(frm) {}
 
 frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
         if (frm.doc.delivery_note)
@@ -119,7 +153,6 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
                  frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'recipient_address_state_or_province_code', resp['recipient_address_state_or_province_code']);
                  frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'recipient_address_country_code', resp['recipient_address_country_code']);
                  frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'recipient_address_postal_code', resp['recipient_address_postal_code']);
-                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'recipient_address_postal_code', resp['recipient_address_postal_code']);
 
                  frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'contact_email', resp['contact_email']);
 
@@ -139,6 +172,9 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
                  frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_address_postal_code', resp['shipper_address_postal_code']);
                  });
 
-            }
-     }
+//            get_insurance()
+//                .done(function(total_insurance){
+//                frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'total_insurance', total_insurance)});
+        }
+        }
 )
