@@ -7,9 +7,11 @@ from __future__ import unicode_literals
 import frappe
 from comment_controller import CommentController
 from country_code_config import get_country_code, get_country_state_code
-from frappe.model.mapper import get_mapped_doc
-from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NAME, SupportedProviderList
-from provider_fedex import delete_fedex_shipment
+from frappe.model.document import get_doc
+from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NAME, SupportedProviderList, \
+	StatusMapFedexAndShipmentNote
+from provider_fedex import get_fedex_shipment_status
+from email_controller import send_email, get_content_picked_up, get_content_fail, get_content_completed
 
 
 def check_permission():
@@ -143,16 +145,17 @@ class RequestedShipment(object):
 
 
 def get_shipper(delivery_note_name):
-
 	shipper = RequestedShipment()
 
-	delivery_note = frappe.db.sql('''SELECT * from `tabDelivery Note` WHERE name="%s"''' % delivery_note_name, as_dict=True)
+	delivery_note = frappe.db.sql('''SELECT * from `tabDelivery Note` WHERE name="%s"''' % delivery_note_name,
+								  as_dict=True)
 
 	if delivery_note[0].company:
 		shipper.contact.PersonName = delivery_note[0].company
 		shipper.contact.CompanyName = delivery_note[0].company
 
-		company = frappe.db.sql('''SELECT *  from tabCompany WHERE name="%s"''' % delivery_note[0].company, as_dict=True)
+		company = frappe.db.sql('''SELECT *  from tabCompany WHERE name="%s"''' % delivery_note[0].company,
+								as_dict=True)
 
 		if company:
 			if company[0].phone_no:
@@ -162,7 +165,9 @@ def get_shipper(delivery_note_name):
 				shipper.address.Country = company[0].country
 				shipper.address.CountryCode = get_country_code(shipper.address.Country)
 
-			company_address = frappe.db.sql('''SELECT * from tabAddress WHERE company="%s" AND is_your_company_address=1''' % delivery_note[0].company, as_dict=True)
+			company_address = frappe.db.sql(
+				'''SELECT * from tabAddress WHERE company="%s" AND is_your_company_address=1''' % delivery_note[
+					0].company, as_dict=True)
 
 			if company_address:
 				if company_address[0].address_line1:
@@ -179,21 +184,27 @@ def get_shipper(delivery_note_name):
 
 				if company_address[0].state:
 					shipper.address.StateOrProvinceCode = get_country_state_code(country=shipper.address.Country,
-																				   state=shipper[0].state)
+																				 state=shipper[0].state)
 
 	return shipper
 
 
 def get_recipient(delivery_note_name):
-
 	recipient = RequestedShipment()
 
-	recipient.contact.PersonName = frappe.db.sql('''SELECT customer_name from `tabDelivery Note` WHERE name="%s"''' % delivery_note_name, as_dict=True)[0].customer_name
+	recipient.contact.PersonName = \
+	frappe.db.sql('''SELECT customer_name from `tabDelivery Note` WHERE name="%s"''' % delivery_note_name,
+				  as_dict=True)[0].customer_name
 
-	recipient.contact.CompanyName = frappe.db.sql('''SELECT * from tabCustomer WHERE name="%s"''' % recipient.contact.PersonName, as_dict=True)[0].name
+	recipient.contact.CompanyName = \
+	frappe.db.sql('''SELECT * from tabCustomer WHERE name="%s"''' % recipient.contact.PersonName, as_dict=True)[0].name
 
-	shipping_address = frappe.db.sql('''SELECT * from tabAddress WHERE customer_name="%s" AND is_shipping_address=1''' % recipient.contact.PersonName, as_dict=True)
-	primary_contact = frappe.db.sql('''SELECT * from tabContact WHERE customer="%s" and is_primary_contact=1''' % recipient.contact.PersonName, as_dict=True)
+	shipping_address = frappe.db.sql(
+		'''SELECT * from tabAddress WHERE customer_name="%s" AND is_shipping_address=1''' % recipient.contact.PersonName,
+		as_dict=True)
+	primary_contact = frappe.db.sql(
+		'''SELECT * from tabContact WHERE customer="%s" and is_primary_contact=1''' % recipient.contact.PersonName,
+		as_dict=True)
 
 	if shipping_address:
 		if shipping_address[0].phone:
@@ -217,7 +228,8 @@ def get_recipient(delivery_note_name):
 		if shipping_address[0].country:
 			recipient.address.Country = shipping_address[0].country
 			recipient.address.CountryCode = get_country_code(recipient.address.Country)
-			recipient.address.StateOrProvinceCode = get_country_state_code(country=recipient.address.Country, state=shipping_address[0].state)
+			recipient.address.StateOrProvinceCode = get_country_state_code(country=recipient.address.Country,
+																		   state=shipping_address[0].state)
 
 	if primary_contact:
 		if not recipient.contact.PhoneNumber:
@@ -239,7 +251,7 @@ def get_recipient_details(delivery_note_name):
 			"recipient_contact_phone_number": recipient.contact.PhoneNumber or "",
 			"recipient_address_street_lines": " ".join(recipient.address.StreetLines),
 			"recipient_address_city": recipient.address.City or "",
-			"recipient_address_state_or_province_code":  recipient.address.StateOrProvinceCode or "",
+			"recipient_address_state_or_province_code": recipient.address.StateOrProvinceCode or "",
 			"recipient_address_country_code": recipient.address.CountryCode or "",
 			"recipient_address_postal_code": recipient.address.PostalCode or "",
 			"contact_email": ", ".join(recipient.contact.Email_List)}
@@ -254,7 +266,7 @@ def get_shipper_details(delivery_note_name):
 			"shipper_contact_phone_number": recipient.contact.PhoneNumber or "",
 			"shipper_address_street_lines": " ".join(recipient.address.StreetLines) or "",
 			"shipper_address_city": recipient.address.City or "",
-			"shipper_address_state_or_province_code":  recipient.address.StateOrProvinceCode or "",
+			"shipper_address_state_or_province_code": recipient.address.StateOrProvinceCode or "",
 			"shipper_address_country_code": recipient.address.CountryCode or "",
 			"shipper_address_postal_code": recipient.address.PostalCode or ""}
 
@@ -265,4 +277,50 @@ def get_shipper_details(delivery_note_name):
 @check_permission()
 @frappe.whitelist()
 def get_delivery_items(delivery_note_name):
-	return frappe.db.sql('''SELECT * from `tabDelivery Note Item` WHERE parent="%s"''' % delivery_note_name, as_dict=True)
+	return frappe.db.sql('''SELECT * from `tabDelivery Note Item` WHERE parent="%s"''' % delivery_note_name,
+						 as_dict=True)
+
+
+##############################################################################
+
+@check_permission()
+@frappe.whitelist()
+def shipment_status_update_controller():
+	print "=" * 120
+	print "--------------> Status controller in progress < ----------------------"
+	print "=" * 120
+
+	for ship in frappe.db.sql(
+			'''SELECT * from `tabDTI Shipment Note` WHERE shipment_status="%s"''' % ShipmentNoteOperationalStatus.InProgress,
+			as_dict=True):
+		status = get_fedex_shipment_status(ship.tracking_number)
+		if status != get_fedex_shipment_status:
+
+			CommentController.add_comment("DTI Shipment Note", ship.name, CommentController.Comment,
+										  "Status updated to [%s]" % status)
+
+			# -----------------------------------------------
+
+			shipment_note = get_doc("DTI Shipment Note", ship.name)
+
+			if status == 'PU':
+				message = get_content_picked_up(shipment_note)
+				send_email(message=message,
+						   subject="Shipment to %s [%s] - Picked UP" % (shipment_note.recipient_company_name,
+																		shipment_note.name),
+						   recipient_list=shipment_note.contact_email.split(","))
+
+			elif status in StatusMapFedexAndShipmentNote.Completed:
+
+				message = get_content_completed(shipment_note)
+				send_email(message=message,
+						   subject="Shipment to %s [%s] - Completed" % (shipment_note.recipient_company_name,
+																		shipment_note.name),
+						   recipient_list=shipment_note.contact_email.split(","))
+
+			elif status in StatusMapFedexAndShipmentNote.Failed:
+				message = get_content_fail(shipment_note)
+				send_email(message=message,
+						   subject="Shipment to %s [%s] - Failed" % (shipment_note.recipient_company_name,
+																	 shipment_note.name),
+						   recipient_list=shipment_note.contact_email.split(","))

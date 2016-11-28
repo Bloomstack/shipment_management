@@ -81,23 +81,8 @@ after_install = "shipment_management.shipment.after_install"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"shipment_management.tasks.all"
-# 	],
-# 	"daily": [
-# 		"shipment_management.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"shipment_management.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"shipment_management.tasks.weekly"
-# 	]
-# 	"monthly": [
-# 		"shipment_management.tasks.monthly"
-# 	]
-# }
+scheduler_events = {
+"all": ["shipment_management.shipment.shipment_status_update_controller"]}
 
 # Testing
 # -------

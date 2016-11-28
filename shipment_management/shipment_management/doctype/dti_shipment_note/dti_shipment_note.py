@@ -11,15 +11,9 @@ from frappe.utils.file_manager import *
 
 from shipment_management.provider_fedex import create_fedex_shipment
 from shipment_management.shipment import ShipmentNoteOperationalStatus
-from shipment_management.shipment import delete_fedex_shipment
+from shipment_management.provider_fedex import delete_fedex_shipment
 from shipment_management.config.app_config import SupportedProviderList
-
-fedex_track_service = frappe.get_module("fedex.services.track_service")
-fedex_config = frappe.get_module("fedex.config")
-ship_service = frappe.get_module("fedex.services.ship_service")
-FedexTrackRequest = fedex_track_service.FedexTrackRequest
-FedexConfig = fedex_config.FedexConfig
-FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
+from shipment_management.email_controller import get_content_cancel, send_email
 
 
 class DTIShipmentNote(Document):
@@ -30,9 +24,7 @@ class DTIShipmentNote(Document):
 			frappe.throw(_("Please specify shipment provider!"))
 
 		if self.shipment_provider == SupportedProviderList.Fedex:
-			master_tracking_number, master_tracking_id_type = create_fedex_shipment(self)
-
-			frappe.db.set(self, 'tracking_number', master_tracking_number)
+			create_fedex_shipment(self)
 
 			frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.InProgress)
 			frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
@@ -41,9 +33,17 @@ class DTIShipmentNote(Document):
 		if self.shipment_provider == SupportedProviderList.Fedex:
 
 			try:
-				delete_fedex_shipment(self.tracking_number, self.master_tracking_id_type)
+				delete_fedex_shipment(self)
 				frappe.msgprint(_("Shipment {} has been canceled!".format(self.name)))
+
 				frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Cancelled)
 				frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.Cancelled)
+
+				message = get_content_cancel(self)
+
+				send_email(message=message,
+						   subject="Shipment to %s [%s] - Cancelled" % (self.recipient_company_name, self.name),
+						   recipient_list=self.contact_email.split(","))
+
 			except Exception, error:
 				frappe.throw(_(error))

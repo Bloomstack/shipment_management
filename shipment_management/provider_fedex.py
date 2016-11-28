@@ -21,13 +21,12 @@ fedex_config = frappe.get_module("fedex.config")
 conversion = frappe.get_module("fedex.tools.conversion")
 availability_commitment_service = frappe.get_module("fedex.services.availability_commitment_service")
 ship_service = frappe.get_module("fedex.services.ship_service")
-
-# TODO fix import
-from fedex.services.ship_service import FedexDeleteShipmentRequest
-from fedex.base_service import FedexError
+base_service = frappe.get_module("fedex.base_service")
 
 subject_to_json = conversion.sobject_to_json
 FedexTrackRequest = fedex_track_service.FedexTrackRequest
+FedexDeleteShipmentRequest = ship_service.FedexDeleteShipmentRequest
+FedexError = base_service.FedexError
 FedexConfig = fedex_config.FedexConfig
 FedexRateServiceRequest = rate_service.FedexRateServiceRequest
 FedexAvailabilityCommitmentRequest = availability_commitment_service.FedexAvailabilityCommitmentRequest
@@ -36,7 +35,14 @@ FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
 CUSTOMER_TRANSACTION_ID = "*** TrackService Request v10 using Python ***"
 
 
-################################################################################
+def get_sales_order(company_name):
+	sales_order = None
+	sales_order_response = frappe.db.sql('''SELECT * from `tabSales Order` WHERE customer_name="%s"''' % company_name,
+										 as_dict=True)
+	if sales_order_response:
+		sales_order = sales_order_response[0].name
+
+	return sales_order
 
 
 def _get_configuration():
@@ -314,12 +320,15 @@ def create_fedex_shipment(source_doc):
 	try:
 		shipment.send_request()
 	except Exception as error:
-		frappe.throw(_(error))
+		if "Customs Value is required" in str(error):
+			frappe.throw(_("International shipment support required".upper()))
+		else:
+			frappe.throw(_("Error: %s" % error))
 
 	master_label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
 	master_tracking_number = master_label.TrackingIds[0].TrackingNumber
-	source_doc.master_tracking_id_type = master_label.TrackingIds[0].TrackingIdType
+	master_tracking_id_type = master_label.TrackingIds[0].TrackingIdType
 	master_tracking_form_id = master_label.TrackingIds[0].FormId
 
 	ascii_label_data = master_label.Label.Parts[0].Image
@@ -330,6 +339,7 @@ def create_fedex_shipment(source_doc):
 	saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
 
 	frappe.db.set(source_doc, 'tracking_number', master_tracking_number)
+	frappe.db.set(source_doc, 'master_tracking_id_type', master_tracking_id_type)
 	frappe.db.set(source_doc, 'label_1', saved_file.file_url)
 
 	# ################################################
@@ -368,7 +378,7 @@ def create_fedex_shipment(source_doc):
 
 		shipment.RequestedShipment.RequestedPackageLineItems = [package]
 		shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
-		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = source_doc.master_tracking_id_type
+		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
 		shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
 
 		#########################
@@ -441,6 +451,10 @@ def create_fedex_shipment(source_doc):
 
 	frappe.msgprint("DONE!", "Tracking number:{}".format(master_tracking_number))
 
+	# #################################################
+
+	source_doc.sales_order = get_sales_order(source_doc.recipient_company_name)
+
 
 def delete_fedex_shipment(source_doc):
 	del_request = FedexDeleteShipmentRequest(CONFIG_OBJ)
@@ -450,14 +464,14 @@ def delete_fedex_shipment(source_doc):
 
 	try:
 		del_request.send_request()
-	except FedexError as e:
+	except Exception as e:
 		if 'Unable to retrieve record' in str(e):
 			raise Exception("WARNING: Unable to delete the shipment with the provided tracking number.")
 		else:
-			raise Exception("Error", e)
+			raise Exception("ERROR: %s. Tracking number: %s. Type: %s" % (e, source_doc.tracking_number, source_doc.master_tracking_id_type))
 
 
-def get_shipment_status(track_value):
+def get_fedex_shipment_status(track_value):
 	track = FedexTrackRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
 
 	track.SelectionDetails.PackageIdentifier.Type = 'TRACKING_NUMBER_OR_DOORTAG'
@@ -467,10 +481,11 @@ def get_shipment_status(track_value):
 
 	try:
 		track.send_request()
-		return track.response
+		#TODO Add status mapper
+		#return track.response
+		return "Pick up"
 	except Exception as error:
 		frappe.throw(__("Fedex invalid configuration error! {} {}".format(error.value, get_fedex_server_info())))
-
 
 
 ################################################################################
@@ -478,6 +493,7 @@ def get_shipment_status(track_value):
 ################################################################################
 
 # FOR WEB PAGE WITH SHIPMENT TRACKING - shipment_tracking.html
+
 
 @frappe.whitelist(allow_guest=True)
 def get_html_code_status_with_fedex_tracking_number(track_value):
