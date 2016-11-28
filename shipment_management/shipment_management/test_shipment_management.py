@@ -14,39 +14,51 @@ from shipment_management.provider_fedex import get_fedex_shipment_status
 
 class TestCaseAddress(unittest.TestCase):
 
-	def test_email_configuration(self):
-		#get_recipient(delivery_note_name='DN-00048')
-		#get_shipper(delivery_note_name='DN-00048')
+	def test_temp(self):
 
-		shipment_note = get_doc("DTI Shipment Note",  "SHIP-00350")
-
-		message = get_content_picked_up(shipment_note)
-		send_email(message=message,
-					subject="Shipment to %s [%s] - Picked UP" % (shipment_note.recipient_company_name,
-																			  shipment_note.name),
-					recipient_list=shipment_note.contact_email.split(","))
-
-		message = get_content_completed(shipment_note)
-		send_email(message=message,
-					subject="Shipment to %s [%s] - Completed" % (shipment_note.recipient_company_name,
-																 shipment_note.name),
-					recipient_list=shipment_note.contact_email.split(","))
+		for i in xrange(3):
+			print "_______________"
+			print "# ", i
+			shipment_status_update_controller()
+			import time
+			time.sleep(5)
 
 
-		message = get_content_cancel(shipment_note)
-		send_email(message=message,
-				   subject="Shipment to %s [%s] - Cancelled" % (shipment_note.recipient_company_name,
-																shipment_note.name),
-				   recipient_list=shipment_note.contact_email.split(","))
+	#######################
 
-		message = get_content_fail(shipment_note)
-		send_email(message=message,
-				   subject="Shipment to %s [%s] - Failed" % (shipment_note.recipient_company_name,
-																shipment_note.name),
-				   recipient_list=shipment_note.contact_email.split(","))
-
-		resp = get_fedex_shipment_status("111111111111")
-		print resp
+	# def test_email_configuration(self):
+	# 	#get_recipient(delivery_note_name='DN-00048')
+	# 	#get_shipper(delivery_note_name='DN-00048')
+	#
+	# 	shipment_note = get_doc("DTI Shipment Note",  "SHIP-00350")
+	#
+	# 	message = get_content_picked_up(shipment_note)
+	# 	send_email(message=message,
+	# 				subject="Shipment to %s [%s] - Picked UP" % (shipment_note.recipient_company_name,
+	# 																		  shipment_note.name),
+	# 				recipient_list=shipment_note.contact_email.split(","))
+	#
+	# 	message = get_content_completed(shipment_note)
+	# 	send_email(message=message,
+	# 				subject="Shipment to %s [%s] - Completed" % (shipment_note.recipient_company_name,
+	# 															 shipment_note.name),
+	# 				recipient_list=shipment_note.contact_email.split(","))
+	#
+	#
+	# 	message = get_content_cancel(shipment_note)
+	# 	send_email(message=message,
+	# 			   subject="Shipment to %s [%s] - Cancelled" % (shipment_note.recipient_company_name,
+	# 															shipment_note.name),
+	# 			   recipient_list=shipment_note.contact_email.split(","))
+	#
+	# 	message = get_content_fail(shipment_note)
+	# 	send_email(message=message,
+	# 			   subject="Shipment to %s [%s] - Failed" % (shipment_note.recipient_company_name,
+	# 															shipment_note.name),
+	# 			   recipient_list=shipment_note.contact_email.split(","))
+	#
+	# 	resp = get_fedex_shipment_status("111111111111")
+	# 	print resp
 
 
 

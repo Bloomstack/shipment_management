@@ -36,6 +36,8 @@ CUSTOMER_TRANSACTION_ID = "*** TrackService Request v10 using Python ***"
 
 
 def get_sales_order(company_name):
+
+	# TODO - How define target correct the sales-order?
 	sales_order = None
 	sales_order_response = frappe.db.sql('''SELECT * from `tabSales Order` WHERE customer_name="%s"''' % company_name,
 										 as_dict=True)
@@ -481,11 +483,9 @@ def get_fedex_shipment_status(track_value):
 
 	try:
 		track.send_request()
-		#TODO Add status mapper
-		#return track.response
-		return "Pick up"
+		return track.response[4][0].TrackDetails[0].Events[0].EventType
 	except Exception as error:
-		frappe.throw(__("Fedex invalid configuration error! {} {}".format(error.value, get_fedex_server_info())))
+		frappe.throw(_("Fedex invalid configuration error! {} {}".format(error, get_fedex_server_info())))
 
 
 ################################################################################
