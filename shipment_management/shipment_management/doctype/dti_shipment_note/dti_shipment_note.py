@@ -17,8 +17,6 @@ class DTIShipmentNote(Document):
 		from shipment_management.config.app_config import SupportedProviderList
 		from shipment_management.shipment import ShipmentNoteOperationalStatus
 
-		from shipment_management.email_controller import get_content_cancel, send_email
-
 		if self.shipment_provider != SupportedProviderList.Fedex:
 			frappe.throw(_("Please specify shipment provider!"))
 
@@ -43,6 +41,8 @@ class DTIShipmentNote(Document):
 
 				frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Cancelled)
 				frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.Cancelled)
+
+				from shipment_management.email_controller import get_content_cancel, send_email
 
 				message = get_content_cancel(self)
 
