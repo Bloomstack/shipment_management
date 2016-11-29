@@ -336,13 +336,3 @@ def make_new_shipment_note_from_delivery_note(source_name, target_doc=None):
 			"shipper_address_postal_code": shipper.address.PostalCode or ""})
 
 	return doclist
-
-
-#################################################################################
-
-@check_permission()
-@frappe.whitelist()
-def get_total_insurance(source_doc):
-	#shipment_note = get_doc("DTI Shipment Note", source.name)
-	BOXES = source_doc.get_all_children("DTI Shipment Package")
-	return sum([box.insured_amount for box in BOXES])
