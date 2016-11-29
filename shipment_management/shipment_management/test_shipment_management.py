@@ -3,14 +3,89 @@ from __future__ import unicode_literals
 
 
 import unittest
+import datetime
 
 from shipment_management.shipment import *
 from shipment_management.email_controller import send_email, get_content_picked_up, get_content_completed, get_content_cancel, get_content_fail
-from frappe.model.document import get_doc
-from shipment_management.provider_fedex import get_fedex_shipment_status
-
+from shipment_management.provider_fedex import get_html_code_status_with_fedex_tracking_number, get_package_rate, estimate_delivery_time
+from shipment_management.config.app_config import SupportedProviderList
 
 # TODO - Test in progress !!!
+
+
+class TestCaseFedexAPI(unittest.TestCase):
+
+	def tests_tracking_number_validation(self):
+		response = get_html_code_status_with_fedex_tracking_number(track_value="1111111111")
+		self.assertNotIn("Authentication Failed", response)
+
+	def tests_get_package_rate_for_one_package(self):
+
+		response = get_package_rate(DropoffType='REGULAR_PICKUP',
+								    ServiceType='FEDEX_GROUND',
+								    PackagingType = 'YOUR_PACKAGING',
+									 ShipperStateOrProvinceCode='SC',
+									 ShipperPostalCode = '29631',
+									 ShipperCountryCode='US',
+									 RecipientStateOrProvinceCode='NC',
+									 RecipientPostalCode='27577',
+									 RecipientCountryCode='US',
+									 EdtRequestType='NONE',
+									 PaymentType='SENDER',
+									 package_list=[{'weight_value':1.0,
+													'weight_units':"LB",
+													'physical_packaging':'BOX',
+													'group_package_count' : 1,
+													'insured_amount':100}])
+
+		self.assertEqual(response['Currency'], "USD")
+		self.assertEqual(response['Amount'], 10.27)
+
+	def tests_get_package_rate_for_two_packages(self):
+		response = get_package_rate(DropoffType='REGULAR_PICKUP',
+									ServiceType='FEDEX_GROUND',
+									PackagingType='YOUR_PACKAGING',
+									ShipperStateOrProvinceCode='SC',
+									ShipperPostalCode='29631',
+									ShipperCountryCode='US',
+									RecipientStateOrProvinceCode='NC',
+									RecipientPostalCode='27577',
+									RecipientCountryCode='US',
+									EdtRequestType='NONE',
+									PaymentType='SENDER',
+									package_list=[{'weight_value': 1.0,
+												   'weight_units': "LB",
+												   'physical_packaging': 'BOX',
+												   'group_package_count': 1,
+												   'insured_amount': 100},
+												  {'weight_value': 1.0,
+												   'weight_units': "LB",
+												   'physical_packaging': 'BOX',
+												   'group_package_count': 1,
+												   'insured_amount': 100}])
+
+		self.assertEqual(response['Currency'], "USD")
+		self.assertEqual(response['Amount'], 20.54)
+
+	def tests_estimate_delivery_time(self):
+		response = estimate_delivery_time(OriginPostalCode='M5V 3A4',
+									      OriginCountryCode='CA',
+									      DestinationPostalCode='27577',
+									      DestinationCountryCode='US')
+
+		try:
+			datetime.datetime.strptime(response, "%Y-%m-%d")
+		except ValueError as err:
+			self.fail("Invalid response!" % err)
+
+	def tests_define_carriers_list(self):
+		response = get_carriers_list()
+		self.assertEqual(len(response), 1)
+		self.assertEqual(response[0], SupportedProviderList.Fedex)
+
+
+##########################################################################
+
 
 class TestCaseAddress(unittest.TestCase):
 
@@ -141,73 +216,6 @@ class TestCaseAddress(unittest.TestCase):
 # 	frappe.clear_cache()
 # 	_print_debug_message()
 #
-#
-# class TestCaseFedexAPI(unittest.TestCase):
-#
-# 	def tests_tracking_number_validation(self):
-# 		response = get_html_code_status_with_fedex_tracking_number(track_value="1111111111")
-# 		self.assertNotIn("Authentication Failed", response)
-#
-# 	def tests_get_package_rate_for_one_package(self):
-#
-# 		response = get_package_rate(DropoffType='REGULAR_PICKUP',
-# 								    ServiceType='FEDEX_GROUND',
-# 								    PackagingType = 'YOUR_PACKAGING',
-# 									 ShipperStateOrProvinceCode='SC',
-# 									 ShipperPostalCode = '29631',
-# 									 ShipperCountryCode='US',
-# 									 RecipientStateOrProvinceCode='NC',
-# 									 RecipientPostalCode='27577',
-# 									 RecipientCountryCode='US',
-# 									 EdtRequestType='NONE',
-# 									 PaymentType='SENDER',
-# 									 package_list=[{'weight_value':1.0,
-# 													'weight_units':"LB",
-# 													'physical_packaging':'BOX',
-# 													'group_package_count' : 1}])
-#
-# 		self.assertEqual(response['Currency'], "USD")
-# 		self.assertEqual(response['Amount'], 10.25)
-#
-# 	def tests_get_package_rate_for_two_packages(self):
-# 		response = get_package_rate(DropoffType='REGULAR_PICKUP',
-# 									ServiceType='FEDEX_GROUND',
-# 									PackagingType='YOUR_PACKAGING',
-# 									ShipperStateOrProvinceCode='SC',
-# 									ShipperPostalCode='29631',
-# 									ShipperCountryCode='US',
-# 									RecipientStateOrProvinceCode='NC',
-# 									RecipientPostalCode='27577',
-# 									RecipientCountryCode='US',
-# 									EdtRequestType='NONE',
-# 									PaymentType='SENDER',
-# 									package_list=[{'weight_value': 1.0,
-# 												   'weight_units': "LB",
-# 												   'physical_packaging': 'BOX',
-# 												   'group_package_count': 1},
-# 												  {'weight_value': 1.0,
-# 												   'weight_units': "LB",
-# 												   'physical_packaging': 'BOX',
-# 												   'group_package_count': 1}])
-#
-# 		self.assertEqual(response['Currency'], "USD")
-# 		self.assertEqual(response['Amount'], 20.5)
-#
-# 	def tests_estimate_delivery_time(self):
-# 		response = estimate_delivery_time(OriginPostalCode='M5V 3A4',
-# 									      OriginCountryCode='CA',
-# 									      DestinationPostalCode='27577',
-# 									      DestinationCountryCode='US')
-#
-# 		try:
-# 			datetime.datetime.strptime(response, "%Y-%m-%d")
-# 		except ValueError as err:
-# 			self.fail("Invalid response!" % err)
-#
-# 	def tests_define_carriers_list(self):
-# 		response = get_carriers_list()
-# 		self.assertEqual(len(response), 1)
-# 		self.assertEqual(response[0], "Fedex")
 #
 #
 # class TestDTIFedexConfiguration(unittest.TestCase):
