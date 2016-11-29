@@ -9,15 +9,15 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils.file_manager import *
 
-from shipment_management.shipment import ShipmentNoteOperationalStatus
-from shipment_management.provider_fedex import delete_fedex_shipment
-from shipment_management.config.app_config import SupportedProviderList
-from shipment_management.email_controller import get_content_cancel, send_email
-
 
 class DTIShipmentNote(Document):
 
 	def on_submit(self):
+
+		from shipment_management.config.app_config import SupportedProviderList
+		from shipment_management.shipment import ShipmentNoteOperationalStatus
+
+		from shipment_management.email_controller import get_content_cancel, send_email
 
 		if self.shipment_provider != SupportedProviderList.Fedex:
 			frappe.throw(_("Please specify shipment provider!"))
@@ -30,9 +30,14 @@ class DTIShipmentNote(Document):
 			frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
 
 	def on_cancel(self):
+
+		from shipment_management.config.app_config import SupportedProviderList
+		from shipment_management.shipment import ShipmentNoteOperationalStatus
+
 		if self.shipment_provider == SupportedProviderList.Fedex:
 
 			try:
+				from shipment_management.provider_fedex import delete_fedex_shipment
 				delete_fedex_shipment(self)
 				frappe.msgprint(_("Shipment {} has been canceled!".format(self.name)))
 
