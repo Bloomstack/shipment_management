@@ -9,7 +9,6 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils.file_manager import *
 
-from shipment_management.provider_fedex import create_fedex_shipment
 from shipment_management.shipment import ShipmentNoteOperationalStatus
 from shipment_management.provider_fedex import delete_fedex_shipment
 from shipment_management.config.app_config import SupportedProviderList
@@ -24,6 +23,7 @@ class DTIShipmentNote(Document):
 			frappe.throw(_("Please specify shipment provider!"))
 
 		if self.shipment_provider == SupportedProviderList.Fedex:
+			from shipment_management.provider_fedex import create_fedex_shipment
 			create_fedex_shipment(self)
 
 			frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.InProgress)
