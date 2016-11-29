@@ -11,7 +11,7 @@ from frappe.model.document import get_doc
 from frappe.model.mapper import get_mapped_doc
 from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NAME, SupportedProviderList, \
 	StatusMapFedexAndShipmentNote
-from provider_fedex import get_fedex_shipment_status
+
 from email_controller import send_email, get_content_picked_up, get_content_fail, get_content_completed
 
 
@@ -263,6 +263,8 @@ def shipment_status_update_controller():
 
 	completed = [i.status_code for i in StatusMapFedexAndShipmentNote.Completed]
 	failed = [i.status_code for i in StatusMapFedexAndShipmentNote.Failed]
+	
+	from provider_fedex import get_fedex_shipment_status
 
 	for ship in all_ships:
 		print "Tracking number", ship.tracking_number
