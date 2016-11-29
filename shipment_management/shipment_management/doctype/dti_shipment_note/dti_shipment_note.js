@@ -2,18 +2,28 @@
 // For license information, please see license.txt
 
 
-//get_insurance = function(doc) {
-//		return frappe.call({
-//			method:'shipment_management.shipment.get_total_insurance',
-//			args: { source: cur_frm.doc}
-//		});
-//};
-//get_rate = function(doc) {
-//		return frappe.call({
-//			method:'shipment_management.provider_fedex.get_package_rate',
-//			args: { source: cur_frm.doc}
-//		});
-//};
+get_rate = function(doc) {
+		return frappe.call({
+			method:'shipment_management.provider_fedex.get_package_rate',
+			args: {DropoffType: 'REGULAR_PICKUP',
+                ServiceType:'FEDEX_GROUND',
+                PackagingType: 'YOUR_PACKAGING',
+                 ShipperStateOrProvinceCode:'SC',
+                 ShipperPostalCode: '29631',
+                 ShipperCountryCode:'US',
+                 RecipientStateOrProvinceCode:'NC',
+                 RecipientPostalCode:'27577',
+                 RecipientCountryCode:'US',
+                 EdtRequestType:'NONE',
+                 PaymentType:'SENDER',
+                 package_list:[{'weight_value':1,
+                                'weight_units':'LB',
+                                'physical_packaging':'BOX',
+                                'group_package_count' : 1,
+                                'insured_amount':100}]}
+		});
+};
+
 //get_delivery_time = function(doc) {
 //		return frappe.call({
 //			method:'shipment_management.provider_fedex.estimate_delivery_time',
@@ -50,6 +60,12 @@ frappe.ui.form.on('DTI Shipment Note', $.extend(multifield_events([
     ], function(field, frm, all_fields_set) {
         console.log("field change", field, frm);
         console.log((all_fields_set)?"ALL REQUIRED FIELDS ARE SET":"MISSING REQUIRED FIELDS");
+
+        var rate = get_rate()
+        console.log("RATE ================>>>>>>>>>", rate)
+        frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'rate', "debug rate");
+
+
     }), {
 
         refresh: function(frm) {
@@ -65,39 +81,13 @@ frappe.ui.form.on('DTI Shipment Note', $.extend(multifield_events([
                         }
                             },
 
-        onload_post_render: function(frm) {
-            //TODO Run Time Reload
-            //var total = get_insurance()
-    //      var rate = get_rate()
-    //      var delivery_time = get_delivery_time()
-            console.log(cur_frm.doc.package);
-
-            //frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'total_insurance', total);
-    //	    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'rate', "100");
-    //	    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'delivery_time', "100");
-
-        },
-
-        package: function(frm) {
-            console.log(cur_frm.doc.package);
-
-        },
-
-        package_add: function(frm) {
-            console.log("package_add?", frm);
-        },
-        package_remove: function(frm) {
-            console.log("package_remove?", frm);
-        }
 }));
 
 frappe.ui.form.on("DTI Shipment Package", "insured_amount", function(frm) {
-    console.log("FROM CHILD  TABLE? ", frm);
+    for (var i = 0, sum = 0; i < frm.doc.package.length; sum += frm.doc.package[i++].insured_amount);
+    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'total_insurance', sum);
 });
 
-frappe.ui.form.on("DTI Shipment Note", "recipient_adress", "shipper_addres", function(frm) {
-    console.log("FROM CHILD  TABLE? ", frm);
-});
 
 get_recipient_info = function(doc) {
 		return frappe.call({
@@ -216,10 +206,6 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function(frm) {
                  frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_address_country_code', resp['shipper_address_country_code']);
                  frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_address_postal_code', resp['shipper_address_postal_code']);
                  });
-
-//            get_insurance()
-//                .done(function(total_insurance){
-//                frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'total_insurance', total_insurance)});
         }
         }
 
