@@ -22,7 +22,7 @@ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMA
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH 
 THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# 3. Installation/ Uninstall
+# 3. Installation
 
 ## 3.1. Clone app from git
 
@@ -57,26 +57,35 @@ New application is present in application list
 bench list-apps
 ```
 
-## 3.5. Uninstall
+# 4. Uninstall/Remove
+
+
+## 4.1. Uninstall
 ```
 bench uninstall-app shipment_management
 ```
 
-# 4.Config:
-File _app-config_ is used for general fedex configuration. 
+## 4.2. Remove
+
+```
+bench remove-from-installed-apps shipment_management
+```
+
+# 5.Config:
+File _app-config_ is used for general shipment configuration. 
 
 PRIMARY_FEDEX_DOC_NAME - Used to switch from Fedex Test Server to Fedex Production Server
 
-# 5.DocTypes:
+# 6.DocTypes:
 
 - DTI Shipment Note (Primary Doc Type)
 - DTI Shipment Note Item (Items from Delivery Note, Table can be customised)
 - DTI Shipment Package (Physical shipment box)
 - DTI Fedex Shipment Configuration (Configuration DocType for Fedex Connection)
 
-# 6. Supported Shipment providers
+# 7. Supported Shipment Providers
 
-## 6.1 FedEx
+## 7.1 FedEx
 
 ### Overview
 FedEx Corporation is a US multinational courier delivery services company.
@@ -84,12 +93,42 @@ The company is known for its overnight shipping service, but also for pioneering
 that could track packages and provide real-time updates on package location.
 
 
+### Fedex Statuses
+
+Example(Maintained by Fedex):
+- At Airport
+- Plane Landed
+- At Delivery
+- In Progress
+- At FedEx Facility
+- At Pickup
+- Picked Up    ------> It triggers email to customer
+- Arrived at
+- CDO Requested
+- At USPS facility
+- CDO Modified
+- Shipment Canceled
+- CDO Cancelled
+- Location Changed
+- Return to Shipper
+- Delivery Delay
+- Delivery Exception
+- Delivered   -----------> For shipment note completing
+- Departed FedEx Location
+- Shipment Exception
+- Vehicle dispatched
+- At Sort Facility
+- Delay
+- Enroute to Airport delay
+- Transfer
+
+
 ### Status Check Web Page
 Added web page for customer to provide possibility to check status by tracking number
 
 {site_path}\shipment_tracking.html
 
-# 7. Automation Testing
+# 8. Automation Testing
 Module was covered with functional testing. 
 
 For run tests you should execute command:
@@ -103,41 +142,5 @@ bench run-tests --module "shipment_management.shipment_management.test_shipment_
 ```
 
 # 8. Permissions
-- Shipment Manager
-- Shipment User
-
-# 9. Debug/testing:
-Debug command for set fedex status.
-
-Trigger event/ operational statuses:
-- Picked up - email to customer
-
-
-All:
-
-At Airport
-Plane Landed
-At Delivery
-In Progress
-At FedEx Facility
-Picked Up
-At Pickup
-Picked up 
-Arrived at
-CDO Requested
-At USPS facility
-CDO Modified
-Shipment Canceled
-CDO Cancelled
-Location Changed
-Return to Shipper
-Delivery Delay
-Delivery Exception
-Delivered
-Departed FedEx Location
-Shipment Exception
-Vehicle dispatched
-At Sort Facility
-Delay
-Enroute to Airport delay
-Transfer
+- Shipment Management Admin
+- Shipment Management User
