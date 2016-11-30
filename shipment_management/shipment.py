@@ -5,6 +5,7 @@
 from __future__ import unicode_literals
 
 import frappe
+from frappe import _
 from frappe.model.document import get_doc
 from frappe.model.mapper import get_mapped_doc
 
@@ -19,7 +20,7 @@ from email_controller import send_email, get_content_picked_up, get_content_fail
 
 def check_permission():
 	def innerfn(fn):
-		if frappe.session.user not in ["Shipment Management Admin", "Shipment Management User"]:
+		if frappe.session.user not in ["Shipment Management Admin", "Shipment Management User", "Administrator"]:
 			frappe.throw(_("Permission denied"), frappe.PermissionError)
 		return fn
 
