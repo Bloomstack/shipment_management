@@ -250,12 +250,20 @@ def get_delivery_items(delivery_note_name):
 
 ##############################################################################
 
+def write_to_log(message):
+	frappe.logger().info('[SHIPMENT APP] :: ' + message)
+
+
 @check_permission()
 @frappe.whitelist()
 def shipment_status_update_controller():
-	print "=" * 120
-	print "--------------> Shipment Management Status Controller in progress < ----------------------"
-	print "=" * 120
+	"""
+	Primary Shipment Management Status Controller Job
+	"""
+
+	write_to_log("Working...")
+
+	print "=" * 120 + shipment_status_update_controller.__doc__ + "=" * 120
 
 	all_ships = frappe.db.sql(
 			'''SELECT * from `tabDTI Shipment Note` WHERE shipment_note_status="%s"''' % ShipmentNoteOperationalStatus.InProgress,
@@ -263,37 +271,52 @@ def shipment_status_update_controller():
 
 	completed = [i.status_code for i in StatusMapFedexAndShipmentNote.Completed]
 	failed = [i.status_code for i in StatusMapFedexAndShipmentNote.Failed]
-	
+
+	write_to_log('Ship in progress:' + " ".join([ship.tracking_number for ship in all_ships]))
+
 	from provider_fedex import get_fedex_shipment_status
-
 	for ship in all_ships:
-		print "Tracking number", ship.tracking_number
-		status = get_fedex_shipment_status(ship.tracking_number)
-		print "Fedex Status", status
+		latest_status = get_fedex_shipment_status(ship.tracking_number)
 
-		if status != ship.fedex_status:
-			CommentController.add_comment("DTI Shipment Note", ship.name,
-										  CommentController.Comment, "Status updated to [%s]" % status)
+		if latest_status != ship.fedex_status:
+
+			CommentController.add_comment(doc_type="DTI Shipment Note",
+										  source_name= ship.name,
+										  comment_type=CommentController.Comment,
+										  comment_message="Status updated to [%s]" % latest_status)
 
 			shipment_note = get_doc("DTI Shipment Note", ship.name)
 
-			if status == 'PU':
-				message = get_content_picked_up(shipment_note)
-				send_email(message=message,
+			current_status = shipment_note.tracking_number
+			frappe.db.set(shipment_note, 'fedex_status', latest_status)
+
+			write_to_log("[{0}] - Tracking number [{1}] updated from {2} to {3}".format(shipment_note.name,
+																						shipment_note.tracking_number,
+																						current_status,
+																						latest_status))
+
+			if latest_status == 'PU':
+
+				frappe.db.set(shipment_note, 'shipment_note_status', ShipmentNoteOperationalStatus.InProgress)
+
+				send_email(message=get_content_picked_up(shipment_note),
 						   subject="Shipment to %s [%s] - Picked UP" % (shipment_note.recipient_company_name,
 																		shipment_note.name),
 						   recipient_list=shipment_note.contact_email.split(","))
 
-			elif status in completed:
-				message = get_content_completed(shipment_note)
-				send_email(message=message,
+			elif latest_status in completed:
+
+				frappe.db.set(shipment_note, 'shipment_note_status', ShipmentNoteOperationalStatus.Completed)
+
+				send_email(message=get_content_completed(shipment_note),
 						   subject="Shipment to %s [%s] - Completed" % (shipment_note.recipient_company_name,
 																		shipment_note.name),
 						   recipient_list=shipment_note.contact_email.split(","))
 
-			elif status in failed:
-				message = get_content_fail(shipment_note)
-				send_email(message=message,
+			elif latest_status in failed:
+				frappe.db.set(shipment_note, 'shipment_note_status', ShipmentNoteOperationalStatus.Failed)
+
+				send_email(message=get_content_fail(shipment_note),
 						   subject="Shipment to %s [%s] - Failed" % (shipment_note.recipient_company_name,
 																	 shipment_note.name),
 						   recipient_list=shipment_note.contact_email.split(","))
