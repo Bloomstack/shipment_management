@@ -123,12 +123,12 @@ Example(Maintained by Fedex):
 - Transfer
 
 
-### Status Check Web Page
+# 8. Status Check Web Page
 Added web page for customer to provide possibility to check status by tracking number
 
 {site_path}\shipment_tracking.html
 
-# 8. Automation Testing
+# 9. Automation Testing
 Module was covered with functional testing. 
 
 For run tests you should execute command:
@@ -141,6 +141,6 @@ or
 bench run-tests --module "shipment_management.shipment_management.test_shipment_management"
 ```
 
-# 8. Permissions
+# 10. Permissions
 - Shipment Management Admin
 - Shipment Management User
