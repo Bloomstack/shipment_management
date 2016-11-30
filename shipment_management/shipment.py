@@ -5,10 +5,12 @@
 from __future__ import unicode_literals
 
 import frappe
-from comment_controller import CommentController
-from country_code_config import get_country_code, get_country_state_code
 from frappe.model.document import get_doc
 from frappe.model.mapper import get_mapped_doc
+
+from comment_controller import CommentController
+from country_code_config import get_country_code, get_country_state_code
+
 from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NAME, SupportedProviderList, \
 	StatusMapFedexAndShipmentNote
 
@@ -17,9 +19,8 @@ from email_controller import send_email, get_content_picked_up, get_content_fail
 
 def check_permission():
 	def innerfn(fn):
-		# TODO - Fix during permission final pass
-		# if not frappe.has_permission("DTI Shipment Note", "read"):
-		# 	frappe.throw(_("Permission denied"), frappe.PermissionError)
+		if frappe.session.user not in ["Shipment Management Admin", "Shipment Management User"]:
+			frappe.throw(_("Permission denied"), frappe.PermissionError)
 		return fn
 
 	return innerfn
@@ -44,9 +45,9 @@ def after_install():
 
 
 class ShipmentNoteOperationalStatus(object):
+	Created = "ReadyToPickUp"
 	InProgress = "In progress"
 	Completed = "Completed"
-	Returned = "Returned"
 	Cancelled = "Cancelled"
 	Failed = "Failed"
 
@@ -249,6 +250,8 @@ def get_delivery_items(delivery_note_name):
 
 
 ##############################################################################
+##############################################################################
+##############################################################################
 
 def write_to_log(message):
 	frappe.logger().info('[SHIPMENT APP] :: ' + message)
@@ -263,7 +266,9 @@ def shipment_status_update_controller():
 
 	write_to_log("Working...")
 
-	print "=" * 120 + shipment_status_update_controller.__doc__ + "=" * 120
+	print "=" * 120
+	print shipment_status_update_controller.__doc__
+	print "=" * 120
 
 	all_ships = frappe.db.sql(
 			'''SELECT * from `tabDTI Shipment Note` WHERE shipment_note_status="%s"''' % ShipmentNoteOperationalStatus.InProgress,
@@ -322,6 +327,8 @@ def shipment_status_update_controller():
 						   recipient_list=shipment_note.contact_email.split(","))
 
 
+##############################################################################
+##############################################################################
 ##############################################################################
 
 @check_permission()
