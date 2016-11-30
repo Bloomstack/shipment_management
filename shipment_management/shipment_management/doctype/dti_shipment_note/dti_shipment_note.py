@@ -24,7 +24,7 @@ class DTIShipmentNote(Document):
 			from shipment_management.provider_fedex import create_fedex_shipment
 			create_fedex_shipment(self)
 
-			frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.InProgress)
+			frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Created)
 			frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
 
 	def on_cancel(self):
