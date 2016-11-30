@@ -261,13 +261,13 @@ def write_to_log(message):
 @frappe.whitelist()
 def shipment_status_update_controller():
 	"""
-	Primary Shipment Management Status Controller Job
+	Shipment Management Status Controller Job
 	"""
 
 	write_to_log("Working...")
 
 	print "=" * 120
-	print shipment_status_update_controller.__doc__
+	print "-------------------->>>" + shipment_status_update_controller.__doc__ + "<<<<-----------------------"
 	print "=" * 120
 
 	all_ships = frappe.db.sql(
