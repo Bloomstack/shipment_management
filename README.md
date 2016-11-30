@@ -147,4 +147,5 @@ bench run-tests --module "shipment_management.shipment_management.test_shipment_
 
 
 # 11. Debug
-Application Logfile
+Log File:
+_/home/frappe/frappe-bench/logs/frappe.log_
