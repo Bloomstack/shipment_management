@@ -144,3 +144,7 @@ bench run-tests --module "shipment_management.shipment_management.test_shipment_
 # 10. Permissions
 - Shipment Management Admin
 - Shipment Management User
+
+
+# 11. Debug
+Application Logfile
