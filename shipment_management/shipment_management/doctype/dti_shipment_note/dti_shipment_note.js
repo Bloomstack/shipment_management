@@ -1,28 +1,24 @@
 // Copyright (c) 2016, DigiThinkit Inc. and contributors
 // For license information, please see license.txt
 
-
-get_rate = function(doc) {
-		return frappe.call({
-			method:'shipment_management.provider_fedex.get_package_rate',
-			args: {DropoffType: 'REGULAR_PICKUP',
-                ServiceType:'FEDEX_GROUND',
-                PackagingType: 'YOUR_PACKAGING',
-                 ShipperStateOrProvinceCode:'SC',
-                 ShipperPostalCode: '29631',
-                 ShipperCountryCode:'US',
-                 RecipientStateOrProvinceCode:'NC',
-                 RecipientPostalCode:'27577',
-                 RecipientCountryCode:'US',
-                 EdtRequestType:'NONE',
-                 PaymentType:'SENDER',
-                 package_list:[{'weight_value':1,
-                                'weight_units':'LB',
-                                'physical_packaging':'BOX',
-                                'group_package_count' : 1,
-                                'insured_amount':100}]}
-		});
-};
+//
+//get_rate = function(doc) {
+//		return frappe.call({
+//			method:'shipment_management.provider_fedex.get_package_rate',
+//			args: {DropoffType: 'REGULAR_PICKUP',
+//                ServiceType:'FEDEX_GROUND',
+//                PackagingType: 'YOUR_PACKAGING',
+//                 ShipperStateOrProvinceCode:'SC',
+//                 ShipperPostalCode: '29631',
+//                 ShipperCountryCode:'US',
+//                 RecipientStateOrProvinceCode:'NC',
+//                 RecipientPostalCode:'27577',
+//                 RecipientCountryCode:'US',
+//                 EdtRequestType:'NONE',
+//                 PaymentType:'SENDER',
+//                 package_list: '[{"weight_value":"1","weight_units":"LB","physical_packaging":"BOX","group_package_count":"1","insured_amount":"100"},{"weight_value":"10004000","weight_units":"LB","physical_packaging":"BOX","group_package_count":"1","insured_amount":"100"}]'
+//		         });
+//};
 
 //get_delivery_time = function(doc) {
 //		return frappe.call({
@@ -61,9 +57,9 @@ frappe.ui.form.on('DTI Shipment Note', $.extend(multifield_events([
         console.log("field change", field, frm);
         console.log((all_fields_set)?"ALL REQUIRED FIELDS ARE SET":"MISSING REQUIRED FIELDS");
 
-        var rate = get_rate()
-        console.log("RATE ================>>>>>>>>>", rate)
-        frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'rate', "debug rate");
+//        var rate = get_rate()
+//        console.log("RATE ================>>>>>>>>>", rate)
+//        frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'rate', "0");
 
 
     }), {
