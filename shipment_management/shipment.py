@@ -23,7 +23,7 @@ def check_permission():
 		for role in ["Shipment Management Admin", "Shipment Management User", "Administrator"]:
 			if role in frappe.get_roles():
 				break
-			frappe.throw(_("Permission denied forv{}".format(frappe.session.user)), frappe.PermissionError)
+			frappe.throw(_("Permission denied for = {}".format(frappe.session.user)), frappe.PermissionError)
 		return fn
 
 	return innerfn
@@ -207,7 +207,7 @@ def get_recipient(delivery_note_name):
 			recipient.contact.PersonName = "{} {}".format(primary_contact[0].first_name, primary_contact[0].last_name)
 			recipient.contact.PhoneNumber = primary_contact[0].phone
 
-		if primary_contact[0].email_id:
+		if primary_contact[0].email_id and (primary_contact[0].email_id != shipping_address[0].email_id):
 			recipient.contact.Email_List.append(primary_contact[0].email_id)
 
 	return recipient
@@ -349,8 +349,7 @@ def make_new_shipment_note_from_delivery_note(source_name, target_doc=None):
 	recipient = get_recipient(source_name)
 	shipper = get_shipper(source_name)
 
-	# TODO add Table with items from delivery note
-	#items = doclist.get_all_children("DTI Shipment Package")
+	items = get_delivery_items(source_name)
 
 	doclist.update({"recipient_contact_person_name": recipient.contact.PersonName or "",
 			"recipient_company_name": recipient.contact.CompanyName or "",
@@ -368,6 +367,8 @@ def make_new_shipment_note_from_delivery_note(source_name, target_doc=None):
 			"shipper_address_city": shipper.address.City or "",
 			"shipper_address_state_or_province_code": shipper.address.StateOrProvinceCode or "",
 			"shipper_address_country_code": shipper.address.CountryCode or "",
-			"shipper_address_postal_code": shipper.address.PostalCode or ""})
+			"shipper_address_postal_code": shipper.address.PostalCode or "",
+			"delivery_items": items,
+	})
 
 	return doclist
