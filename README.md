@@ -145,7 +145,9 @@ bench run-tests --module "shipment_management.shipment_management.test_shipment_
 - Shipment Management Admin
 - Shipment Management User
 
-
 # 11. Debug
 Log File:
 _/home/frappe/frappe-bench/logs/frappe.log_
+
+# 12. Report Creation
+Report List -> New -> Save
