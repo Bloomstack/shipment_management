@@ -45,6 +45,13 @@ bench --site {site_name} install-app shipment_management
 _Note: All sites are located in frappe-bench/sites folder_
 
 ##  3.3. Restart bench
+
+On Dev:
+```
+bench start
+```
+
+On Production:
 ```
 bench restart
 ```
