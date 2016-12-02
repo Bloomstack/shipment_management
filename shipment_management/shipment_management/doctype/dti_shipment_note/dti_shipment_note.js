@@ -59,7 +59,7 @@ multifield_events = function(fields, callback) {
 
 frappe.ui.form.on('DTI Shipment Note', $.extend(multifield_events([
         'recipient_address_country_code',
-        'recipient_address_postal_code'
+        'recipient_address_postal_code',
         'shipper_address_country_code',
         'shipper_address_postal_code'
     ], function(field, frm, all_fields_set) {
