@@ -184,8 +184,8 @@ def get_package_rate(DropoffType=None,
 	rate.RequestedShipment.EdtRequestType = EdtRequestType
 	rate.RequestedShipment.ShippingChargesPayment.PaymentType = PaymentType
 
-	if str(package_list):
-		package_list = json.loads(package_list)
+	# if str(package_list):
+	# 	package_list = json.loads(package_list)
 
 	for package in package_list:
 		package1_weight = rate.create_wsdl_object_of_type('Weight')
@@ -535,7 +535,9 @@ def create_fedex_shipment(source_doc):
 
 		frappe.db.set(source_doc, 'rate', "%s (%s)" % (rate["Amount"], rate["Currency"]))
 	except Exception as error:
-		frappe.throw(_("Rate error - %s" % error))
+		#frappe.throw(_("Rate error - %s" % error))
+		frappe.msgprint(_(error))
+		frappe.db.set(source_doc, 'rate', "N/A")
 
 	# ################################################
 
