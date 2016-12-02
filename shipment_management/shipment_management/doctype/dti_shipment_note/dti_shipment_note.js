@@ -1,7 +1,12 @@
 // Copyright (c) 2016, DigiThinkit Inc. and contributors
 // For license information, please see license.txt
 
-//
+
+// TODO - Fix for correct RATE/ DELIVERY TIME RELOAD ON FRONT-END IN RUN-TIME
+// TODO - How to handle if Test Server Environment is DOWN for define this value??
+// TODO - RATE Service on Fedex Test Service is DOWN during development this feature (fedex.services.rate_service)
+// TODO  fedex.base_service.FedexError: Service is not allowed.
+
 //get_rate = function(doc) {
 //		return frappe.call({
 //			method:'shipment_management.provider_fedex.get_package_rate',
@@ -24,11 +29,13 @@
 //		return frappe.call({
 //			method:'shipment_management.provider_fedex.estimate_delivery_time',
 //			args: { OriginPostalCode:doc.recipient_address_postal_code,
-//					OriginCountryCode:'CA',
-//					DestinationPostalCode:'27577',
- //					DestinationCountryCode:'US'}
+//					OriginCountryCode:doc.recipient_address_postal_code,
+//					DestinationPostalCode:doc.shipper_address_country_code,
+// 					DestinationCountryCode:doc.shipper_address_postal_code}
 //		});
 //};
+
+// ###########################################################################
 
 all_required = function(frm, fields) {
     for(var i in fields) {
@@ -51,15 +58,22 @@ multifield_events = function(fields, callback) {
 }
 
 frappe.ui.form.on('DTI Shipment Note', $.extend(multifield_events([
-        'recipient_contact_person_name',
-        'recipient_company_name'
+        'recipient_address_country_code',
+        'recipient_address_postal_code'
+        'shipper_address_country_code',
+        'shipper_address_postal_code'
     ], function(field, frm, all_fields_set) {
         console.log("field change", field, frm);
-        console.log((all_fields_set)?"ALL REQUIRED FIELDS ARE SET":"MISSING REQUIRED FIELDS");
+        console.log((all_fields_set)?"ALL REQUIRED FIELDS FOR DELIVERY-TIME ARE SET":"MISSING REQUIRED FIELDS FOR DELIVERY TIME");
+
 
 //        var rate = get_rate()
 //        console.log("RATE ================>>>>>>>>>", rate)
 //        frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'rate', "0");
+
+//        var rate = delivery_time()
+//        console.log("DELIVERY TIME ================>>>>>>>>>", rate)
+//        frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'delivery_time', "0");
 
 
     }), {
