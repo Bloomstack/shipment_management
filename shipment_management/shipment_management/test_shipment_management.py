@@ -138,7 +138,7 @@ class TestCaseAddress(unittest.TestCase):
 		#get_recipient(delivery_note_name='DN-00048')
 		#get_shipper(delivery_note_name='DN-00048')
 
-		shipment_note = get_doc("DTI Shipment Note",  "SHIP-00352")
+		shipment_note = get_doc("DTI Shipment Note",  "SHIP-00007")
 
 		message = get_content_picked_up(shipment_note)
 		send_email(message=message,
