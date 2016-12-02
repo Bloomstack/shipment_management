@@ -410,7 +410,10 @@ def create_fedex_shipment(source_doc):
 	try:
 		shipment.send_request()
 	except Exception as error:
-		frappe.throw(_("Error: %s" % error))
+		if "Customs Value is required" in str(error):
+			frappe.throw(_("International shipment support required".upper()))
+		else:
+			frappe.throw(_("Error: %s" % error))
 
 	master_label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
