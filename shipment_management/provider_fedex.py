@@ -15,29 +15,61 @@ from frappe.utils.file_manager import *
 
 from config.app_config import PRIMARY_FEDEX_DOC_NAME
 
+
+##############################################################################
+##############################################################################
+##############################################################################
+
+# IMPORT FEDEX LIBRARY IS IN THIS WAY BECAUSE OF BUG
+# Seems like the sandbox import path is broken on certain modules.
+# More details: https://discuss.erpnext.com/t/install-requirements-with-bench-problem-importerror/16558/5
+
+# If import error during installation try reinstall fedex manually:
+# bench shell
+# pip install fedex
+
+# Make sure fedex and all the library file files are there  ~/frappe-bench/env/lib/python2.7/
+
+##############################################################################
+
 fedex_track_service = frappe.get_module("fedex.services.track_service")
 rate_service = frappe.get_module("fedex.services.rate_service")
 fedex_config = frappe.get_module("fedex.config")
 conversion = frappe.get_module("fedex.tools.conversion")
 availability_commitment_service = frappe.get_module("fedex.services.availability_commitment_service")
-ship_service = frappe.get_module("fedex.services.ship_service")
 base_service = frappe.get_module("fedex.base_service")
+
+ship_service = frappe.get_module("fedex.services.ship_service")
+FedexDeleteShipmentRequest = ship_service.FedexDeleteShipmentRequest
+FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
+FedexError = base_service.FedexError
 
 subject_to_json = conversion.sobject_to_json
 FedexTrackRequest = fedex_track_service.FedexTrackRequest
-FedexDeleteShipmentRequest = ship_service.FedexDeleteShipmentRequest
-FedexError = base_service.FedexError
 FedexConfig = fedex_config.FedexConfig
 FedexRateServiceRequest = rate_service.FedexRateServiceRequest
 FedexAvailabilityCommitmentRequest = availability_commitment_service.FedexAvailabilityCommitmentRequest
-FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
+
+# TODO - INTERNATIONAL SHIPMENT SUPPORT
+# from ship_service import FedexDeleteShipmentRequest, FedexProcessInternationalShipmentRequest, FedexProcessShipmentRequest
+
+
+##############################################################################
+##############################################################################
+##############################################################################
+
 
 CUSTOMER_TRANSACTION_ID = "*** TrackService Request v10 using Python ***"
 
 
 def get_sales_order(company_name):
 
-	# TODO - How define target correct the sales-order?
+	# TODO - How to define target correct the sales-order to be depended on the delivery note? (George is investigating)
+	# 'internal_links': {
+	# 					  'Sales Order': ['items', 'against_sales_order'],
+	# 				  },
+	# https: // github.com / frappe / erpnext / blob / develop / erpnext / stock / doctype / delivery_note / delivery_note_dashboard.py
+
 	sales_order = None
 	sales_order_response = frappe.db.sql('''SELECT * from `tabSales Order` WHERE customer_name="%s"''' % company_name,
 										 as_dict=True)
@@ -135,6 +167,7 @@ def get_package_rate(DropoffType=None,
 	:return: TotalNetChargeWithDutiesAndTaxes
 	"""
 
+	# TODO - Add International Shipment to Rate Service
 	rate = FedexRateServiceRequest(CONFIG_OBJ)
 
 	rate.RequestedShipment.DropoffType = DropoffType
@@ -150,6 +183,9 @@ def get_package_rate(DropoffType=None,
 	rate.RequestedShipment.Recipient.Address.CountryCode = RecipientCountryCode
 	rate.RequestedShipment.EdtRequestType = EdtRequestType
 	rate.RequestedShipment.ShippingChargesPayment.PaymentType = PaymentType
+
+	if str(package_list):
+		package_list = json.loads(package_list)
 
 	for package in package_list:
 		package1_weight = rate.create_wsdl_object_of_type('Weight')
@@ -173,8 +209,7 @@ def get_package_rate(DropoffType=None,
 	response_json = subject_to_json(rate.response)
 	data = json.loads(response_json)
 
-	return data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"][
-		'TotalNetChargeWithDutiesAndTaxes']
+	return data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']
 
 
 @frappe.whitelist()
@@ -190,6 +225,7 @@ def estimate_delivery_time(OriginPostalCode=None,
 	:param DestinationCountryCode:
 	:return: ShipDate
 	"""
+	# TODO - Add International Shipment to Availability Service
 
 	avc_request = FedexAvailabilityCommitmentRequest(CONFIG_OBJ)
 
@@ -237,6 +273,35 @@ def _create_fedex_package(shipment,
 	return package
 
 
+def create_commodity(shipment, package):
+	"""
+	For International Shipment
+	"""
+
+	# TODO - after front-end for international shipment will be reworked
+	quantity = 5
+
+	commodity = shipment.create_wsdl_object_of_type('Commodity')
+	commodity.Name = "Books"
+	commodity.NumberOfPieces = quantity
+	commodity.Description = "Books for a present"
+	commodity.CountryOfManufacture = "US" # Shipper country code
+	commodity.Weight = package.Weight
+	commodity.Quantity = quantity
+	commodity.QuantityUnits = 'EA'  # EACH - for items measured in units
+
+	commodity.UnitPrice.Currency = "USD"
+	commodity.UnitPrice.Amount = 10
+
+	commodity.CustomsValue.Currency = "USD"
+	commodity.CustomsValue.Amount = 1000
+
+	shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Amount = commodity.CustomsValue.Amount
+	shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Currency = commodity.CustomsValue.Currency
+
+	shipment.add_commodity(commodity)
+
+
 def create_fedex_shipment(source_doc):
 	BOXES = source_doc.get_all_children("DTI Shipment Package")
 
@@ -248,7 +313,21 @@ def create_fedex_shipment(source_doc):
 
 	GENERATE_IMAGE_TYPE = 'PNG'
 
+	####################################
+
+	# Support for International Shipment
+
+	# if source_doc.recipient_address_country_code == "US":
+	# 	shipment = FedexProcessShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
+	# else:
+	# 	shipment = FedexProcessInternationalShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
+	# 	expected_service_type_list = ["INTERNATIONAL_ECONOMY", "INTERNATIONAL_PRIORITY"]
+	# 	if source_doc.service_type not in expected_service_type_list:
+	# 		frappe.throw("Service type should be = %s <br> Please correct it and try again!" % " ,".join(expected_service_type_list))
+
 	shipment = FedexProcessShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
+
+	##################################
 
 	shipment.RequestedShipment.DropoffType = source_doc.drop_off_type
 	shipment.RequestedShipment.ServiceType = source_doc.service_type
@@ -319,13 +398,19 @@ def create_fedex_shipment(source_doc):
 
 	shipment.RequestedShipment.PackageCount = len(BOXES)
 
+	####################################
+
+	# Support for International Shipment
+
+	# if source_doc.recipient_address_country_code != "US":
+	# 	create_commodity(source_doc=source_doc, shipment=shipment, package=package1)
+
+	####################################
+
 	try:
 		shipment.send_request()
 	except Exception as error:
-		if "Customs Value is required" in str(error):
-			frappe.throw(_("International shipment support required".upper()))
-		else:
-			frappe.throw(_("Error: %s" % error))
+		frappe.throw(_("Error: %s" % error))
 
 	master_label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
@@ -451,11 +536,11 @@ def create_fedex_shipment(source_doc):
 
 	# ################################################
 
-	frappe.msgprint("DONE!", "Tracking number:{}".format(master_tracking_number))
-
-	# #################################################
-
 	source_doc.sales_order = get_sales_order(source_doc.recipient_company_name)
+
+	# ################################################
+
+	frappe.msgprint("DONE!", "Tracking number:{}".format(master_tracking_number))
 
 
 ################################################################################
@@ -544,5 +629,3 @@ def get_html_code_status_with_fedex_tracking_number(track_value):
 	except Exception as error:
 		return """<b>ERROR :</b><br> Fedex invalid configuration error! <br>{0}<br><br>{1} """.format(error.value,
 																									  get_fedex_server_info())
-
-
