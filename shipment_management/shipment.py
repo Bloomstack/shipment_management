@@ -155,7 +155,7 @@ def get_shipper(delivery_note_name):
 
 				if company_address[0].state:
 					shipper.address.StateOrProvinceCode = get_country_state_code(country=shipper.address.Country,
-																				 state=shipper[0].state)
+																				 state=company_address[0].state)
 
 	return shipper
 
