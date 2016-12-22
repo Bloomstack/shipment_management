@@ -33,13 +33,15 @@ from config.app_config import PRIMARY_FEDEX_DOC_NAME
 ##############################################################################
 
 fedex_track_service = frappe.get_module("fedex.services.track_service")
-rate_service = frappe.get_module("fedex.services.rate_service")
+# rate_service = frappe.get_module("fedex.services.rate_service")
+#ship_service = frappe.get_module("fedex.services.ship_service")
+
 fedex_config = frappe.get_module("fedex.config")
 conversion = frappe.get_module("fedex.tools.conversion")
 availability_commitment_service = frappe.get_module("fedex.services.availability_commitment_service")
 base_service = frappe.get_module("fedex.base_service")
 
-ship_service = frappe.get_module("fedex.services.ship_service")
+
 FedexDeleteShipmentRequest = ship_service.FedexDeleteShipmentRequest
 FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
 FedexError = base_service.FedexError
@@ -50,9 +52,9 @@ FedexConfig = fedex_config.FedexConfig
 FedexRateServiceRequest = rate_service.FedexRateServiceRequest
 FedexAvailabilityCommitmentRequest = availability_commitment_service.FedexAvailabilityCommitmentRequest
 
-# TODO - INTERNATIONAL SHIPMENT SUPPORT
-# from ship_service import FedexDeleteShipmentRequest, FedexProcessInternationalShipmentRequest, FedexProcessShipmentRequest
-
+# TODO - Fix import after https://github.com/python-fedex-devs/python-fedex/pull/86
+from ship_service import FedexDeleteShipmentRequest, FedexProcessInternationalShipmentRequest, FedexProcessShipmentRequest
+from temp_fedex import rate_service
 
 ##############################################################################
 ##############################################################################
@@ -71,8 +73,7 @@ def get_sales_order(company_name):
 	# https: // github.com / frappe / erpnext / blob / develop / erpnext / stock / doctype / delivery_note / delivery_note_dashboard.py
 
 	sales_order = None
-	sales_order_response = frappe.db.sql('''SELECT * from `tabSales Order` WHERE customer_name="%s"''' % company_name,
-										 as_dict=True)
+	sales_order_response = frappe.db.sql('''SELECT * from `tabSales Order` WHERE customer_name="%s"''' % company_name, as_dict=True)
 	if sales_order_response:
 		sales_order = sales_order_response[0].name
 
@@ -314,16 +315,6 @@ def create_fedex_shipment(source_doc):
 	GENERATE_IMAGE_TYPE = 'PNG'
 
 	####################################
-
-	# Support for International Shipment
-
-	# if source_doc.recipient_address_country_code == "US":
-	# 	shipment = FedexProcessShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
-	# else:
-	# 	shipment = FedexProcessInternationalShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
-	# 	expected_service_type_list = ["INTERNATIONAL_ECONOMY", "INTERNATIONAL_PRIORITY"]
-	# 	if source_doc.service_type not in expected_service_type_list:
-	# 		frappe.throw("Service type should be = %s <br> Please correct it and try again!" % " ,".join(expected_service_type_list))
 
 	shipment = FedexProcessShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
 
