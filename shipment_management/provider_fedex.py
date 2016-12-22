@@ -19,8 +19,10 @@ from config.app_config import PRIMARY_FEDEX_DOC_NAME
 ##############################################################################
 ##############################################################################
 ##############################################################################
+##############################################################################
+##############################################################################
 
-# IMPORT FEDEX LIBRARY IS IN THIS WAY BECAUSE OF BUG
+# IMPORT FEDEX LIBRARY IS WITH <<frappe.get_module>> BECAUSE OF BUG
 # Seems like the sandbox import path is broken on certain modules.
 # More details: https://discuss.erpnext.com/t/install-requirements-with-bench-problem-importerror/16558/5
 
@@ -31,10 +33,20 @@ from config.app_config import PRIMARY_FEDEX_DOC_NAME
 # Make sure fedex and all the library file files are there  ~/frappe-bench/env/lib/python2.7/
 
 ##############################################################################
+##############################################################################
+##############################################################################
 
 fedex_track_service = frappe.get_module("fedex.services.track_service")
+
+# TODO - Fix import after https://github.com/python-fedex-devs/python-fedex/pull/86
+from temp_fedex.ship_service import FedexDeleteShipmentRequest, FedexProcessInternationalShipmentRequest, FedexProcessShipmentRequest
+from temp_fedex.rate_service import FedexRateServiceRequest
+
 # rate_service = frappe.get_module("fedex.services.rate_service")
-#ship_service = frappe.get_module("fedex.services.ship_service")
+# ship_service = frappe.get_module("fedex.services.ship_service")
+# FedexDeleteShipmentRequest = ship_service.FedexDeleteShipmentRequest
+# FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
+# FedexRateServiceRequest = rate_service.FedexRateServiceRequest
 
 fedex_config = frappe.get_module("fedex.config")
 conversion = frappe.get_module("fedex.tools.conversion")
@@ -42,20 +54,16 @@ availability_commitment_service = frappe.get_module("fedex.services.availability
 base_service = frappe.get_module("fedex.base_service")
 
 
-FedexDeleteShipmentRequest = ship_service.FedexDeleteShipmentRequest
-FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
 FedexError = base_service.FedexError
 
 subject_to_json = conversion.sobject_to_json
 FedexTrackRequest = fedex_track_service.FedexTrackRequest
 FedexConfig = fedex_config.FedexConfig
-FedexRateServiceRequest = rate_service.FedexRateServiceRequest
+
 FedexAvailabilityCommitmentRequest = availability_commitment_service.FedexAvailabilityCommitmentRequest
 
-# TODO - Fix import after https://github.com/python-fedex-devs/python-fedex/pull/86
-from ship_service import FedexDeleteShipmentRequest, FedexProcessInternationalShipmentRequest, FedexProcessShipmentRequest
-from temp_fedex import rate_service
-
+##############################################################################
+##############################################################################
 ##############################################################################
 ##############################################################################
 ##############################################################################
@@ -251,7 +259,7 @@ def _create_fedex_package(shipment,
 						  package_weight_value=0,
 						  package_weight_units=None,
 						  physical_packaging=None,
-						  insure_currency=None,
+						  insure_currency="USD",
 						  insured_amount=None):
 	package_weight = shipment.create_wsdl_object_of_type('Weight')
 	package_weight.Value = package_weight_value
@@ -262,10 +270,12 @@ def _create_fedex_package(shipment,
 	package.PhysicalPackaging = physical_packaging
 	package.Weight = package_weight
 
-	if insure_currency and insured_amount:
+	if insured_amount:
 		package_insure = shipment.create_wsdl_object_of_type('Money')
+
 		package_insure.Currency = insure_currency
 		package_insure.Amount = insured_amount
+
 		package.InsuredValue = package_insure
 
 	package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
@@ -315,13 +325,20 @@ def create_fedex_shipment(source_doc):
 	GENERATE_IMAGE_TYPE = 'PNG'
 
 	####################################
+	# International shipment support:
 
-	shipment = FedexProcessShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
+	if source_doc.international_shipment:
+		shipment = FedexProcessInternationalShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
+		service_type = source_doc.service_type_international
+
+	else:
+		shipment = FedexProcessShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
+		service_type = source_doc.service_type_domestic
 
 	##################################
 
 	shipment.RequestedShipment.DropoffType = source_doc.drop_off_type
-	shipment.RequestedShipment.ServiceType = source_doc.service_type
+	shipment.RequestedShipment.ServiceType = service_type
 
 	shipment.RequestedShipment.PackagingType = source_doc.packaging_type
 
@@ -382,8 +399,7 @@ def create_fedex_shipment(source_doc):
 									 package_weight_value=BOXES[0].weight_value,
 									 package_weight_units=BOXES[0].weight_units,
 									 physical_packaging=BOXES[0].physical_packaging,
-									 insure_currency=BOXES[0].currency,
-									 insured_amount=BOXES[0].insured_amount)
+									 insured_amount=BOXES[0].total_box_insurance)
 
 	shipment.RequestedShipment.RequestedPackageLineItems = [package1]
 
@@ -439,7 +455,7 @@ def create_fedex_shipment(source_doc):
 					   'weight_units': BOXES[0].weight_units,
 					   'physical_packaging': BOXES[0].physical_packaging,
 					   'group_package_count': 1,
-					   'insured_amount': BOXES[0].insured_amount}
+					   'insured_amount': BOXES[0].total_box_insurance}
 
 	rate_box_list.append(master_box_dict)
 
@@ -453,9 +469,8 @@ def create_fedex_shipment(source_doc):
 										sequence_number=i + 1,
 										package_weight_value=child_package.weight_value,
 										package_weight_units=child_package.weight_units,
-										insure_currency=child_package.currency,
 										physical_packaging=child_package.physical_packaging,
-										insured_amount=child_package.insured_amount)
+										insured_amount=child_package.total_box_insurance)
 
 		shipment.RequestedShipment.RequestedPackageLineItems = [package]
 		shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
@@ -468,7 +483,7 @@ def create_fedex_shipment(source_doc):
 						  'weight_units': child_package.weight_units,
 						  'physical_packaging': child_package.physical_packaging,
 						  'group_package_count': i + 1,
-						  'insured_amount': child_package.insured_amount}
+						  'insured_amount': child_package.total_box_insurance}
 
 		rate_box_list.append(child_box_dict)
 
@@ -512,7 +527,7 @@ def create_fedex_shipment(source_doc):
 
 	try:
 		rate = get_package_rate(DropoffType=source_doc.drop_off_type,
-								ServiceType=source_doc.service_type,
+								ServiceType=service_type,
 								PackagingType=source_doc.packaging_type,
 								ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
 								ShipperPostalCode=source_doc.shipper_address_postal_code,

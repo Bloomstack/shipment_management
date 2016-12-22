@@ -6,7 +6,9 @@ returned with the rates if it is specified in the request.
 """
 
 import datetime
-from ..base_service import FedexBaseService
+import frappe
+base_service = frappe.get_module("fedex.base_service")
+FedexBaseService = base_service.FedexBaseService
 
 
 class FedexRateServiceRequest(FedexBaseService):
