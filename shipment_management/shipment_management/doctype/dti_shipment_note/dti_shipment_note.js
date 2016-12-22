@@ -91,36 +91,30 @@ frappe.ui.form.on('DTI Shipment Note', $.extend(multifield_events([
 
     }));
 
-frappe.ui.form.on("DTI Shipment Package", "total_box_insurance", function (frm) {
-    for (var i = 0, sum = 0; i < frm.doc.package.length; sum += frm.doc.package[i++].insured_amount);
-    frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'total_insurance', sum);
-
-});
-
-
-// ##############################
 
 frappe.ui.form.on("DTI Shipment Package", "items_in_box", function (frm, _doctype, currentPackageName) {
-    //debugger;
     var currentPackage = getPackageByName(frm.doc.package, currentPackageName);
     if (currentPackage) {
         var processedInput = processItemsInTheBox(currentPackage.items_in_box);
-        currentPackage.ENTERED_ITEMS = processedInput.items;
+        //currentPackage.ENTERED_ITEMS = processedInput.items;
         console.log("currentPackage", currentPackage);
         if (processedInput.invalidLines.length) {
-            // show ui hint
-            console.error("BAD LINES:\n" + processedInput.invalidLines.join("\n"));
+            alert(__("WARNING! Bad lines:\n" + processedInput.invalidLines.join("\n")));
         }
+
         var currentValues = calculatePackageValues(frm.doc.delivery_items, processedInput.items);
         currentPackage.total_box_insurance = currentValues.insurance;
         currentPackage.total_box_custom_value = currentValues.customValue;
-        console.log(currentValues);
-        debugger;
-        frappe.model.set_value("DTI Shipment Package", cur_frm.doc.name, 'total_insurance', currentPackage.total_box_insurance);
-        // cur_frm.refresh_fields("total_box_insurance")
+        cur_frm.refresh_fields("total_box_insurance")
+        cur_frm.refresh_fields("total_box_custom_value")
+
+        for (var i = 0, global_insurance = 0; i < frm.doc.package.length; global_insurance += frm.doc.package[i++].total_box_insurance);
+        for (var i = 0, global_custom_value = 0; i < frm.doc.package.length; global_custom_value += frm.doc.package[i++].total_box_custom_value);
+
+        frappe.model.set_value(currentPackage.parenttype, currentPackage.parent, 'total_insurance', global_insurance);
+        frappe.model.set_value(currentPackage.parenttype, currentPackage.parent, 'total_custom_value', global_custom_value);
+
     }
-
-
 
 });
 
@@ -181,11 +175,6 @@ function calculatePackageValues(allItems, enteredItems) {
     }
     return result;
 }
-
-
-
-
-// ################################
 
 
 get_recipient_info = function (doc) {
