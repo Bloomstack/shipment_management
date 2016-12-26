@@ -476,8 +476,8 @@ def create_fedex_shipment(source_doc):
 	differ = DictDiffer(delivery_items_dict, all_items_in_all_boxes)
 	if differ.changed():
 
-		delivery_string = "\n".join("%s = %i\n" % (item, delivery_items_dict[item])for item in delivery_items_dict)
-		all_items_string = "\n".join("%s = %i\n" % (item, all_items_in_all_boxes[item]) for item in all_items_in_all_boxes)
+		delivery_string = "<br>".join("%s = %i" % (item, delivery_items_dict[item])for item in delivery_items_dict)
+		all_items_string = "<br>".join("%s = %i" % (item, all_items_in_all_boxes[item]) for item in all_items_in_all_boxes)
 
 		error_message = """<b style="color:orange;">WARNING!</b><br>
 		Integrity error for: <b>{}</b> <br>
