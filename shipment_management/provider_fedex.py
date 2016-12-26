@@ -296,6 +296,86 @@ def _create_package(shipment,
 	package.SequenceNumber = sequence_number
 	return package
 
+# #############################################################################
+
+
+def _create_commodity_for_package(box, package_weight, sequence_number, shipment, source_doc):
+	"""
+	Only for international shipment
+	"""
+	commodity = shipment.create_wsdl_object_of_type('Commodity')
+	commodity_default_currency = "USD"
+
+	quantity_of_all_items_in_box = sum(
+		[int(get_item_by_item_code(source_doc, item).qty) for item in parse_items_in_box(box)])
+
+	commodity.Name = "Shipment with " + ",".join(
+		get_item_by_item_code(source_doc, item).item_name for item in parse_items_in_box(box))
+
+	commodity.NumberOfPieces = quantity_of_all_items_in_box
+
+	commodity.Description = ";<br>".join("<b>%s</b> <br><i>%s</i>" % (get_item_by_item_code(source_doc, item).item_name,
+																	  get_item_by_item_code(source_doc,
+																							item).description)
+										 for item in parse_items_in_box(box))
+
+	commodity.CountryOfManufacture = source_doc.shipper_address_country_code
+
+	commodity.Weight = package_weight
+
+	commodity.Quantity = quantity_of_all_items_in_box
+
+	commodity.QuantityUnits = 'EA'  # EACH - for items measured in units
+
+	commodity.UnitPrice.Currency = commodity_default_currency
+
+	commodity.UnitPrice.Amount = sum(
+		[int(get_item_by_item_code(source_doc, item).rate) for item in parse_items_in_box(box)])
+
+	commodity.CustomsValue.Currency = commodity_default_currency
+
+	commodity.CustomsValue.Amount = box.total_box_custom_value
+
+	shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Amount = commodity.CustomsValue.Amount
+
+	shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Currency = commodity.CustomsValue.Currency
+
+	shipment.add_commodity(commodity)
+
+	commodity_message = """
+		<b style="background-color: yellow;">THE PACKAGE # {box_number} </b><br>
+		<b>NAME</b>                     {name}<br>
+	    <b>NUMBER OF PIECES </b>        =  {number_of_pieces}<br>
+		<b>DESCRIPTION</b> <br>
+		{description}<br>
+		<b>COUNTRY OF MANUFACTURE </b>  =  {country_manufacture}<br>
+		<b>WIGHT  </b>                  =  {wight} <br>
+		<b>QUANTITY     </b>            =  {quantity} <br>
+		<b>QUANTITY UNITS   </b>        =  {quantity_unites} <br>
+		<b>UNIT PRICE CURRENCY    </b>  =  {unit_price_currency} <br>
+		<b>UNIT PRICE AMOUNT    </b>    =  {unit_price_amount} <br>
+		<b>CUSTOM VALUE CURRENCY   </b> =  {custom_value_currency} <br>
+		<b>CUSTOM VALUE AMOUNT    </b>  =  {custom_value_amount} <br>
+		""".format(box_number=sequence_number,
+				   name=commodity.Name,
+				   number_of_pieces=commodity.NumberOfPieces,
+				   description=commodity.Description,
+				   country_manufacture=commodity.CountryOfManufacture,
+				   wight="%s %s" % (commodity.Weight.Value, commodity.Weight.Units),
+				   quantity=commodity.Quantity,
+				   quantity_unites=commodity.QuantityUnits,
+				   unit_price_currency=commodity.UnitPrice.Currency,
+				   unit_price_amount=commodity.UnitPrice.Amount,
+				   custom_value_currency=commodity.CustomsValue.Currency,
+				   custom_value_amount=commodity.CustomsValue.Amount)
+
+	if sequence_number != 1:
+		commodity_message += str(source_doc.commodity_information) + commodity_message
+
+	frappe.db.set(source_doc, 'commodity_information', commodity_message)
+
+	######################################################
+
 
 def create_fedex_shipment(source_doc):
 	BOXES = source_doc.get_all_children("DTI Shipment Package")
@@ -423,64 +503,11 @@ def create_fedex_shipment(source_doc):
 								  physical_packaging=BOXES[0].physical_packaging,
 								  insured_amount=BOXES[0].total_box_insurance)
 
-		commodity = shipment.create_wsdl_object_of_type('Commodity')
-
-		commodity_default_currency = "USD"
-
-		quantity_of_all_items_in_box = sum([int(get_item_by_item_code(source_doc, item).qty) for item in parse_items_in_box(BOXES[0])])
-
-		commodity.Name = "Shipment with " + ",".join(get_item_by_item_code(source_doc, item).item_name for item in parse_items_in_box(BOXES[0]))
-		commodity.NumberOfPieces = quantity_of_all_items_in_box
-
-		commodity.Description = ";<br>".join("<b>%s</b> <br><i>%s</i>" % (get_item_by_item_code(source_doc, item).item_name,
-												get_item_by_item_code(source_doc, item).description)
-									for item in parse_items_in_box(BOXES[0]))
-
-		commodity.CountryOfManufacture = source_doc.shipper_address_country_code
-		commodity.Weight = package1.Weight
-
-		commodity.Quantity = quantity_of_all_items_in_box
-		commodity.QuantityUnits = 'EA'  # EACH - for items measured in units
-
-		commodity.UnitPrice.Currency = commodity_default_currency
-		commodity.UnitPrice.Amount = sum([int(get_item_by_item_code(source_doc, item).rate) for item in parse_items_in_box(BOXES[0])])
-
-		commodity.CustomsValue.Currency = commodity_default_currency
-		commodity.CustomsValue.Amount = BOXES[0].total_box_custom_value
-
-		shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Amount = commodity.CustomsValue.Amount
-		shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Currency = commodity.CustomsValue.Currency
-
-		shipment.add_commodity(commodity)
-
-		commodity_message = """
-		<b style="background-color: yellow;">THE PACKAGE # {box_number} </b><br>
-		<b>NAME</b>                     {name}<br>
-	    <b>NUMBER OF PIECES </b>        =  {number_of_pieces}<br>
-		<b>DESCRIPTION</b> <br>
-		{description}<br>
-		<b>COUNTRY OF MANUFACTURE </b>  =  {country_manufacture}<br>
-		<b>WIGHT  </b>                  =  {wight} <br>
-		<b>QUANTITY     </b>            =  {quantity} <br>
-		<b>QUANTITY UNITS   </b>        =  {quantity_unites} <br>
-		<b>UNIT PRICE CURRENCY    </b>  =  {unit_price_currency} <br>
-		<b>UNIT PRICE AMOUNT    </b>    =  {unit_price_amount} <br>
-		<b>CUSTOM VALUE CURRENCY   </b> =  {custom_value_currency} <br>
-		<b>CUSTOM VALUE AMOUNT    </b>  =  {custom_value_amount} <br>
-		""".format(box_number=sequence_number,
-				   name=commodity.Name,
-				   number_of_pieces=commodity.NumberOfPieces,
-				   description=commodity.Description,
-				   country_manufacture=commodity.CountryOfManufacture,
-				   wight="%s %s" % (commodity.Weight.Value, commodity.Weight.Units),
-				   quantity=commodity.Quantity,
-				   quantity_unites=commodity.QuantityUnits,
-				   unit_price_currency=commodity.UnitPrice.Currency,
-				   unit_price_amount=commodity.UnitPrice.Amount,
-				   custom_value_currency=commodity.CustomsValue.Currency,
-				   custom_value_amount=commodity.CustomsValue.Amount)
-
-		frappe.db.set(source_doc, 'commodity_information', commodity_message)
+		_create_commodity_for_package(box=BOXES[0],
+									  package_weight=package1.Weight,
+									  sequence_number=1,
+									  shipment=shipment,
+									  source_doc=source_doc)
 
 	else:
 		package1 = _create_package(shipment=shipment,
