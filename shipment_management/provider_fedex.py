@@ -343,7 +343,7 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 	shipment.add_commodity(commodity)
 
 	commodity_message = """
-		<b style="background-color: yellow;">THE PACKAGE # {box_number} </b><br>
+		<b style="background-color: #FFFACD;">THE PACKAGE # {box_number} </b><br>
 		<b>NAME</b>                     {name}<br>
 	    <b>NUMBER OF PIECES </b>        =  {number_of_pieces}<br>
 		<b>DESCRIPTION</b> <br>
@@ -495,27 +495,19 @@ def create_fedex_shipment(source_doc):
 
 	sequence_number = 1
 
-	if source_doc.international_shipment:
-		package1 = _create_package(shipment=shipment,
-								  sequence_number=sequence_number,
-								  package_weight_value=BOXES[0].weight_value,
-								  package_weight_units=BOXES[0].weight_units,
-								  physical_packaging=BOXES[0].physical_packaging,
-								  insured_amount=BOXES[0].total_box_insurance)
+	package1 = _create_package(shipment=shipment,
+							   sequence_number=sequence_number,
+							   package_weight_value=BOXES[0].weight_value,
+							   package_weight_units=BOXES[0].weight_units,
+							   physical_packaging=BOXES[0].physical_packaging,
+							   insured_amount=BOXES[0].total_box_insurance)
 
+	if source_doc.international_shipment:
 		_create_commodity_for_package(box=BOXES[0],
 									  package_weight=package1.Weight,
 									  sequence_number=1,
 									  shipment=shipment,
 									  source_doc=source_doc)
-
-	else:
-		package1 = _create_package(shipment=shipment,
-								   sequence_number=sequence_number,
-								   package_weight_value=BOXES[0].weight_value,
-								   package_weight_units=BOXES[0].weight_units,
-								   physical_packaging=BOXES[0].physical_packaging,
-								   insured_amount=BOXES[0].total_box_insurance)
 
 	shipment.RequestedShipment.RequestedPackageLineItems = [package1]
 	shipment.RequestedShipment.PackageCount = len(BOXES)
@@ -589,6 +581,13 @@ def create_fedex_shipment(source_doc):
 										package_weight_units=child_package.weight_units,
 										physical_packaging=child_package.physical_packaging,
 										insured_amount=child_package.total_box_insurance)
+
+		if source_doc.international_shipment:
+			_create_commodity_for_package(box=child_package,
+										  package_weight=package1.Weight,
+										  sequence_number=i,
+										  shipment=shipment,
+										  source_doc=source_doc)
 
 		shipment.RequestedShipment.RequestedPackageLineItems = [package]
 		shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
