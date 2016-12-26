@@ -80,7 +80,7 @@ frappe.ui.form.on('DTI Shipment Note', $.extend(multifield_events([
 
         refresh: function (frm) {
             cur_frm.refresh_fields();
-            $("[data-fieldname='international_shipment']").css({'text-transform': 'uppercase', 'font-size':'16px'})
+            $("[data-fieldname='international_shipment']").css({'text-transform': 'uppercase', 'font-size':'16px', 'background-color': '#FFFACD'})
             if ((cur_frm.doc.label_1) && (cur_frm.doc.docstatus == 1)) {
                 cur_frm.add_custom_button(__('Print label'),
                     function () {
