@@ -24,7 +24,7 @@ from config.app_config import PRIMARY_FEDEX_DOC_NAME
 
 # ########################### FEDEX IMPORT ####################################
 
-# TODO - IMPORT FEDEX LIBRARY IS WITH <<frappe.get_module>> BECAUSE OF BUG
+# IMPORT FEDEX LIBRARY IS WITH <<frappe.get_module>> BECAUSE OF BUG
 # Seems like the sandbox import path is broken on certain modules.
 # More details: https://discuss.erpnext.com/t/install-requirements-with-bench-problem-importerror/16558/5
 
@@ -37,61 +37,28 @@ from config.app_config import PRIMARY_FEDEX_DOC_NAME
 fedex_track_service = frappe.get_module("fedex.services.track_service")
 
 # TODO - Fix import after https://github.com/python-fedex-devs/python-fedex/pull/86
+
 from temp_fedex.ship_service import FedexDeleteShipmentRequest, FedexProcessInternationalShipmentRequest, FedexProcessShipmentRequest
 from temp_fedex.rate_service import FedexRateServiceRequest
+
+# #############################################################################
 
 # rate_service = frappe.get_module("fedex.services.rate_service")
 # ship_service = frappe.get_module("fedex.services.ship_service")
 # FedexDeleteShipmentRequest = ship_service.FedexDeleteShipmentRequest
 # FedexProcessShipmentRequest = ship_service.FedexProcessShipmentRequest
 # FedexRateServiceRequest = rate_service.FedexRateServiceRequest
-
 fedex_config = frappe.get_module("fedex.config")
 conversion = frappe.get_module("fedex.tools.conversion")
 availability_commitment_service = frappe.get_module("fedex.services.availability_commitment_service")
 base_service = frappe.get_module("fedex.base_service")
-
-
 FedexError = base_service.FedexError
-
 subject_to_json = conversion.sobject_to_json
 FedexTrackRequest = fedex_track_service.FedexTrackRequest
 FedexConfig = fedex_config.FedexConfig
-
 FedexAvailabilityCommitmentRequest = availability_commitment_service.FedexAvailabilityCommitmentRequest
 
 # #############################################################################
-# #############################################################################
-# #############################################################################
-# #############################################################################
-# #############################################################################
-
-
-class DictDiffer(object):
-    """
-    Calculate the difference between two dictionaries as:
-    (1) items added
-    (2) items removed
-    (3) keys same in both but changed values
-    (4) keys same in both and unchanged values
-    """
-    def __init__(self, current_dict, past_dict):
-        self.current_dict, self.past_dict = current_dict, past_dict
-        self.set_current, self.set_past = set(current_dict.keys()), set(past_dict.keys())
-        self.intersect = self.set_current.intersection(self.set_past)
-
-    def added(self):
-        return self.set_current - self.intersect
-
-    def removed(self):
-        return self.set_past - self.intersect
-
-    def changed(self):
-        return set(o for o in self.intersect if self.past_dict[o] != self.current_dict[o])
-
-    def unchanged(self):
-        return set(o for o in self.intersect if self.past_dict[o] == self.current_dict[o])
-
 # #############################################################################
 # #############################################################################
 # #############################################################################
@@ -345,7 +312,7 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 	commodity_message = """
 		<b style="background-color: #FFFACD;">THE PACKAGE # {box_number} </b><br>
 		<b>NAME</b>                     {name}<br>
-	    <b>NUMBER OF PIECES </b>        =  {number_of_pieces}<br>
+		<b>NUMBER OF PIECES </b>        =  {number_of_pieces}<br>
 		<b>DESCRIPTION</b> <br>
 		{description}<br>
 		<b>COUNTRY OF MANUFACTURE </b>  =  {country_manufacture}<br>
@@ -373,8 +340,6 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 		commodity_message += str(source_doc.commodity_information) + commodity_message
 
 	frappe.db.set(source_doc, 'commodity_information', commodity_message)
-
-	######################################################
 
 
 def create_fedex_shipment(source_doc):
@@ -450,11 +415,7 @@ def create_fedex_shipment(source_doc):
 	if hasattr(shipment.RequestedShipment.LabelSpecification, 'LabelOrder'):
 		del shipment.RequestedShipment.LabelSpecification.LabelOrder  # Delete, not using.
 
-	# #############################################################################
-	# #############################################################################
-	# #############################################################################
-
-	# VALIDATE SHIPMENT INTEGRITY
+	# ################## VALIDATE SHIPMENT INTEGRITY ##############################
 
 	parsed_items_per_box = {i: parse_items_in_box(package) for i, package in enumerate(BOXES)}
 
@@ -488,10 +449,21 @@ def create_fedex_shipment(source_doc):
 		frappe.throw(_(error_message))
 
 	# #############################################################################
-	# #############################################################################
+
+	total_weight = shipment.create_wsdl_object_of_type('Weight')
+
+	total_weight.Value = sum([box.weight_value for box in BOXES])
+
+	if len(set([box.weight_units for box in BOXES])) > 1:
+		frappe.throw(_("Please select the same weight units for all boxes. They can't be different."))
+
+	total_weight.Units = BOXES[0].weight_units
+
+	shipment.RequestedShipment.TotalWeight = total_weight
+
 	# #############################################################################
 
-	# First/Master Package Creation - BOX # 1
+	# ################ Master Package / BOX 1 ######################################
 
 	sequence_number = 1
 
@@ -511,10 +483,6 @@ def create_fedex_shipment(source_doc):
 
 	shipment.RequestedShipment.RequestedPackageLineItems = [package1]
 	shipment.RequestedShipment.PackageCount = len(BOXES)
-
-	# #############################################################################
-	# #############################################################################
-	# #############################################################################
 
 	try:
 		shipment.send_request()
@@ -537,39 +505,18 @@ def create_fedex_shipment(source_doc):
 
 	file_name = "label_%s.%s" % (master_tracking_number, GENERATE_IMAGE_TYPE.lower())
 
-	saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
-
-	# #############################################################################
-
 	frappe.db.set(source_doc, 'tracking_number', master_tracking_number)
+	frappe.db.set(BOXES[0], 'tracking_number', master_tracking_number)
 	frappe.db.set(source_doc, 'master_tracking_id_type', master_tracking_id_type)
+
+	saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
 	frappe.db.set(source_doc, 'label_1', saved_file.file_url)
 
 	# #############################################################################
-	# #############################################################################
-	# #############################################################################
 
-	# Track additional package in shipment :
-
-	# #############################################################################
+	# Other boxes:
 
 	labels = []
-
-	frappe.db.set(BOXES[0], 'tracking_number', master_tracking_number)
-
-	# #############################################################################
-
-	# USED FOR RATE CALCULATION
-
-	rate_box_list = [{'weight_value': BOXES[0].weight_value,
-					  'weight_units': BOXES[0].weight_units,
-					  'physical_packaging': BOXES[0].physical_packaging,
-					  'group_package_count': 1,
-					  'insured_amount': BOXES[0].total_box_insurance}]
-
-	# #############################################################################
-	# #############################################################################
-	# #############################################################################
 
 	for i, child_package in enumerate(BOXES[1:]):
 
@@ -594,18 +541,6 @@ def create_fedex_shipment(source_doc):
 		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
 		shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
 
-		# ###################################
-
-		# USED FOR RATE CALCULATION
-
-		rate_box_list.append({'weight_value': child_package.weight_value,
-						  'weight_units': child_package.weight_units,
-						  'physical_packaging': child_package.physical_packaging,
-						  'group_package_count': i + 1,
-						  'insured_amount': child_package.total_box_insurance})
-
-		# ###################################
-
 		try:
 			shipment.send_request()
 		except Exception as error:
@@ -629,18 +564,20 @@ def create_fedex_shipment(source_doc):
 		i += 1
 		frappe.db.set(source_doc, 'label_' + str(i + 1), path)
 
-	# ################################################
+	# #############################################################################
+	# #############################################################################
 
-	set_delivery_time(source_doc)
-	set_rate(rate_box_list, service_type, source_doc)
+	#set_delivery_time(source_doc)
+	#set_rate(service_type, source_doc)
 
-	# ################################################
+	# #############################################################################
+	# #############################################################################
 
 	frappe.msgprint("DONE!", "Tracking number:{}".format(master_tracking_number))
 
 
-# ###########################################################
-# ###########################################################
+# #############################################################################
+# #############################################################################
 
 
 def parse_items_in_box(box):
@@ -651,7 +588,6 @@ def parse_items_in_box(box):
 			item = line.split(":")
 		except ValueError:
 			frappe.msgprint(_("WARNING! Bad lines:%s" % line))
-			pass
 
 		if items.has_key(item[0]):
 			items[item[0]] += int(item[1])
@@ -660,8 +596,8 @@ def parse_items_in_box(box):
 	return items
 
 
-# ###########################################################
-# ###########################################################
+# #############################################################################
+# #############################################################################
 
 def get_item_by_item_code(source_doc, item_code):
 	all_delivery_items = source_doc.get_all_children("DTI Shipment Note Item")
@@ -670,11 +606,23 @@ def get_item_by_item_code(source_doc, item_code):
 		if item.item_code == item_code:
 			return item
 
-# ###########################################################
-# ###########################################################
+
+# #############################################################################
+# #############################################################################
 
 
-def set_rate(rate_box_list, service_type, source_doc):
+def set_rate(service_type, source_doc):
+
+	BOXES = source_doc.get_all_children("DTI Shipment Package")
+
+	rate_box_list = []
+	for i, box in enumerate(BOXES):
+		rate_box_list.append({'weight_value': box.weight_value,
+							  'weight_units': box.weight_units,
+							  'physical_packaging': box.physical_packaging,
+							  'group_package_count': i+1,
+							  'insured_amount': box.total_box_insurance})
+
 	try:
 		rate = get_package_rate(DropoffType=source_doc.drop_off_type,
 								ServiceType=service_type,
@@ -695,6 +643,9 @@ def set_rate(rate_box_list, service_type, source_doc):
 		frappe.msgprint(_(error))
 		frappe.db.set(source_doc, 'rate', "N/A")
 
+# #############################################################################
+# #############################################################################
+
 
 def set_delivery_time(source_doc):
 	try:
@@ -707,7 +658,8 @@ def set_delivery_time(source_doc):
 		frappe.throw(_("Delivery time error - %s" % error))
 
 
-################################################################################
+# #############################################################################
+# #############################################################################
 
 def delete_fedex_shipment(source_doc):
 	del_request = FedexDeleteShipmentRequest(CONFIG_OBJ)
@@ -723,7 +675,9 @@ def delete_fedex_shipment(source_doc):
 		else:
 			raise Exception("ERROR: %s. Tracking number: %s. Type: %s" % (e, source_doc.tracking_number, source_doc.master_tracking_id_type))
 
-################################################################################
+
+# #############################################################################
+# #############################################################################
 
 
 def get_fedex_shipment_status(track_value):
@@ -743,9 +697,8 @@ def get_fedex_shipment_status(track_value):
 		frappe.throw(_("Fedex error! {} {}".format(error, get_fedex_server_info())))
 
 
-################################################################################
-################################################################################
-################################################################################
+# #############################################################################
+# #############################################################################
 
 # FOR WEB PAGE WITH SHIPMENT TRACKING - shipment_tracking.html
 
@@ -793,3 +746,32 @@ def get_html_code_status_with_fedex_tracking_number(track_value):
 	except Exception as error:
 		return """<b>ERROR :</b><br> Fedex invalid configuration error! <br>{0}<br><br>{1} """.format(error.value,
 																									  get_fedex_server_info())
+
+# #############################################################################
+# #############################################################################
+
+
+class DictDiffer(object):
+	"""
+	Calculate the difference between two dictionaries as:
+	(1) items added
+	(2) items removed
+	(3) keys same in both but changed values
+	(4) keys same in both and unchanged values
+	"""
+	def __init__(self, current_dict, past_dict):
+		self.current_dict, self.past_dict = current_dict, past_dict
+		self.set_current, self.set_past = set(current_dict.keys()), set(past_dict.keys())
+		self.intersect = self.set_current.intersection(self.set_past)
+
+	def added(self):
+		return self.set_current - self.intersect
+
+	def removed(self):
+		return self.set_past - self.intersect
+
+	def changed(self):
+		return set(o for o in self.intersect if self.past_dict[o] != self.current_dict[o])
+
+	def unchanged(self):
+		return set(o for o in self.intersect if self.past_dict[o] == self.current_dict[o])
