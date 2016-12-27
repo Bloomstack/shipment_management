@@ -485,15 +485,7 @@ def create_fedex_shipment(source_doc):
 	shipment.RequestedShipment.RequestedPackageLineItems = [package1]
 	shipment.RequestedShipment.PackageCount = len(BOXES)
 
-	try:
-		shipment.send_request()
-	except Exception as error:
-		if "Customs Value is required" in str(error):
-			frappe.throw(_("International Shipment option is required".upper()))
-		elif "Total Insured value exceeds customs value" in str(error):
-			frappe.throw(_("Error from Fedex: %s. <br>INSURANCE: %s <br>CUSTOM VALUE: %s" % (str(error), BOXES[0].total_box_insurance, BOXES[0].total_box_custom_value)))
-		else:
-			frappe.throw(_("Error from Fedex: %s" % str(error)))
+	_send_request_to_fedex(number=1, box=BOXES[0], shipment=shipment)
 
 	master_label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
@@ -542,10 +534,9 @@ def create_fedex_shipment(source_doc):
 		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
 		shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
 
-		try:
-			shipment.send_request()
-		except Exception as error:
-			frappe.throw(_("Error in box # %s - %s" % (i, error)))
+		_send_request_to_fedex(number=i+1,
+							   box=child_package,
+							   shipment=shipment)
 
 		for label in shipment.response.CompletedShipmentDetail.CompletedPackageDetails:
 			child_tracking_number = label.TrackingIds[0].TrackingNumber
@@ -575,6 +566,25 @@ def create_fedex_shipment(source_doc):
 	# #############################################################################
 
 	frappe.msgprint("DONE!", "Tracking number:{}".format(master_tracking_number))
+
+# ##############################################################################
+# ##############################################################################
+
+
+def _send_request_to_fedex(number, box, shipment):
+	try:
+		shipment.send_request()
+	except Exception as error:
+		if "Customs Value is required" in str(error):
+			frappe.throw(_("International Shipment option is required".upper()))
+
+		elif "Total Insured value exceeds customs value" or " Insured Value can not exceed customs value" in str(error):
+			frappe.throw(_("[BOX # {0}] Error from Fedex: {1}. <br>INSURANCE: {2} <br>CUSTOM VALUE: {3}".format(number,
+																										str(error),
+																										box.total_box_insurance,
+																										box.total_box_custom_value)))
+		else:
+			frappe.throw(_("[BOX # {}] Error from Fedex: {}".format(number, str(error))))
 
 
 # #############################################################################
