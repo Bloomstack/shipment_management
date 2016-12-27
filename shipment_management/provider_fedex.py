@@ -532,7 +532,7 @@ def create_fedex_shipment(source_doc):
 		if source_doc.international_shipment:
 			_create_commodity_for_package(box=child_package,
 										  package_weight=package1.Weight,
-										  sequence_number=i,
+										  sequence_number=i + 1,
 										  shipment=shipment,
 										  source_doc=source_doc)
 
