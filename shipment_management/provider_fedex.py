@@ -323,6 +323,7 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 		<b>UNIT PRICE AMOUNT    </b>    =  {unit_price_amount} <br>
 		<b>CUSTOM VALUE CURRENCY   </b> =  {custom_value_currency} <br>
 		<b>CUSTOM VALUE AMOUNT    </b>  =  {custom_value_amount} <br>
+		<br>
 		""".format(box_number=sequence_number,
 				   name=commodity.Name,
 				   number_of_pieces=commodity.NumberOfPieces,
@@ -337,9 +338,9 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 				   custom_value_amount=commodity.CustomsValue.Amount)
 
 	if sequence_number != 1:
-		commodity_message += str(source_doc.commodity_information) + commodity_message
+		commodity_message += source_doc.commodity_information
 
-	frappe.db.set(source_doc, 'commodity_information', commodity_message)
+	frappe.db.set(source_doc, 'commodity_information', unicode(commodity_message))
 
 
 def create_fedex_shipment(source_doc):
