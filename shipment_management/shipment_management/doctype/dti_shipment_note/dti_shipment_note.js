@@ -3,21 +3,9 @@
 
 // --------------------------------------------------------------
 
-//get_delivery_time = function(doc) {
-//		return frappe.call({
-//			method:'shipment_management.provider_fedex.estimate_delivery_time',
-//			args: { OriginPostalCode:doc.recipient_address_postal_code,
-//					OriginCountryCode:doc.recipient_address_postal_code,
-//					DestinationPostalCode:doc.shipper_address_country_code,
-// 					DestinationCountryCode:doc.shipper_address_postal_code}
-//		});
-//};
-
-// --------------------------------------------------------------
-
 give_estimates = function(doc) {
 		return frappe.call({
-			method:'shipment_management.provider_fedex.give_estimates',
+			method:'shipment_management.provider_fedex.show_shipment_estimates',
 			args: { doc_name: doc.doc.name}
 			})};
 
@@ -25,6 +13,8 @@ give_estimates = function(doc) {
 
 cur_frm.cscript.estimate = function() {
         cur_frm.save();
+        cur_frm.refresh_fields();
+        //cur_frm.reload_doc();
 		give_estimates(cur_frm)
 	}
 
@@ -33,9 +23,9 @@ cur_frm.cscript.estimate = function() {
 frappe.ui.form.on('DTI Shipment Note', {
 	refresh: function(frm) {
             cur_frm.refresh_fields();
-            $("[data-fieldname='international_shipment']").css({'text-transform': 'uppercase', 'font-size':'16px', 'background-color': '#FFFACD'})
-            //$("[data-fieldname='shipment_rate']").css({'background-color': '#FFFACD'})
-            $("[data-fieldname='estimate']:button").css({'background-color': 'rgba(10, 255, 88, 0.34)'})
+            $("[data-fieldname='international_shipment']").css({'text-transform': 'uppercase', 'font-size':'16px'})
+            $("[data-fieldname='shipment_rate']").css({'background-color': 'rgba(152, 216, 91, 0.43)'})
+            $("[data-fieldname='estimate']:button").css({'background-color': 'rgba(152, 216, 91, 0.43)'})
 
             if ((cur_frm.doc.label_1) && (cur_frm.doc.docstatus == 1)) {
                 cur_frm.add_custom_button(__('Print label'),
@@ -45,6 +35,8 @@ frappe.ui.form.on('DTI Shipment Note', {
                     }).addClass("btn btn-primary");
             }
         },
+    on_submit: function(frm){
+            cur_frm.reload_doc();}
 
     });
 
