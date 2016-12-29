@@ -14,6 +14,7 @@ from frappe.utils.file_manager import *
 
 
 from config.app_config import PRIMARY_FEDEX_DOC_NAME
+from shipment import check_permission
 
 
 # #############################################################################
@@ -39,7 +40,7 @@ fedex_track_service = frappe.get_module("fedex.services.track_service")
 # TODO - Fix import after https://github.com/python-fedex-devs/python-fedex/pull/86
 
 from temp_fedex.ship_service import FedexDeleteShipmentRequest, FedexProcessInternationalShipmentRequest, FedexProcessShipmentRequest
-from temp_fedex.rate_service import FedexRateServiceRequest
+from temp_fedex.rate_service import FedexRateServiceRequest, FedexInternationalRateServiceRequest
 
 # #############################################################################
 
@@ -124,97 +125,12 @@ CONFIG_OBJ = get_fedex_config()
 # #############################################################################
 # #############################################################################
 
-# API:
-
-@frappe.whitelist()
-def get_package_rate(DropoffType=None,
-					 ServiceType=None,
-					 PackagingType=None,
-					 ShipperStateOrProvinceCode=None,
-					 ShipperPostalCode=None,
-					 ShipperCountryCode=None,
-					 RecipientStateOrProvinceCode=None,
-					 RecipientPostalCode=None,
-					 RecipientCountryCode=None,
-					 EdtRequestType=None,
-					 PaymentType=None,
-					 package_list=None):
-	"""
-	Define package rate
-	:param DropoffType:
-	:param ServiceType:
-	:param PackagingType:
-	:param ShipperStateOrProvinceCode:
-	:param ShipperPostalCode:
-	:param ShipperCountryCode:
-	:param RecipientStateOrProvinceCode:
-	:param RecipientPostalCode:
-	:param RecipientCountryCode:
-	:param EdtRequestType:
-	:param PaymentType:
-	:param package_list:
-	:return: TotalNetChargeWithDutiesAndTaxes
-	"""
-
-	# TODO - Add International Shipment to Rate Service
-	rate = FedexRateServiceRequest(CONFIG_OBJ)
-
-	rate.RequestedShipment.DropoffType = DropoffType
-	rate.RequestedShipment.ServiceType = ServiceType
-	rate.RequestedShipment.PackagingType = PackagingType
-
-	rate.RequestedShipment.Shipper.Address.StateOrProvinceCode = ShipperStateOrProvinceCode
-	rate.RequestedShipment.Shipper.Address.PostalCode = ShipperPostalCode
-	rate.RequestedShipment.Shipper.Address.CountryCode = ShipperCountryCode
-
-	rate.RequestedShipment.Recipient.Address.StateOrProvinceCode = RecipientStateOrProvinceCode
-	rate.RequestedShipment.Recipient.Address.PostalCode = RecipientPostalCode
-	rate.RequestedShipment.Recipient.Address.CountryCode = RecipientCountryCode
-	rate.RequestedShipment.EdtRequestType = EdtRequestType
-	rate.RequestedShipment.ShippingChargesPayment.PaymentType = PaymentType
-
-	# if str(package_list):
-	# 	package_list = json.loads(package_list)
-
-	for package in package_list:
-		package1_weight = rate.create_wsdl_object_of_type('Weight')
-
-		package1_weight.Value = package["weight_value"]
-		package1_weight.Units = package["weight_units"]
-		package1 = rate.create_wsdl_object_of_type('RequestedPackageLineItem')
-		package1.Weight = package1_weight
-
-		package1.PhysicalPackaging = package["physical_packaging"]
-		package1.GroupPackageCount = package["group_package_count"]
-
-		package_insure = rate.create_wsdl_object_of_type('Money')
-		package_insure.Currency = "USD"
-		package_insure.Amount = package["insured_amount"]
-
-		rate.add_package(package1)
-
-	rate.send_request()
-
-	response_json = subject_to_json(rate.response)
-	data = json.loads(response_json)
-
-	return data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']
-
-
+@check_permission()
 @frappe.whitelist()
 def estimate_delivery_time(OriginPostalCode=None,
 						   OriginCountryCode=None,
 						   DestinationPostalCode=None,
 						   DestinationCountryCode=None):
-	"""
-	Projected package delivery date based on ship date, service, and destination
-	:param OriginPostalCode:
-	:param OriginCountryCode:
-	:param DestinationPostalCode:
-	:param DestinationCountryCode:
-	:return: ShipDate
-	"""
-	# TODO - Add International Shipment to Availability Service
 
 	avc_request = FedexAvailabilityCommitmentRequest(CONFIG_OBJ)
 
@@ -273,18 +189,26 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 	commodity = shipment.create_wsdl_object_of_type('Commodity')
 	commodity_default_currency = "USD"
 
-	quantity_of_all_items_in_box = sum(
-		[int(get_item_by_item_code(source_doc, item).qty) for item in parse_items_in_box(box)])
+	dict_of_items_in_box = parse_items_in_box(box)
+
+	print "debug list_of_items_in_box ------->", dict_of_items_in_box
+
+	# quantity_of_all_items_in_box = sum(
+	# 	[int(get_item_by_item_code(source_doc, item).qty) for item in list_of_items_in_box])
+
+	quantity_of_all_items_in_box = 0
+	for item in dict_of_items_in_box:
+		quantity_of_all_items_in_box += dict_of_items_in_box[item]
 
 	commodity.Name = "Shipment with " + ",".join(
-		get_item_by_item_code(source_doc, item).item_name for item in parse_items_in_box(box))
+		get_item_by_item_code(source_doc, item).item_name for item in dict_of_items_in_box)
 
 	commodity.NumberOfPieces = quantity_of_all_items_in_box
 
 	commodity.Description = ";<br>".join("<b>%s</b> <br><i>%s</i>" % (get_item_by_item_code(source_doc, item).item_name,
 																	  get_item_by_item_code(source_doc,
 																							item).description)
-										 for item in parse_items_in_box(box))
+										 for item in dict_of_items_in_box)
 
 	commodity.CountryOfManufacture = source_doc.shipper_address_country_code
 
@@ -297,7 +221,15 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 	commodity.UnitPrice.Currency = commodity_default_currency
 
 	commodity.UnitPrice.Amount = sum(
-		[int(get_item_by_item_code(source_doc, item).rate) for item in parse_items_in_box(box)])
+		[int(get_item_by_item_code(source_doc, item).rate) for item in dict_of_items_in_box])
+
+	# TODO - FIX !!!!!!!!
+
+	# amount_of_all_items_in_box = 0
+	# for item in dict_of_items_in_box:
+	# 	amount_of_all_items_in_box += int(get_item_by_item_code(source_doc, dict_of_items_in_box[item]).rate)
+
+	#amount_of_all_items_in_box = 1000
 
 	commodity.CustomsValue.Currency = commodity_default_currency
 
@@ -338,19 +270,12 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 				   custom_value_amount=commodity.CustomsValue.Amount)
 
 	if sequence_number != 1:
-		commodity_message += source_doc.commodity_information
+		commodity_message = source_doc.commodity_information + commodity_message
 
 	frappe.db.set(source_doc, 'commodity_information', unicode(commodity_message))
 
 
 def create_fedex_shipment(source_doc):
-	BOXES = source_doc.get_all_children("DTI Shipment Package")
-
-	if len(BOXES) > 9:
-		frappe.throw(_("Max amount of packages is 10"))
-
-	if not BOXES:
-		frappe.throw(_("Please create shipment box packages!"))
 
 	GENERATE_IMAGE_TYPE = 'PNG'
 
@@ -416,38 +341,13 @@ def create_fedex_shipment(source_doc):
 	if hasattr(shipment.RequestedShipment.LabelSpecification, 'LabelOrder'):
 		del shipment.RequestedShipment.LabelSpecification.LabelOrder  # Delete, not using.
 
-	# ################## VALIDATE SHIPMENT INTEGRITY ##############################
+	# #############################################################################
 
-	parsed_items_per_box = {i: parse_items_in_box(package) for i, package in enumerate(BOXES)}
+	DictDiffer.validate_shipment_integrity(source_doc)
 
-	all_items_in_all_boxes = {}
-	for box in parsed_items_per_box:
-		for item_code in parsed_items_per_box[box]:
-			if all_items_in_all_boxes.has_key(item_code):
-				all_items_in_all_boxes[item_code] += parsed_items_per_box[box][item_code]
-			else:
-				all_items_in_all_boxes.update({item_code: int(parsed_items_per_box[box][item_code])})
+	# #############################################################################
 
-	delivery_items_dict = {}
-	for item in source_doc.get_all_children("DTI Shipment Note Item"):
-		if delivery_items_dict.has_key(item.item_code):
-			delivery_items_dict[item.item_code] += int(item.qty)
-		else:
-			delivery_items_dict.update({item.item_code: int(item.qty)})
-
-	differ = DictDiffer(delivery_items_dict, all_items_in_all_boxes)
-	if differ.changed():
-
-		delivery_string = "<br>".join("%s = %i" % (item, delivery_items_dict[item])for item in delivery_items_dict)
-		all_items_string = "<br>".join("%s = %i" % (item, all_items_in_all_boxes[item]) for item in all_items_in_all_boxes)
-
-		error_message = """<b style="color:orange;">WARNING!</b><br>
-		Integrity error for: <b>{}</b> <br>
-		<hr>
-		<b>DELIVERY ITEMS:</b> <br>{} <br><br>
-		<b>ITEMS IN BOX:</b> <br>{}""".format(",".join(differ.changed()), delivery_string, all_items_string)
-
-		frappe.throw(_(error_message))
+	BOXES = source_doc.get_all_children("DTI Shipment Package")
 
 	# #############################################################################
 
@@ -559,13 +459,14 @@ def create_fedex_shipment(source_doc):
 	# #############################################################################
 	# #############################################################################
 
-	#set_delivery_time(source_doc)
-	#set_rate(service_type, source_doc)
+	set_delivery_time(source_doc)
+	set_shipment_rate(source_doc.name)
 
 	# #############################################################################
 	# #############################################################################
 
 	frappe.msgprint("DONE!", "Tracking number:{}".format(master_tracking_number))
+
 
 # ##############################################################################
 # ##############################################################################
@@ -621,9 +522,120 @@ def get_item_by_item_code(source_doc, item_code):
 # #############################################################################
 # #############################################################################
 
+@check_permission()
+@frappe.whitelist()
+def get_package_rate(international=False,
+					 DropoffType=None,
+					 ServiceType=None,
+					 PackagingType=None,
+					 ShipperStateOrProvinceCode=None,
+					 ShipperPostalCode=None,
+					 ShipperCountryCode=None,
+					 RecipientStateOrProvinceCode=None,
+					 RecipientPostalCode=None,
+					 RecipientCountryCode=None,
+					 EdtRequestType=None,
+					 PaymentType=None,
+					 package_list=None):
 
-def set_rate(service_type, source_doc):
+	"""
+	:param international:
+	:param DropoffType:
+	:param ServiceType:
+	:param PackagingType:
+	:param ShipperStateOrProvinceCode:
+	:param ShipperPostalCode:
+	:param ShipperCountryCode:
+	:param RecipientStateOrProvinceCode:
+	:param RecipientPostalCode:
+	:param RecipientCountryCode:
+	:param EdtRequestType:
+	:param PaymentType:
+	:param package_list:
+	:return: data rate
 
+	EXAMPLE
+
+	DropoffType: 'REGULAR_PICKUP',
+	ServiceType:'FEDEX_GROUND',
+	PackagingType: 'YOUR_PACKAGING',
+	ShipperStateOrProvinceCode:'SC',
+	ShipperPostalCode: '29631',
+	ShipperCountryCode:'US',
+	RecipientStateOrProvinceCode:'NC',
+	RecipientPostalCode:'27577',
+	RecipientCountryCode:'US',
+	EdtRequestType:'NONE',
+	PaymentType:'SENDER',
+	package_list:
+	[{"weight_value":"1",
+	"weight_units":"LB",
+	"physical_packaging":"BOX",
+	"group_package_count":"1",
+	"insured_amount":"100"},
+	{"weight_value":"10004000",
+	"weight_units":"LB",
+	"physical_packaging":"BOX",
+	"group_package_count":"1",
+	"insured_amount":"100"}]
+	"""
+
+	if international:
+		rate = FedexInternationalRateServiceRequest(CONFIG_OBJ)
+	else:
+		rate = FedexRateServiceRequest(CONFIG_OBJ)
+
+	rate.RequestedShipment.DropoffType = DropoffType
+	rate.RequestedShipment.ServiceType = ServiceType
+	rate.RequestedShipment.PackagingType = PackagingType
+
+	rate.RequestedShipment.Shipper.Address.StateOrProvinceCode = ShipperStateOrProvinceCode
+	rate.RequestedShipment.Shipper.Address.PostalCode = ShipperPostalCode
+	rate.RequestedShipment.Shipper.Address.CountryCode = ShipperCountryCode
+
+	rate.RequestedShipment.Recipient.Address.StateOrProvinceCode = RecipientStateOrProvinceCode
+	rate.RequestedShipment.Recipient.Address.PostalCode = RecipientPostalCode
+	rate.RequestedShipment.Recipient.Address.CountryCode = RecipientCountryCode
+	rate.RequestedShipment.EdtRequestType = EdtRequestType
+	rate.RequestedShipment.ShippingChargesPayment.PaymentType = PaymentType
+
+	for package in package_list:
+		package1_weight = rate.create_wsdl_object_of_type('Weight')
+
+		package1_weight.Value = package["weight_value"]
+		package1_weight.Units = package["weight_units"]
+
+		package1 = rate.create_wsdl_object_of_type('RequestedPackageLineItem')
+		package1.Weight = package1_weight
+
+		package1.PhysicalPackaging = package["physical_packaging"]
+		package1.GroupPackageCount = package["group_package_count"]
+
+		package_insure = rate.create_wsdl_object_of_type('Money')
+		package_insure.Currency = "USD"
+		package_insure.Amount = package["insured_amount"]
+
+		rate.add_package(package1)
+
+	try:
+		rate.send_request()
+	except Exception as e:
+		if 'RequestedPackageLineItem object cannot be null or empty' in str(e):
+			raise Exception("WARNING: Please create packages with shipment")
+
+	response_json = subject_to_json(rate.response)
+	data = json.loads(response_json)
+
+	try:
+		return data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']
+	except Exception:
+		return data
+
+
+@check_permission()
+@frappe.whitelist()
+def get_shipment_rate(doc_name):
+	source_doc = frappe.get_doc("DTI Shipment Note", doc_name)
 	BOXES = source_doc.get_all_children("DTI Shipment Package")
 
 	rate_box_list = []
@@ -634,8 +646,14 @@ def set_rate(service_type, source_doc):
 							  'group_package_count': i+1,
 							  'insured_amount': box.total_box_insurance})
 
+	if source_doc.international_shipment:
+		service_type = source_doc.service_type_international
+	else:
+		service_type = source_doc.service_type_domestic
+
 	try:
-		rate = get_package_rate(DropoffType=source_doc.drop_off_type,
+		rate = get_package_rate(international=source_doc.international_shipment,
+								DropoffType=source_doc.drop_off_type,
 								ServiceType=service_type,
 								PackagingType=source_doc.packaging_type,
 								ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
@@ -648,15 +666,41 @@ def set_rate(service_type, source_doc):
 								PaymentType=source_doc.payment_type,
 								package_list=rate_box_list)
 
-		frappe.db.set(source_doc, 'rate', "%s (%s)" % (rate["Amount"], rate["Currency"]))
+		return rate
 	except Exception as error:
-		# frappe.throw(_("Rate error - %s" % error))
 		frappe.msgprint(_(error))
-		frappe.db.set(source_doc, 'rate', "N/A")
+
+
+@check_permission()
+@frappe.whitelist()
+def set_shipment_rate(doc_name):
+	source_doc = frappe.get_doc("DTI Shipment Note", doc_name)
+
+	try:
+		rate = get_shipment_rate(doc_name)
+		frappe.db.set(source_doc, 'shipment_rate', "%s (%s)" % (rate["Amount"], rate["Currency"]))
+
+		frappe.msgprint("Rate: %s (%s)" % (rate["Amount"], rate["Currency"]), "Updated!")
+	except Exception:
+		frappe.db.set(source_doc, 'shipment_rate', "N/A")
+
+
+@check_permission()
+@frappe.whitelist()
+def give_estimates(doc_name):
+	"""
+	Fedex's shipping calculator estimates the time and cost of delivery based on the destination and service.
+	"""
+	source_doc = frappe.get_doc("DTI Shipment Note", doc_name)
+
+	DictDiffer.validate_shipment_integrity(source_doc=source_doc)
+	rate = get_shipment_rate(doc_name)
+	frappe.msgprint(_(rate))
+	#estimate_delivery_time()
+
 
 # #############################################################################
 # #############################################################################
-
 
 def set_delivery_time(source_doc):
 	try:
@@ -665,6 +709,7 @@ def set_delivery_time(source_doc):
 											   DestinationPostalCode=source_doc.recipient_address_postal_code,
 											   DestinationCountryCode=source_doc.recipient_address_country_code)
 		frappe.db.set(source_doc, 'delivery_time', delivery_time)
+		frappe.msgprint("Delivery Time: %s" % delivery_time, "Updated!")
 	except Exception as error:
 		frappe.throw(_("Delivery time error - %s" % error))
 
@@ -711,11 +756,14 @@ def get_fedex_shipment_status(track_value):
 # #############################################################################
 # #############################################################################
 
-# FOR WEB PAGE WITH SHIPMENT TRACKING - shipment_tracking.html
-
 
 @frappe.whitelist(allow_guest=True)
 def get_html_code_status_with_fedex_tracking_number(track_value):
+	"""
+	FOR WEB PAGE WITH SHIPMENT TRACKING - shipment_tracking.html
+	:param track_value:
+	:return:
+	"""
 	if not track_value:
 		return "Track value can't be empty"
 
@@ -786,3 +834,47 @@ class DictDiffer(object):
 
 	def unchanged(self):
 		return set(o for o in self.intersect if self.past_dict[o] == self.current_dict[o])
+
+	@staticmethod
+	def validate_shipment_integrity(source_doc):
+
+		boxes = source_doc.get_all_children("DTI Shipment Package")
+
+		if len(boxes) > 9:
+			frappe.throw(_("Max amount of packages is 10"))
+
+		if not boxes:
+			frappe.throw(_("Please create shipment box packages!"))
+
+		# ----------------------------------------------------
+
+		parsed_items_per_box = {i: parse_items_in_box(package) for i, package in enumerate(boxes)}
+		all_items_in_all_boxes = {}
+		for box in parsed_items_per_box:
+			for item_code in parsed_items_per_box[box]:
+				if all_items_in_all_boxes.has_key(item_code):
+					all_items_in_all_boxes[item_code] += parsed_items_per_box[box][item_code]
+				else:
+					all_items_in_all_boxes.update({item_code: int(parsed_items_per_box[box][item_code])})
+
+		delivery_items_dict = {}
+		for item in source_doc.get_all_children("DTI Shipment Note Item"):
+			if delivery_items_dict.has_key(item.item_code):
+				delivery_items_dict[item.item_code] += int(item.qty)
+			else:
+				delivery_items_dict.update({item.item_code: int(item.qty)})
+
+		differ = DictDiffer(delivery_items_dict, all_items_in_all_boxes)
+
+		if differ.changed():
+			delivery_string = "<br>".join("%s = %i" % (item, delivery_items_dict[item]) for item in delivery_items_dict)
+			all_items_string = "<br>".join(
+				"%s = %i" % (item, all_items_in_all_boxes[item]) for item in all_items_in_all_boxes)
+
+			error_message = """<b style="color:orange;">WARNING!</b><br>
+			Integrity error for: <b>{}</b> <br>
+			<hr>
+			<b>DELIVERY ITEMS:</b> <br>{} <br><br>
+			<b>ITEMS IN BOX:</b> <br>{}""".format(",".join(differ.changed()), delivery_string, all_items_string)
+
+			frappe.throw(_(error_message))
