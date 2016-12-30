@@ -157,6 +157,7 @@ def _create_package(shipment,
 						  physical_packaging=None,
 						  insure_currency="USD",
 						  insured_amount=None):
+
 	package_weight = shipment.create_wsdl_object_of_type('Weight')
 	package_weight.Value = package_weight_value
 	package_weight.Units = package_weight_units
@@ -201,7 +202,7 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 		item_quantity = dict_of_items_in_box[item]
 
 		commodity.UnitPrice.Amount += int(get_item_by_item_code(source_doc, item).rate) * item_quantity
-		# ---------------------------------
+
 		custom_value = int(get_item_by_item_code(source_doc, item).custom_value)
 		if custom_value == 0:
 			frappe.throw(_("[ITEM # {}] CUSTOM VALUE = 0. Please specify custom value for items in box".format(item)))
@@ -210,7 +211,7 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 		quantity_of_all_items_in_box += item_quantity
 
 	# --------------------------------------
-	box.update({'total_box_custom_value': commodity.CustomsValue.Amount})
+	frappe.db.set(box, 'total_box_insurance', commodity.CustomsValue.Amount)
 	# -----------------------------------------
 
 	commodity.Name = "Shipment with " + ",".join(
@@ -359,7 +360,6 @@ def create_fedex_shipment(source_doc):
 	sequence_number = 1
 
 	total_box_insurance = get_box_total_insurance(source_doc, BOXES[0])
-	BOXES[0].update({'total_box_insurance': total_box_insurance})
 
 	package1 = _create_package(shipment=shipment,
 							   sequence_number=sequence_number,
@@ -397,6 +397,8 @@ def create_fedex_shipment(source_doc):
 	frappe.db.set(BOXES[0], 'tracking_number', master_tracking_number)
 	frappe.db.set(source_doc, 'master_tracking_id_type', master_tracking_id_type)
 
+	frappe.db.set(BOXES[0], 'total_box_insurance', total_box_insurance)
+
 	saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
 	frappe.db.set(source_doc, 'label_1', saved_file.file_url)
 
@@ -410,7 +412,6 @@ def create_fedex_shipment(source_doc):
 		i += 1
 
 		total_box_insurance = get_box_total_insurance(source_doc, child_package)
-		child_package.update({'total_box_insurance': total_box_insurance})
 
 		package = _create_package(shipment=shipment,
 										sequence_number=i + 1,
@@ -441,6 +442,8 @@ def create_fedex_shipment(source_doc):
 			label_binary_data = binascii.a2b_base64(ascii_label_data)
 
 			frappe.db.set(child_package, 'tracking_number', child_tracking_number)
+
+			frappe.db.set(child_package, 'total_box_insurance', total_box_insurance)
 
 			file_name = "label_%s_%s.%s" % (
 				master_tracking_number, child_tracking_number, GENERATE_IMAGE_TYPE.lower())
