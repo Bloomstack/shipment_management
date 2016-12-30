@@ -480,10 +480,9 @@ def _send_request_to_fedex(sequence_number, box, shipment):
 			frappe.throw(_("International Shipment option is required".upper()))
 
 		elif "Total Insured value exceeds customs value" or " Insured Value can not exceed customs value" in str(error):
-			frappe.throw(_("[BOX # {0}] Error from Fedex: {1}. <br>INSURANCE: {2} <br>CUSTOM VALUE: {3}".format(sequence_number,
-																										str(error),
-																										box.total_box_insurance,
-																										box.total_box_custom_value)))
+			attrs = vars(box)
+			box_info = ', '.join("%s: %s" % item for item in attrs.items())
+			frappe.throw(_("[BOX # {0}] Error from Fedex: {1}. Box info: {2}".format(sequence_number, str(error), box_info)))
 		else:
 			frappe.throw(_("[BOX # {}] Error from Fedex: {}".format(sequence_number, str(error))))
 
