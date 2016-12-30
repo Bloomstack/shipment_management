@@ -13,9 +13,12 @@ give_estimates = function(doc) {
 
 cur_frm.cscript.estimate = function() {
         cur_frm.save();
-        cur_frm.refresh_fields();
-        //cur_frm.reload_doc();
-		give_estimates(cur_frm)
+        setTimeout(function() {
+           cur_frm.refresh_fields();
+           cur_frm.reload_doc();
+           cur_frm.refresh_fields();
+	      give_estimates(cur_frm)
+        }, 5000);
 	}
 
 // --------------------------------------------------------------
@@ -162,6 +165,13 @@ get_delivery_items = function (doc) {
     });
 };
 
+get_sales_order = function (doc) {
+    return frappe.call({
+        method: 'shipment_management.shipment.get_sales_order',
+        args: { company_name: cur_frm.doc.recipient_company_name }
+    });
+};
+
 // --------------------------------------------------------------
 
 cur_frm.fields_dict['delivery_note'].get_query = function (doc) {
@@ -259,6 +269,12 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function (frm) {
                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_address_state_or_province_code', resp['shipper_address_state_or_province_code']);
                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_address_country_code', resp['shipper_address_country_code']);
                 frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipper_address_postal_code', resp['shipper_address_postal_code']);
+            });
+
+        get_sales_order()
+            .done(function (shipper) {
+                var resp = shipper.message
+                frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'sales_order', resp);
             });
     }
 }

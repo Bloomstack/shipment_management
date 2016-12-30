@@ -191,14 +191,27 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 
 	dict_of_items_in_box = parse_items_in_box(box)
 
-	print "debug list_of_items_in_box ------->", dict_of_items_in_box
+	# ------------------------------------
 
-	# quantity_of_all_items_in_box = sum(
-	# 	[int(get_item_by_item_code(source_doc, item).qty) for item in list_of_items_in_box])
-
+	commodity.UnitPrice.Amount = 0
+	commodity.CustomsValue.Amount = 0
 	quantity_of_all_items_in_box = 0
+
 	for item in dict_of_items_in_box:
-		quantity_of_all_items_in_box += dict_of_items_in_box[item]
+		item_quantity = dict_of_items_in_box[item]
+
+		commodity.UnitPrice.Amount += int(get_item_by_item_code(source_doc, item).rate) * item_quantity
+		# ---------------------------------
+		custom_value = int(get_item_by_item_code(source_doc, item).custom_value)
+		if custom_value == 0:
+			frappe.throw(_("[ITEM # {}] CUSTOM VALUE = 0. Please specify custom value for items in box".format(item)))
+
+		commodity.CustomsValue.Amount += custom_value * item_quantity
+		quantity_of_all_items_in_box += item_quantity
+
+	# --------------------------------------
+	box.update({'total_box_custom_value': commodity.CustomsValue.Amount})
+	# -----------------------------------------
 
 	commodity.Name = "Shipment with " + ",".join(
 		get_item_by_item_code(source_doc, item).item_name for item in dict_of_items_in_box)
@@ -211,35 +224,15 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 										 for item in dict_of_items_in_box)
 
 	commodity.CountryOfManufacture = source_doc.shipper_address_country_code
-
 	commodity.Weight = package_weight
-
 	commodity.Quantity = quantity_of_all_items_in_box
 
 	commodity.QuantityUnits = 'EA'  # EACH - for items measured in units
 
 	commodity.UnitPrice.Currency = commodity_default_currency
-
-	commodity.UnitPrice.Amount = sum(
-		[int(get_item_by_item_code(source_doc, item).rate) for item in dict_of_items_in_box])
-
-	# TODO - FIX COMMODITY CALCULATION !!!!!!!!
-
-	# amount_of_all_items_in_box = 0
-	# for item in dict_of_items_in_box:
-	# 	amount_of_all_items_in_box += int(get_item_by_item_code(source_doc, dict_of_items_in_box[item]).rate)
-
-	#amount_of_all_items_in_box = 1000
-
 	commodity.CustomsValue.Currency = commodity_default_currency
 
-	if box.total_box_custom_value == 0:
-		frappe.throw(_("[BOX # {}] CUSTOM VALUE = 0. Please specify custom value for items in box".format(sequence_number)))
-
-	commodity.CustomsValue.Amount = box.total_box_custom_value
-
 	shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Amount = commodity.CustomsValue.Amount
-
 	shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Currency = commodity.CustomsValue.Currency
 
 	shipment.add_commodity(commodity)
@@ -365,24 +358,27 @@ def create_fedex_shipment(source_doc):
 
 	sequence_number = 1
 
+	total_box_insurance = get_box_total_insurance(source_doc, BOXES[0])
+	BOXES[0].update({'total_box_insurance': total_box_insurance})
+
 	package1 = _create_package(shipment=shipment,
 							   sequence_number=sequence_number,
 							   package_weight_value=BOXES[0].weight_value,
 							   package_weight_units=BOXES[0].weight_units,
 							   physical_packaging=BOXES[0].physical_packaging,
-							   insured_amount=BOXES[0].total_box_insurance)
+							   insured_amount=total_box_insurance)
 
 	if source_doc.international_shipment:
 		_create_commodity_for_package(box=BOXES[0],
 									  package_weight=package1.Weight,
-									  sequence_number=1,
+									  sequence_number=sequence_number,
 									  shipment=shipment,
 									  source_doc=source_doc)
 
 	shipment.RequestedShipment.RequestedPackageLineItems = [package1]
 	shipment.RequestedShipment.PackageCount = len(BOXES)
 
-	_send_request_to_fedex(number=1,
+	_send_request_to_fedex(sequence_number=1,
 						   box=BOXES[0],
 						   shipment=shipment)
 
@@ -409,21 +405,23 @@ def create_fedex_shipment(source_doc):
 	# Other boxes:
 
 	labels = []
-
 	for i, child_package in enumerate(BOXES[1:]):
 
 		i += 1
+
+		total_box_insurance = get_box_total_insurance(source_doc, child_package)
+		child_package.update({'total_box_insurance': total_box_insurance})
 
 		package = _create_package(shipment=shipment,
 										sequence_number=i + 1,
 										package_weight_value=child_package.weight_value,
 										package_weight_units=child_package.weight_units,
 										physical_packaging=child_package.physical_packaging,
-										insured_amount=child_package.total_box_insurance)
+										insured_amount=total_box_insurance)
 
 		if source_doc.international_shipment:
 			_create_commodity_for_package(box=child_package,
-										  package_weight=package1.Weight,
+										  package_weight=package.Weight,
 										  sequence_number=i + 1,
 										  shipment=shipment,
 										  source_doc=source_doc)
@@ -433,7 +431,7 @@ def create_fedex_shipment(source_doc):
 		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
 		shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
 
-		_send_request_to_fedex(number=i+1,
+		_send_request_to_fedex(sequence_number=i+1,
 							   box=child_package,
 							   shipment=shipment)
 
@@ -471,7 +469,7 @@ def create_fedex_shipment(source_doc):
 # ##############################################################################
 
 
-def _send_request_to_fedex(number, box, shipment):
+def _send_request_to_fedex(sequence_number, box, shipment):
 	try:
 		shipment.send_request()
 	except Exception as error:
@@ -479,12 +477,12 @@ def _send_request_to_fedex(number, box, shipment):
 			frappe.throw(_("International Shipment option is required".upper()))
 
 		elif "Total Insured value exceeds customs value" or " Insured Value can not exceed customs value" in str(error):
-			frappe.throw(_("[BOX # {0}] Error from Fedex: {1}. <br>INSURANCE: {2} <br>CUSTOM VALUE: {3}".format(number,
+			frappe.throw(_("[BOX # {0}] Error from Fedex: {1}. <br>INSURANCE: {2} <br>CUSTOM VALUE: {3}".format(sequence_number,
 																										str(error),
 																										box.total_box_insurance,
 																										box.total_box_custom_value)))
 		else:
-			frappe.throw(_("[BOX # {}] Error from Fedex: {}".format(number, str(error))))
+			frappe.throw(_("[BOX # {}] Error from Fedex: {}".format(sequence_number, str(error))))
 
 
 # #############################################################################
@@ -517,9 +515,25 @@ def get_item_by_item_code(source_doc, item_code):
 		if item.item_code == item_code:
 			return item
 
+# #############################################################################
+# #############################################################################
+
+
+def get_box_total_insurance(source_doc, box):
+	"""
+	Insurance of all items in box calculation:
+	"""
+	dict_of_items_in_box = parse_items_in_box(box)
+	total_box_insurance = 0
+	for item in dict_of_items_in_box:
+		item_quantity = dict_of_items_in_box[item]
+		total_box_insurance += int(get_item_by_item_code(source_doc, item).insurance) * item_quantity
+
+	return total_box_insurance
 
 # #############################################################################
 # #############################################################################
+
 
 @check_permission()
 @frappe.whitelist()
@@ -577,6 +591,13 @@ def get_package_rate(international=False,
 	"physical_packaging":"BOX",
 	"group_package_count":"1",
 	"insured_amount":"100"}]
+
+	_______________________________
+
+	KNOWN ISSUES (FEDEX TEST SERVER)
+
+	Test server caches rate for the same Shipper/Recipient data
+
 	"""
 
 	if international:
