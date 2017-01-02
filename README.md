@@ -158,3 +158,9 @@ _/home/frappe/frappe-bench/logs/frappe.log_
 
 # 12. Report Creation
 Report List -> New -> Save
+
+
+# 13. API for shopping cart 
+- get_package_rate
+- estimate_delivery_time
+- get_carriers_list
