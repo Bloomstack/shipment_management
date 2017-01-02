@@ -47,7 +47,7 @@ frappe.ui.form.on('DTI Shipment Note', {
 // --------------------------------------------------------------
 
     frappe.ui.form.on("DTI Shipment Package", "items_in_box", function (frm, _doctype, currentPackageName) {
-        var currentPackage = getPackageByName(frm.doc.package, currentPackageName);
+        var currentPackage = getPackageByName(frm.doc.box_list, currentPackageName);
         if (currentPackage) {
             var processedInput = processItemsInTheBox(currentPackage.items_in_box);
 
@@ -70,8 +70,8 @@ frappe.ui.form.on('DTI Shipment Note', {
             cur_frm.refresh_fields("total_box_insurance")
             cur_frm.refresh_fields("total_box_custom_value")
 
-            for (var i = 0, global_insuarance = 0; i < frm.doc.package.length; global_insuarance += frm.doc.package[i++].total_box_insurance);
-            for (var i = 0, global_custom_value = 0; i < frm.doc.package.length; global_custom_value += frm.doc.package[i++].total_box_custom_value);
+            for (var i = 0, global_insuarance = 0; i < frm.doc.box_list.length; global_insuarance += frm.doc.box_list[i++].total_box_insurance);
+            for (var i = 0, global_custom_value = 0; i < frm.doc.box_list.length; global_custom_value += frm.doc.box_list[i++].total_box_custom_value);
 
             frappe.model.set_value(currentPackage.parenttype, currentPackage.parent, 'total_insurance', global_insuarance);
             frappe.model.set_value(currentPackage.parenttype, currentPackage.parent, 'total_custom_value', global_custom_value);
