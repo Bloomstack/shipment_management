@@ -211,7 +211,7 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 		quantity_of_all_items_in_box += item_quantity
 
 	# --------------------------------------
-	frappe.db.set(box, 'total_box_insurance', commodity.CustomsValue.Amount)
+	frappe.db.set(box, 'total_box_custom_value', commodity.CustomsValue.Amount)
 	# -----------------------------------------
 
 	commodity.Name = "Shipment with " + ",".join(
@@ -359,14 +359,16 @@ def create_fedex_shipment(source_doc):
 
 	sequence_number = 1
 
-	total_box_insurance = get_box_total_insurance(source_doc, BOXES[0])
+	total_first_box_insurance = get_box_total_insurance(source_doc, BOXES[0])
 
 	package1 = _create_package(shipment=shipment,
 							   sequence_number=sequence_number,
 							   package_weight_value=BOXES[0].weight_value,
 							   package_weight_units=BOXES[0].weight_units,
 							   physical_packaging=BOXES[0].physical_packaging,
-							   insured_amount=total_box_insurance)
+							   insured_amount=total_first_box_insurance)
+
+	SHIPMENT_INSURANCE = total_first_box_insurance
 
 	if source_doc.international_shipment:
 		_create_commodity_for_package(box=BOXES[0],
@@ -377,6 +379,8 @@ def create_fedex_shipment(source_doc):
 
 	shipment.RequestedShipment.RequestedPackageLineItems = [package1]
 	shipment.RequestedShipment.PackageCount = len(BOXES)
+
+	frappe.db.set(BOXES[0], 'total_box_insurance', total_first_box_insurance)
 
 	_send_request_to_fedex(sequence_number=1,
 						   box=BOXES[0],
@@ -394,10 +398,9 @@ def create_fedex_shipment(source_doc):
 	file_name = "label_%s.%s" % (master_tracking_number, GENERATE_IMAGE_TYPE.lower())
 
 	frappe.db.set(source_doc, 'tracking_number', master_tracking_number)
-	frappe.db.set(BOXES[0], 'tracking_number', master_tracking_number)
 	frappe.db.set(source_doc, 'master_tracking_id_type', master_tracking_id_type)
 
-	frappe.db.set(BOXES[0], 'total_box_insurance', total_box_insurance)
+	frappe.db.set(BOXES[0], 'tracking_number', master_tracking_number)
 
 	saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
 	frappe.db.set(source_doc, 'label_1', saved_file.file_url)
@@ -411,14 +414,16 @@ def create_fedex_shipment(source_doc):
 
 		i += 1
 
-		total_box_insurance = get_box_total_insurance(source_doc, child_package)
+		total_child_box_insurance = get_box_total_insurance(source_doc, child_package)
+		SHIPMENT_INSURANCE += total_child_box_insurance
+		frappe.db.set(child_package, 'total_box_insurance', total_child_box_insurance)
 
 		package = _create_package(shipment=shipment,
 										sequence_number=i + 1,
 										package_weight_value=child_package.weight_value,
 										package_weight_units=child_package.weight_units,
 										physical_packaging=child_package.physical_packaging,
-										insured_amount=total_box_insurance)
+										insured_amount=total_child_box_insurance)
 
 		if source_doc.international_shipment:
 			_create_commodity_for_package(box=child_package,
@@ -443,8 +448,6 @@ def create_fedex_shipment(source_doc):
 
 			frappe.db.set(child_package, 'tracking_number', child_tracking_number)
 
-			frappe.db.set(child_package, 'total_box_insurance', total_box_insurance)
-
 			file_name = "label_%s_%s.%s" % (
 				master_tracking_number, child_tracking_number, GENERATE_IMAGE_TYPE.lower())
 
@@ -461,6 +464,13 @@ def create_fedex_shipment(source_doc):
 
 	set_delivery_time(source_doc)
 	set_shipment_rate(source_doc.name)
+	frappe.db.set(source_doc, 'total_insurance', SHIPMENT_INSURANCE)
+
+	SHIPMENT_CUSTOM_VALUE = 0
+	for box in BOXES:
+		SHIPMENT_CUSTOM_VALUE += box.total_box_custom_value
+
+	frappe.db.set(source_doc, 'total_custom_value', SHIPMENT_CUSTOM_VALUE)
 
 	# #############################################################################
 	# #############################################################################
@@ -480,9 +490,8 @@ def _send_request_to_fedex(sequence_number, box, shipment):
 			frappe.throw(_("International Shipment option is required".upper()))
 
 		elif "Total Insured value exceeds customs value" or " Insured Value can not exceed customs value" in str(error):
-			attrs = vars(box)
-			box_info = ', '.join("%s: %s" % item for item in attrs.items())
-			frappe.throw(_("[BOX # {0}] Error from Fedex: {1}. Box info: {2}".format(sequence_number, str(error), box_info)))
+
+			frappe.throw(_("[BOX # {0}] Error from Fedex: {1}. Insurance: {2} Custom Value: {3}".format(sequence_number, str(error), box.total_box_insurance, box.total_box_custom_value)))
 		else:
 			frappe.throw(_("[BOX # {}] Error from Fedex: {}".format(sequence_number, str(error))))
 
