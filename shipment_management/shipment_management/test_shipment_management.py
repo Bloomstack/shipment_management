@@ -88,19 +88,21 @@ def get_boxes(shipment_note_name):
 	return frappe.db.sql('''SELECT * from `tabDTI Shipment Package` WHERE parent="%s"''' % shipment_note_name, as_dict=True)
 
 
-def _get_delivery_note_item():
-	# TODO Create delivery note items in tests
-	response = frappe.db.sql('''SELECT * from `tabDelivery Note Item`''', as_dict=True)
-	return response[0]
-
-
-
-def get_delivery_note(amount_of_items=1):
-	# TODO Create delivery note in tests and don't use random
+def get_delivery_note(amount_of_items):
+	# TODO Create delivery note with item in tests!!!
 
 	delivery_note = get_random("Delivery Note")
 
-	items_list = [_get_delivery_note_item() for _ in xrange(amount_of_items)]
+	all_delivery_items = frappe.db.sql('''SELECT * from `tabDelivery Note Item`''', as_dict=True)
+
+	items_list = []
+	for i in xrange(1000):
+		if all_delivery_items[i].item_code not in [item.item_code for item in items_list]:
+			items_list.append(all_delivery_items[i])
+			if len(items_list) == amount_of_items:
+				break
+
+	assert items_list, "Delivery Note Items are absent for testing"
 
 	return delivery_note, items_list
 
@@ -121,13 +123,25 @@ class TestShipmentInternational(unittest.TestCase):
 
 	def get_saved_international_shipment_note(self, type, test_data_for_items=[]):
 
+		print "-" * 70
+		print "Testing......."
+		print type
+
 		self.note = frappe.new_doc("DTI Shipment Note")
 
 		delivery_note, items = get_delivery_note(amount_of_items=len(test_data_for_items))
 
 		for i, item in enumerate(items):
+
 			item.custom_value = test_data_for_items[i]['custom_value']
 			item.insurance = test_data_for_items[i]['insurance']
+			item.qty = test_data_for_items[i]['quantity']
+
+			print "\nITEM #", i + 1
+			print "Custom value  : %s $" % test_data_for_items[i]['custom_value']
+			print "Insurance     : %s $" % test_data_for_items[i]['insurance']
+
+			print "Quantity      : %s " % test_data_for_items[i]['quantity']
 
 		self.note.update({"delivery_note": delivery_note,
 					 "international_shipment": True,
@@ -154,6 +168,8 @@ class TestShipmentInternational(unittest.TestCase):
 
 		self.note.save()
 
+		print "\nSHIPMENT NOTE   ================> %s" % self.note.name
+
 		self.note_list.append(self.note)
 
 	def validation_for_insurance_and_custom_value(self, source_doc):
@@ -165,9 +181,13 @@ class TestShipmentInternational(unittest.TestCase):
 
 		for box in source_doc.box_list:
 			items = parse_items_in_box(box)
-			print "debug---------------------->", items
+			print "BOX: %s" % box.name
+
 			for item in items:
 				quantity_in_box = items[item]
+
+				print "%s : %s" % (item, quantity_in_box)
+
 				item = get_item_by_item_code(source_doc=source_doc, item_code=item)
 				expected_box_insurance += item.insurance * quantity_in_box
 				expected_box_custom_value += item.custom_value * quantity_in_box
@@ -197,21 +217,35 @@ class TestShipmentInternational(unittest.TestCase):
 
 		self.validation_for_insurance_and_custom_value(source_doc=self.note)
 
+	def validate_error_during_shipment_creation(self, expected_error_message):
+		print "EXPECTED ERROR:", expected_error_message
+		try:
+			self.submit_and_validate()
+			self.fail("Shipment was created successful with wrong data")
+		except frappe.ValidationError as error:
+			if expected_error_message not in str(error):
+				self.fail("Wrong expected error: %s" % error)
+
+	def add_to_box(self, weight_value=3,
+						 weight_units="LB",
+						 physical_packaging="BOX",
+				         items_to_ship_in_one_box=[]):
+
+		self.note.append("box_list", {"weight_value": weight_value,
+									  "weight_units": weight_units,
+									  "physical_packaging": physical_packaging,
+									  "items_in_box": "\n".join(r"{}:{}".format(item.item_code,
+																				int(item.qty))
+																for item in items_to_ship_in_one_box)})
+
+	# ############################################################################################
+
 	def test_shipment_note_1(self):
-		"""
-		INTERNATIONAL_PRIORITY / INTERNATIONAL_ECONOMY
-
-		BOX (<item code> : <quantity>)
-
-		INSURANCE=50$
-		CUSTOM VALUE=70$
-
-		Result: Correct Shipment creation
-
-		"""
 		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
 			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value':70, 'insurance':50}])
+													   test_data_for_items=[{'custom_value':70,
+																			 'insurance':50,
+																			 'quantity':5}])
 
 			self.note.append("box_list", {"weight_value": 2,
 									"weight_units": "LB",
@@ -219,157 +253,92 @@ class TestShipmentInternational(unittest.TestCase):
 									"items_in_box": "\n".join(r"{}:{}".format(item.item_code,
 																			  int(item.qty))
 															  for item in self.note.delivery_items)})
+
+			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
 			self.submit_and_validate()
 
 	def test_shipment_note_2(self):
-		"""
-		INTERNATIONAL_PRIORITY / INTERNATIONAL_ECONOMY
 
-		BOX (<item code> : <quantity>)
-
-		INSURANCE=0$
-		CUSTOM VALUE=70$
-
-		Result: Correct Shipment creation
-
-		"""
 		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
 			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value':70, 'insurance':0}])
+													   test_data_for_items=[{'custom_value': 70,
+																			 'insurance': 0,
+																			 'quantity': 5}])
 
-			self.note.append("box_list", {"weight_value": 2,
-									"weight_units": "LB",
-									"physical_packaging": "BOX",
-									"items_in_box": "\n".join(r"{}:{}".format(item.item_code,
-																			  int(item.qty))
-															  for item in self.note.delivery_items)})
+			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
 			self.submit_and_validate()
 
 	def test_shipment_note_3(self):
-		"""
-		INTERNATIONAL_PRIORITY / INTERNATIONAL_ECONOMY
 
-		BOX (<item code> : <quantity>)
-
-		INSURANCE=0$
-		CUSTOM VALUE=0$
-
-		Result: Error
-
-		"""
 		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
 			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value':0, 'insurance':0}])
+													   test_data_for_items=[{'custom_value': 0,
+																			 'insurance': 0,
+																			 'quantity': 5}])
 
-			self.note.append("box_list", {"weight_value": 2,
-										  "weight_units": "LB",
-										  "physical_packaging": "BOX",
-										  "items_in_box": "\n".join(r"{}:{}".format(item.item_code,
-																					int(item.qty))
-																	for item in self.note.delivery_items)})
+			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
-			try:
-				self.submit_and_validate()
-				self.fail("Created successful with wrong data")
-			except frappe.ValidationError as error:
-				if "CUSTOM VALUE = 0" not in str(error):
-					self.fail("Wrong expected error: %s" % error)
+			self.validate_error_during_shipment_creation(expected_error_message="CUSTOM VALUE = 0")
 
 	def test_shipment_note_4(self):
-		"""
-		INTERNATIONAL_PRIORITY / INTERNATIONAL_ECONOMY
-
-		BOX (<item code> : <quantity>)
-
-		INSURANCE=10$
-		CUSTOM VALUE=5$
-
-		Result: Error
-
-		"""
 		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
 			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value':5, 'insurance':10}])
+													   test_data_for_items=[{'custom_value': 5,
+																			 'insurance': 10,
+																			 'quantity': 5}])
 
-			self.note.append("box_list", {"weight_value": 2,
-										  "weight_units": "LB",
-										  "physical_packaging": "BOX",
-										  "items_in_box": "\n".join(r"{}:{}".format(item.item_code,
-																					int(item.qty))
-																	for item in self.note.delivery_items)})
+			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
-			try:
-				self.submit_and_validate()
-				self.fail("Created successful with wrong data")
-			except frappe.ValidationError as error:
-				if "Total Insured value exceeds customs value" not in str(error):
-					self.fail("Wrong expected error: %s" % error)
+			self.validate_error_during_shipment_creation(expected_error_message=
+														 "Total Insured value exceeds customs value (Error code: 2519)")
 
 	def test_shipment_note_5(self):
-		"""
-		INTERNATIONAL_PRIORITY / INTERNATIONAL_ECONOMY
-
-		BOX #1
-		<item code AAAA> : <quantity>
-		<item code BBBB> : <quantity>
-
-		INSURANCE=10$
-		CUSTOM VALUE=15$
-
-		Result: Correct Shipment creation
-
-		"""
 		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
 			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value': 15, 'insurance': 10},
-																			{'custom_value': 15, 'insurance': 10}])
+													   test_data_for_items=[{'custom_value': 8, 'insurance': 6, 'quantity': 2},
+																			{'custom_value': 7, 'insurance': 2, 'quantity': 5},
+																			{'custom_value': 6, 'insurance': 5, 'quantity': 4},
+																			{'custom_value': 6, 'insurance': 5,'quantity': 4}])
 
+			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
-			self.note.append("box_list", {"weight_value": 2,
-										  "weight_units": "LB",
-										  "physical_packaging": "BOX",
-										  "items_in_box": "\n".join(r"{}:{}".format(item.item_code,
-																					int(item.qty))
-																	for item in self.note.delivery_items)})
 
 			self.submit_and_validate()
 
-	def test_shipment_note_6(self):
-		"""
-		INTERNATIONAL_PRIORITY / INTERNATIONAL_ECONOMY
-
-		BOX #1
-		<item code AAAA> : <quantity>
-
-		INSURANCE=1$
-		CUSTOM VALUE=5$
-
-		BOX #2
-		<item code BBBB> : <quantity>
-
-		INSURANCE=10$
-		CUSTOM VALUE=15$
-
-		Result: Correct Shipment creation
-
-		"""
-		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
-			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value':5, 'insurance':1},
-																			{'custom_value': 15, 'insurance': 10}])
-
-			self.note.append("box_list", {"weight_value": 2,
-										  "weight_units": "LB",
-										  "physical_packaging": "BOX",
-										  "items_in_box": "{}:{}\n{}:{}".format(self.note.delivery_items[0].item_code,
-																					int( self.note.delivery_items[0].qty),
-																				 self.note.delivery_items[1].item_code,
-																				 int(self.note.delivery_items[1].qty,
-																					 ))})
-
-			self.submit_and_validate()
+	# def test_shipment_note_6(self):
+	# 	"""
+	# 	INTERNATIONAL_PRIORITY / INTERNATIONAL_ECONOMY
+	#
+	# 	BOX AMOUNT = 1
+	#
+	#
+	# 	(ITEM CODE SPECIFIED IN BOX / LINES = 3)
+	# 	INSURANCE < CUSTOM VALUE
+	#
+	#
+	# 	INSURANCE < CUSTOM VALUE
+	#
+	# 	Result: Correct Shipment creation
+	#
+	# 	"""
+	# 	for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
+	# 		self.get_saved_international_shipment_note(type=ship_type,
+	# 												   test_data_for_items=[{'custom_value': 8, 'insurance': 6, 'quantity': 2},
+	# 																		{'custom_value': 7, 'insurance': 2, 'quantity': 5},
+	# 																		{'custom_value': 6, 'insurance': 5, 'quantity': 4}])
+	#
+	# 		self.note.append("box_list", {"weight_value": 2,
+	# 									  "weight_units": "LB",
+	# 									  "physical_packaging": "BOX",
+	# 									  "items_in_box": "{}:{}\n{}:{}".format(self.note.delivery_items[0].item_code,
+	# 																				int( self.note.delivery_items[0].qty),
+	# 																			 self.note.delivery_items[1].item_code,
+	# 																			 int(self.note.delivery_items[1].qty,
+	# 																				 ))})
+	#
+	# 		self.submit_and_validate()
 
 if __name__ == '__main__':
 	unittest.main()
