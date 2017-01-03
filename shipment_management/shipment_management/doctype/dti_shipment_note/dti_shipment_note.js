@@ -168,7 +168,7 @@ get_delivery_items = function (doc) {
 get_sales_order = function (doc) {
     return frappe.call({
         method: 'shipment_management.shipment.get_sales_order',
-        args: { company_name: cur_frm.doc.recipient_company_name }
+        args: { delivery_note_name: cur_frm.doc.delivery_note }
     });
 };
 
@@ -274,7 +274,7 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function (frm) {
         get_sales_order()
             .done(function (shipper) {
                 var resp = shipper.message
-                frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'sales_order', resp);
+                frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'sales_order', resp['against_sales_order']);
             });
     }
 }
