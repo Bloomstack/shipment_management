@@ -58,19 +58,10 @@ class ShipmentNoteOperationalStatus(object):
 ##############################################################################
 @check_permission()
 @frappe.whitelist()
-def get_sales_order(company_name):
-
-	# Define target correct the sales-order to be depended on the delivery note:
-	# Example:
-	# https://github.com/frappe/erpnext/blob/develop/erpnext/stock/doctype/delivery_note/delivery_note_dashboard.py
-
-	# TOD0 - Add validation that sales order is correct
-	sales_order = None
-	sales_order_response = frappe.db.sql('''SELECT * from `tabSales Order` WHERE company="%s"''' % company_name, as_dict=True)
-	if sales_order_response:
-		sales_order = sales_order_response[0].name
-
-	return sales_order
+def get_sales_order(delivery_note_name):
+	against_sales_order = frappe.db.sql('''SELECT against_sales_order from `tabDelivery Note Item` WHERE parent="%s"''' % delivery_note_name, as_dict=True)
+	if against_sales_order:
+		return against_sales_order[0]
 
 
 ##############################################################################

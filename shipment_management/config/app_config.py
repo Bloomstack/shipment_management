@@ -63,3 +63,7 @@ class StatusMapFedexAndShipmentNote(object):
     Failed = [FedexStatusCode("DE", "Delivery Exception"),
               FedexStatusCode("SE", "Shipment Exception"),
               FedexStatusCode("RS", "Return to Shipper")]
+
+##################################################################
+
+ExportComplianceStatement = "NO EEI 30.37 (f)"

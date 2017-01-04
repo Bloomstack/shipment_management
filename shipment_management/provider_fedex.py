@@ -13,7 +13,7 @@ from frappe import _
 from frappe.utils.file_manager import *
 
 
-from config.app_config import PRIMARY_FEDEX_DOC_NAME
+from config.app_config import PRIMARY_FEDEX_DOC_NAME, ExportComplianceStatement
 from shipment import check_permission
 
 
@@ -183,6 +183,17 @@ def _create_package(shipment,
 # #############################################################################
 
 
+def add_export_detail(shipment):
+	"""
+	For The FTR Exemption or AES Citation we are provided to be valid for EEI.
+	if shipment is for Canada or Mexico or shipment custom value is more that 2500 $
+
+	"""
+	export_detail = shipment.create_wsdl_object_of_type('ExportDetail')
+	export_detail.ExportComplianceStatement = ExportComplianceStatement
+	shipment.RequestedShipment.CustomsClearanceDetail.ExportDetail = export_detail
+
+
 def _create_commodity_for_package(box, package_weight, sequence_number, shipment, source_doc):
 	"""
 	Only for international shipment
@@ -208,7 +219,13 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 			frappe.throw(_("[ITEM # {}] CUSTOM VALUE = 0. Please specify custom value for items in box".format(item)))
 
 		commodity.CustomsValue.Amount += custom_value * item_quantity
+
 		quantity_of_all_items_in_box += item_quantity
+
+		# ---------------------------------------------------------------
+
+		if commodity.CustomsValue.Amount >= 2500 or source_doc.recipient_address_country_code in ['CA', 'MX']:
+			add_export_detail(shipment)
 
 	# --------------------------------------
 	frappe.db.set(box, 'total_box_custom_value', commodity.CustomsValue.Amount)
@@ -228,7 +245,7 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 	commodity.Weight = package_weight
 	commodity.Quantity = quantity_of_all_items_in_box
 
-	commodity.QuantityUnits = 'EA'  # EACH - for items measured in units
+	commodity.QuantityUnits = 'EA'
 
 	commodity.UnitPrice.Currency = commodity_default_currency
 	commodity.CustomsValue.Currency = commodity_default_currency
@@ -344,133 +361,87 @@ def create_fedex_shipment(source_doc):
 
 	# #############################################################################
 
-	BOXES = source_doc.get_all_children("DTI Shipment Package")
-
-	# #############################################################################
-
-	total_weight = shipment.create_wsdl_object_of_type('Weight')
-	total_weight.Value = sum([box.weight_value for box in BOXES])
-	total_weight.Units = BOXES[0].weight_units  # units are the same for all boxes
-	shipment.RequestedShipment.TotalWeight = total_weight
-
-	# #############################################################################
-
-	# ################ Master Package / BOX 1 ######################################
-
-	sequence_number = 1
-
-	total_first_box_insurance = get_box_total_insurance(source_doc, BOXES[0])
-
-	package1 = _create_package(shipment=shipment,
-							   sequence_number=sequence_number,
-							   package_weight_value=BOXES[0].weight_value,
-							   package_weight_units=BOXES[0].weight_units,
-							   physical_packaging=BOXES[0].physical_packaging,
-							   insured_amount=total_first_box_insurance)
-
-	SHIPMENT_INSURANCE = total_first_box_insurance
-
-	if source_doc.international_shipment:
-		_create_commodity_for_package(box=BOXES[0],
-									  package_weight=package1.Weight,
-									  sequence_number=sequence_number,
-									  shipment=shipment,
-									  source_doc=source_doc)
-
-	shipment.RequestedShipment.RequestedPackageLineItems = [package1]
-	shipment.RequestedShipment.PackageCount = len(BOXES)
-
-	frappe.db.set(BOXES[0], 'total_box_insurance', total_first_box_insurance)
-
-	_send_request_to_fedex(sequence_number=1,
-						   box=BOXES[0],
-						   shipment=shipment)
-
-	master_label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
-
-	master_tracking_number = master_label.TrackingIds[0].TrackingNumber
-	master_tracking_id_type = master_label.TrackingIds[0].TrackingIdType
-	master_tracking_form_id = master_label.TrackingIds[0].FormId
-
-	ascii_label_data = master_label.Label.Parts[0].Image
-	label_binary_data = binascii.a2b_base64(ascii_label_data)
-
-	file_name = "label_%s.%s" % (master_tracking_number, GENERATE_IMAGE_TYPE.lower())
-
-	frappe.db.set(source_doc, 'tracking_number', master_tracking_number)
-	frappe.db.set(source_doc, 'master_tracking_id_type', master_tracking_id_type)
-
-	frappe.db.set(BOXES[0], 'tracking_number', master_tracking_number)
-
-	saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
-	frappe.db.set(source_doc, 'label_1', saved_file.file_url)
-
-	# #############################################################################
-
-	# Other boxes:
-
 	labels = []
-	for i, child_package in enumerate(BOXES[1:]):
 
-		i += 1
+	all_boxes = source_doc.get_all_children("DTI Shipment Package")
 
-		total_child_box_insurance = get_box_total_insurance(source_doc, child_package)
-		SHIPMENT_INSURANCE += total_child_box_insurance
-		frappe.db.set(child_package, 'total_box_insurance', total_child_box_insurance)
+	total_for_all_shipment_weight = shipment.create_wsdl_object_of_type('Weight')
+	total_for_all_shipment_weight.Value = sum([box.weight_value for box in all_boxes])
+	total_for_all_shipment_weight.Units = all_boxes[0].weight_units
+	shipment.RequestedShipment.TotalWeight = total_for_all_shipment_weight
 
-		package = _create_package(shipment=shipment,
-										sequence_number=i + 1,
-										package_weight_value=child_package.weight_value,
-										package_weight_units=child_package.weight_units,
-										physical_packaging=child_package.physical_packaging,
-										insured_amount=total_child_box_insurance)
+	for i, box in enumerate(all_boxes):
+
+		box_sequence_number = i + 1
+
+		total_box_insurance = get_box_total_insurance(source_doc, box)
+		frappe.db.set(box, 'total_box_insurance', total_box_insurance)
+
+		fedex_package = _create_package(shipment=shipment,
+										sequence_number=box_sequence_number,
+										package_weight_value=box.weight_value,
+										package_weight_units=box.weight_units,
+										physical_packaging=box.physical_packaging,
+										insured_amount=total_box_insurance)
 
 		if source_doc.international_shipment:
-			_create_commodity_for_package(box=child_package,
-										  package_weight=package.Weight,
-										  sequence_number=i + 1,
+			_create_commodity_for_package(box=box,
+										  package_weight=fedex_package.Weight,
+										  sequence_number=box_sequence_number,
 										  shipment=shipment,
 										  source_doc=source_doc)
 
-		shipment.RequestedShipment.RequestedPackageLineItems = [package]
-		shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
-		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
-		shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
+		shipment.RequestedShipment.RequestedPackageLineItems = [fedex_package]
+		shipment.RequestedShipment.PackageCount = len(all_boxes)
 
-		_send_request_to_fedex(sequence_number=i+1,
-							   box=child_package,
+		if box_sequence_number >1 :
+			shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
+			shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
+			shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
+
+		_send_request_to_fedex(sequence_number=box_sequence_number,
+							   box=box,
 							   shipment=shipment)
 
-		for label in shipment.response.CompletedShipmentDetail.CompletedPackageDetails:
-			child_tracking_number = label.TrackingIds[0].TrackingNumber
-			ascii_label_data = label.Label.Parts[0].Image
-			label_binary_data = binascii.a2b_base64(ascii_label_data)
+		label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
-			frappe.db.set(child_package, 'tracking_number', child_tracking_number)
+		if box_sequence_number == 1:
+			master_tracking_number = label.TrackingIds[0].TrackingNumber
+			master_tracking_id_type = label.TrackingIds[0].TrackingIdType
+			master_tracking_form_id = label.TrackingIds[0].FormId
 
-			file_name = "label_%s_%s.%s" % (
-				master_tracking_number, child_tracking_number, GENERATE_IMAGE_TYPE.lower())
+			frappe.db.set(source_doc, 'tracking_number', master_tracking_number)
+			frappe.db.set(source_doc, 'master_tracking_id_type', master_tracking_id_type)
 
-			saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
+			frappe.db.set(box, 'tracking_number', master_tracking_number)
+			frappe.db.set(box, 'total_box_insurance', total_box_insurance)
 
-			labels.append(saved_file.file_url)
+		box_tracking_number = label.TrackingIds[0].TrackingNumber
+		ascii_label_data = label.Label.Parts[0].Image
+		label_binary_data = binascii.a2b_base64(ascii_label_data)
+
+		frappe.db.set(box, 'tracking_number', box_tracking_number)
+
+		file_name = "label_%s_%s.%s" % (master_tracking_number, box_tracking_number, GENERATE_IMAGE_TYPE.lower())
+
+		saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
+
+		labels.append(saved_file.file_url)
+
+	# ############################################################################
+	# ############################################################################
 
 	for i, path in enumerate(labels):
-		i += 1
 		frappe.db.set(source_doc, 'label_' + str(i + 1), path)
 
-	# #############################################################################
-	# #############################################################################
+	# ############################################################################
+	# ############################################################################
 
 	set_delivery_time(source_doc)
 	set_shipment_rate(source_doc.name)
-	frappe.db.set(source_doc, 'total_insurance', SHIPMENT_INSURANCE)
 
-	SHIPMENT_CUSTOM_VALUE = 0
-	for box in BOXES:
-		SHIPMENT_CUSTOM_VALUE += box.total_box_custom_value
-
-	frappe.db.set(source_doc, 'total_custom_value', SHIPMENT_CUSTOM_VALUE)
+	frappe.db.set(source_doc, 'total_insurance', sum([box.total_box_insurance for box in all_boxes]))
+	frappe.db.set(source_doc, 'total_custom_value', sum([box.total_box_custom_value for box in all_boxes]))
 
 	# #############################################################################
 	# #############################################################################
@@ -484,14 +455,25 @@ def create_fedex_shipment(source_doc):
 
 def _send_request_to_fedex(sequence_number, box, shipment):
 	try:
+		box.save()
+
 		shipment.send_request()
+
 	except Exception as error:
 		if "Customs Value is required" in str(error):
 			frappe.throw(_("International Shipment option is required".upper()))
 
-		elif "Total Insured value exceeds customs value" or " Insured Value can not exceed customs value" in str(error):
+		elif "Total Insured value exceeds customs value" in str(error) or " Insured Value can not exceed customs value" in str(error):
 
-			frappe.throw(_("[BOX # {0}] Error from Fedex: {1}. Insurance: {2} Custom Value: {3}".format(sequence_number, str(error), box.total_box_insurance, box.total_box_custom_value)))
+			frappe.throw(_("""[BOX # {0}]
+			Error from Fedex: {1}.
+			Insurance: {2}
+			Custom Value: {3}
+			ITEMS IN BOX: {4}""".format(sequence_number,
+										str(error),
+										box.total_box_insurance,
+										box.total_box_custom_value,
+										box.items_in_box)))
 		else:
 			frappe.throw(_("[BOX # {}] Error from Fedex: {}".format(sequence_number, str(error))))
 
