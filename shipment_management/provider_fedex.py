@@ -199,59 +199,62 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 	Only for international shipment
 	"""
 	commodity = shipment.create_wsdl_object_of_type('Commodity')
-	commodity_default_currency = "USD"
+	print "\n\t===>>>BOX #%s \n\t\t%s" % (sequence_number, box.items_in_box)
 
-	dict_of_items_in_box = parse_items_in_box(box)
+	# dict_of_items_in_box = parse_items_in_box(box)
+	#
+	# rate_of_all_items_in_box = 0
+	# custom_value_of_all_items_in_box = 0
+	#
+	# for item in dict_of_items_in_box:
+	# 	item_quantity = dict_of_items_in_box[item]
+	#
+	# 	rate_of_all_items_in_box += int(get_item_by_item_code(source_doc, item).rate) * item_quantity
+	#
+	# 	item_custom_value = int(get_item_by_item_code(source_doc, item).custom_value)
+	# 	if item_custom_value == 0:
+	# 		frappe.throw(_("[ITEM # {}] CUSTOM VALUE = 0. Please specify custom value for items in box".format(item)))
+	#
+	# 	custom_value_of_all_items_in_box += item_custom_value * item_quantity
 
-	# ------------------------------------
+	items = parse_items_in_box(box)
 
-	commodity.UnitPrice.Amount = 0
-	commodity.CustomsValue.Amount = 0
-	quantity_of_all_items_in_box = 0
+	box_custom_value = 0
+	box_rate = 0
+	box_quantity = 0
 
-	for item in dict_of_items_in_box:
-		item_quantity = dict_of_items_in_box[item]
+	for item in items:
+		quantity_in_box = items[item]
 
-		commodity.UnitPrice.Amount += int(get_item_by_item_code(source_doc, item).rate) * item_quantity
+		item = get_item_by_item_code(source_doc=source_doc, item_code=item)
 
-		custom_value = int(get_item_by_item_code(source_doc, item).custom_value)
-		if custom_value == 0:
-			frappe.throw(_("[ITEM # {}] CUSTOM VALUE = 0. Please specify custom value for items in box".format(item)))
+		box_custom_value += item.custom_value * quantity_in_box
+		box_rate += item.rate * quantity_in_box
+		box_quantity += quantity_in_box
 
-		commodity.CustomsValue.Amount += custom_value * item_quantity
-
-		quantity_of_all_items_in_box += item_quantity
-
-		# ---------------------------------------------------------------
-
-		if commodity.CustomsValue.Amount >= 2500 or source_doc.recipient_address_country_code in ['CA', 'MX']:
-			add_export_detail(shipment)
-
-	# --------------------------------------
-	frappe.db.set(box, 'total_box_custom_value', commodity.CustomsValue.Amount)
-	# -----------------------------------------
-
+	commodity.UnitPrice.Amount = box_rate
 	commodity.Name = "Shipment with " + ",".join(
-		get_item_by_item_code(source_doc, item).item_name for item in dict_of_items_in_box)
-
-	commodity.NumberOfPieces = quantity_of_all_items_in_box
+		get_item_by_item_code(source_doc, item).item_name for item in items)
 
 	commodity.Description = ";<br>".join("<b>%s</b> <br><i>%s</i>" % (get_item_by_item_code(source_doc, item).item_name,
-																	  get_item_by_item_code(source_doc,
-																							item).description)
-										 for item in dict_of_items_in_box)
+																	  get_item_by_item_code(source_doc, item).description) for item in items)
+
+	commodity.CustomsValue.Amount = box_custom_value
 
 	commodity.CountryOfManufacture = source_doc.shipper_address_country_code
+	commodity.NumberOfPieces = box_quantity
+	commodity.Quantity = box_quantity
 	commodity.Weight = package_weight
-	commodity.Quantity = quantity_of_all_items_in_box
-
 	commodity.QuantityUnits = 'EA'
 
-	commodity.UnitPrice.Currency = commodity_default_currency
-	commodity.CustomsValue.Currency = commodity_default_currency
+	commodity.UnitPrice.Currency = "USD"
+	commodity.CustomsValue.Currency = "USD"
 
 	shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Amount = commodity.CustomsValue.Amount
 	shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Currency = commodity.CustomsValue.Currency
+
+	if commodity.CustomsValue.Amount >= 2500 or source_doc.recipient_address_country_code in ['CA', 'MX']:
+		add_export_detail(shipment)
 
 	shipment.add_commodity(commodity)
 
@@ -286,7 +289,10 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 	if sequence_number != 1:
 		commodity_message = source_doc.commodity_information + commodity_message
 
+	# #################################################
+
 	frappe.db.set(source_doc, 'commodity_information', unicode(commodity_message))
+	frappe.db.set(box, 'total_box_custom_value', commodity.CustomsValue.Amount)
 
 
 def create_fedex_shipment(source_doc):
@@ -394,7 +400,7 @@ def create_fedex_shipment(source_doc):
 		shipment.RequestedShipment.RequestedPackageLineItems = [fedex_package]
 		shipment.RequestedShipment.PackageCount = len(all_boxes)
 
-		if box_sequence_number >1 :
+		if box_sequence_number > 1:
 			shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
 			shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
 			shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
@@ -463,8 +469,7 @@ def _send_request_to_fedex(sequence_number, box, shipment):
 		if "Customs Value is required" in str(error):
 			frappe.throw(_("International Shipment option is required".upper()))
 
-		elif "Total Insured value exceeds customs value" in str(error) or " Insured Value can not exceed customs value" in str(error):
-
+		elif "customs value" in str(error):
 			frappe.throw(_("""[BOX # {0}]
 			Error from Fedex: {1}.
 			Insurance: {2}
