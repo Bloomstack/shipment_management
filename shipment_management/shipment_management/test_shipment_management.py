@@ -316,22 +316,22 @@ class TestShipmentInternational(unittest.TestCase):
 	#
 	# 		self.submit_and_validate()
 	#
-	# def test_shipment_note_7(self):
-	# 	for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
-	# 		self.get_saved_international_shipment_note(type=ship_type,
-	# 												   test_data_for_items=[
-	# 													   {'custom_value': 3, 'insurance': 1, 'quantity': 5},
-	# 													   {'custom_value': 5, 'insurance': 3, 'quantity': 5},
-	# 													   {'custom_value': 3, 'insurance': 1, 'quantity': 5},
-	# 													   {'custom_value': 5, 'insurance': 3, 'quantity': 5},
-	# 													   {'custom_value': 5, 'insurance': 3, 'quantity': 5},
-	# 													   {'custom_value': 6, 'insurance': 4, 'quantity': 4},
-	# 													   {'custom_value': 10, 'insurance': 9, 'quantity': 4}])
-	#
-	# 		for i in xrange(7):
-	# 			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[i]])
-	#
-	# 		self.submit_and_validate()
+	def test_shipment_note_7(self):
+		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
+			self.get_saved_international_shipment_note(type=ship_type,
+													   test_data_for_items=[
+														   {'custom_value': 3, 'insurance': 1, 'quantity': 5},
+														   {'custom_value': 5, 'insurance': 3, 'quantity': 5},
+														   {'custom_value': 3, 'insurance': 1, 'quantity': 5},
+														   {'custom_value': 5, 'insurance': 3, 'quantity': 5},
+														   {'custom_value': 5, 'insurance': 3, 'quantity': 5},
+														   {'custom_value': 6, 'insurance': 4, 'quantity': 4},
+														   {'custom_value': 10, 'insurance': 9, 'quantity': 4}])
+
+			for i in xrange(7):
+				self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[i]])
+
+			self.submit_and_validate()
 	#
 	# def test_shipment_note_8(self):
 	# 	for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
