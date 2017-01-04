@@ -199,23 +199,7 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 	Only for international shipment
 	"""
 	commodity = shipment.create_wsdl_object_of_type('Commodity')
-	print "\n\t===>>>BOX #%s \n\t\t%s" % (sequence_number, box.items_in_box)
-
-	# dict_of_items_in_box = parse_items_in_box(box)
-	#
-	# rate_of_all_items_in_box = 0
-	# custom_value_of_all_items_in_box = 0
-	#
-	# for item in dict_of_items_in_box:
-	# 	item_quantity = dict_of_items_in_box[item]
-	#
-	# 	rate_of_all_items_in_box += int(get_item_by_item_code(source_doc, item).rate) * item_quantity
-	#
-	# 	item_custom_value = int(get_item_by_item_code(source_doc, item).custom_value)
-	# 	if item_custom_value == 0:
-	# 		frappe.throw(_("[ITEM # {}] CUSTOM VALUE = 0. Please specify custom value for items in box".format(item)))
-	#
-	# 	custom_value_of_all_items_in_box += item_custom_value * item_quantity
+	print box.items_in_box
 
 	items = parse_items_in_box(box)
 
@@ -231,6 +215,10 @@ def _create_commodity_for_package(box, package_weight, sequence_number, shipment
 		box_custom_value += item.custom_value * quantity_in_box
 		box_rate += item.rate * quantity_in_box
 		box_quantity += quantity_in_box
+
+		print "Item {} | Custom code {} | Insurance {} | Quantity {}".format(item.item_code, item.custom_value, item.insurance, quantity_in_box)
+
+	print "-----------------"
 
 	commodity.UnitPrice.Amount = box_rate
 	commodity.Name = "Shipment with " + ",".join(
