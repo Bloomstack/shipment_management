@@ -13,7 +13,7 @@ from frappe.utils import today
 from frappe.utils.make_random import get_random
 
 
-from shipment_management.provider_fedex import parse_items_in_box, get_item_by_item_code
+from shipment_management.provider_fedex import parse_items_in_box, get_item_by_item_code, delete_fedex_shipment
 
 
 def generate_random_string(amount_of_symbols=50000):
@@ -93,22 +93,22 @@ def tearDownModule():
 ###########################################################################
 ###########################################################################
 ###########################################################################
-
-class TestDocTypes(unittest.TestCase):
-	def test_fedex_configuration(self):
-		fedex_config = frappe.new_doc("DTI Fedex Configuration")
-
-		fedex_config.fedex_config_name = "TestFedexName"
-		fedex_config.fedex_key = "TestKey"
-		fedex_config.password = "TestPassword"
-		fedex_config.account_number = "TestAccountNumber"
-		fedex_config.meter_number = "TestMeterNumber"
-		fedex_config.freight_account_number = "FreightAccountNumber"
-		fedex_config.use_test_server = False
-
-		fedex_config.save()
-
-		delete_from_db(doc_type_table="tabDTI Fedex Configuration", key='name', value=fedex_config.fedex_config_name)
+#
+# class TestDocTypes(unittest.TestCase):
+# 	def test_fedex_configuration(self):
+# 		fedex_config = frappe.new_doc("DTI Fedex Configuration")
+#
+# 		fedex_config.fedex_config_name = "TestFedexName"
+# 		fedex_config.fedex_key = "TestKey"
+# 		fedex_config.password = "TestPassword"
+# 		fedex_config.account_number = "TestAccountNumber"
+# 		fedex_config.meter_number = "TestMeterNumber"
+# 		fedex_config.freight_account_number = "FreightAccountNumber"
+# 		fedex_config.use_test_server = False
+#
+# 		fedex_config.save()
+#
+# 		delete_from_db(doc_type_table="tabDTI Fedex Configuration", key='name', value=fedex_config.fedex_config_name)
 
 ###########################################################################
 
@@ -118,17 +118,17 @@ class TestShipmentInternational(unittest.TestCase):
 	def setUp(self):
 		self.note_list = []
 
-	# def tearDown(self):
-	#
-	# 	for note in self.note_list:
-	#	    delete_fedex_shipment(note)
-	# 		delete_from_db(doc_type_table="tabDTI Shipment Note", key='name', value=note.name)
-	# 		delete_from_db(doc_type_table="tabDTI Shipment Note Item", key='parent', value=note.name)
-	# 		delete_from_db(doc_type_table="tabDTI Shipment Package", key='parent', value=note.name)
+	def tearDown(self):
+		pass
+		# for note in self.note_list:
+		# 	delete_fedex_shipment(note)
+		# 	delete_from_db(doc_type_table="tabDTI Shipment Note", key='name', value=note.name)
+		# 	delete_from_db(doc_type_table="tabDTI Shipment Note Item", key='parent', value=note.name)
+		# 	delete_from_db(doc_type_table="tabDTI Shipment Package", key='parent', value=note.name)
 
 	def get_saved_international_shipment_note(self, type, test_data_for_items=[]):
 
-		print "\n=================== %s =============================" % type
+		print "\n%s " % type
 
 		self.note = frappe.new_doc("DTI Shipment Note")
 
@@ -204,14 +204,14 @@ class TestShipmentInternational(unittest.TestCase):
 	def submit_and_validate(self):
 		self.assertEqual(self.note.tracking_number, "0000-0000-0000-0000")
 		self.assertEqual(self.note.shipment_note_status, "NEW")
-		self.assertIsNone(self.note.commodity_information)
+		#self.assertIsNone(self.note.commodity_information)
 		self.assertIsNone(self.note.label_1)
 
 		self.note.submit()
 
 		self.assertNotEqual(self.note.tracking_number, "0000-0000-0000-0000")
 		self.assertEqual(self.note.shipment_note_status, "ReadyToPickUp")
-		self.assertIn("THE PACKAGE # 1 ", unicode(self.note.commodity_information))
+		#self.assertIn("THE PACKAGE # 1 ", unicode(self.note.commodity_information))
 
 		self.assertEqual(get_attached_labels_count(tracking_number=self.note.tracking_number),
 						 len(self.note.get_all_children("DTI Shipment Package")))
@@ -219,7 +219,7 @@ class TestShipmentInternational(unittest.TestCase):
 		self.validation_for_insurance_and_custom_value(source_doc=self.note)
 
 	def validate_error_during_shipment_creation(self, expected_error_message):
-		print "EXPECTED ERROR:", expected_error_message
+		#print "EXPECTED ERROR:", expected_error_message
 		try:
 			self.submit_and_validate()
 			self.fail("Shipment was created successful with wrong data")
@@ -232,12 +232,16 @@ class TestShipmentInternational(unittest.TestCase):
 						 physical_packaging="BOX",
 				         items_to_ship_in_one_box=[]):
 
+		text = "\n".join(r"{}:{}".format(item.item_code, int(item.qty)) for item in items_to_ship_in_one_box)
+
+		print "BOX:"
+		print text
+		print "-" * 30
+
 		self.note.append("box_list", {"weight_value": weight_value,
 									  "weight_units": weight_units,
 									  "physical_packaging": physical_packaging,
-									  "items_in_box": "\n".join(r"{}:{}".format(item.item_code,
-																				int(item.qty))
-																for item in items_to_ship_in_one_box)})
+									  "items_in_box": text})
 
 	def test_shipment_note_1(self):
 		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
@@ -273,18 +277,18 @@ class TestShipmentInternational(unittest.TestCase):
 			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
 			self.validate_error_during_shipment_creation(expected_error_message="CUSTOM VALUE = 0")
-	#
-	# def test_shipment_note_4(self):
-	# 	for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
-	# 		self.get_saved_international_shipment_note(type=ship_type,
-	# 												   test_data_for_items=[{'custom_value': 5,
-	# 																		 'insurance': 10,
-	# 																		 'quantity': 5}])
-	#
-	# 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
-	#
-	# 		self.validate_error_during_shipment_creation(expected_error_message=
-	# 													 "Total Insured value exceeds customs value (Error code: 2519)")
+
+	def test_shipment_note_4(self):
+		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
+			self.get_saved_international_shipment_note(type=ship_type,
+													   test_data_for_items=[{'custom_value': 5,
+																			 'insurance': 100000,
+																			 'quantity': 5}])
+
+			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+
+			self.validate_error_during_shipment_creation(expected_error_message=
+														 "Total Insured value exceeds customs value (Error code: 2519)")
 
 	def test_shipment_note_5(self):
 		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
@@ -293,6 +297,16 @@ class TestShipmentInternational(unittest.TestCase):
 																			{'custom_value': 7, 'insurance': 2, 'quantity': 5},
 																			{'custom_value': 6, 'insurance': 5, 'quantity': 4},
 																			{'custom_value': 6, 'insurance': 5,'quantity': 4}])
+
+			# JHFR AMB:2
+			# Roxanne:5
+			# JH 10:4
+			# JH 11:4
+
+			# 6 = CustomsValue
+			# 18 = InsuredValue
+
+			# Total Insured value exceeds customs value (Error code: 2519)
 
 			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
