@@ -360,11 +360,10 @@ def create_fedex_shipment(source_doc):
 	# #############################################################################
 	# #############################################################################
 
-	labels = []
-
 	all_boxes = source_doc.get_all_children("DTI Shipment Package")
 
-	# The total number of packages in the entire shipment (even when the shipment spans multiple transactions.)
+	# The total number of packages in the entire shipment
+	# (even when the shipment spans multiple transactions.)
 	shipment.RequestedShipment.PackageCount = len(all_boxes)
 
 	# #############################################################################
@@ -405,9 +404,7 @@ def create_fedex_shipment(source_doc):
 	if source_doc.international_shipment:
 		add_total_weight(shipment, all_boxes)
 
-	send_request_to_fedex(master_box, shipment, box_sequence_number)
-
-	label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
+	label = send_request_to_fedex(master_box, shipment, box_sequence_number)
 
 	master_tracking_number = label.TrackingIds[0].TrackingNumber
 	master_tracking_id_type = label.TrackingIds[0].TrackingIdType
@@ -417,14 +414,14 @@ def create_fedex_shipment(source_doc):
 	frappe.db.set(source_doc, 'master_tracking_id_type', master_tracking_id_type)
 	frappe.db.set(master_box, 'tracking_number', master_tracking_number)
 
-	saved_file = save_label(label, master_tracking_number, GENERATE_IMAGE_TYPE.lower(), source_doc, master_box)
-	labels.append(saved_file.file_url)
+	save_label(label, master_tracking_number, GENERATE_IMAGE_TYPE.lower(), source_doc, master_box, box_sequence_number)
 
-	# =======================================================
+	# ############################################################################
+	# ############################################################################
 
 	# For other boxes
 
-	for i, box in enumerate(all_boxes[1:]):
+	for box in all_boxes[1:]:
 		box_sequence_number += 1
 		package = create_fedex_package(sequence_number=box_sequence_number,
 									   shipment=shipment,
@@ -437,17 +434,9 @@ def create_fedex_shipment(source_doc):
 		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
 		shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
 
-		send_request_to_fedex(box, shipment, box_sequence_number)
-		label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
+		label = send_request_to_fedex(box, shipment, box_sequence_number)
 
-		saved_file = save_label(label, master_tracking_number, GENERATE_IMAGE_TYPE.lower(), source_doc, box)
-		labels.append(saved_file.file_url)
-
-	# ############################################################################
-	# ############################################################################
-
-	for i, path in enumerate(labels):
-		frappe.db.set(source_doc, 'label_' + str(i + 1), path)
+		save_label(label, master_tracking_number, GENERATE_IMAGE_TYPE.lower(), source_doc, box, box_sequence_number)
 
 	# ############################################################################
 	# ############################################################################
@@ -467,7 +456,7 @@ def create_fedex_shipment(source_doc):
 # #############################################################################
 # #############################################################################
 
-def save_label(label, master_tracking_number, image_type, source_doc, box):
+def save_label(label, master_tracking_number, image_type, source_doc, box, box_sequence_number):
 	box_tracking_number = label.TrackingIds[0].TrackingNumber
 	ascii_label_data = label.Label.Parts[0].Image
 	label_binary_data = binascii.a2b_base64(ascii_label_data)
@@ -476,19 +465,26 @@ def save_label(label, master_tracking_number, image_type, source_doc, box):
 
 	file_name = "label_%s_%s.%s" % (master_tracking_number, box_tracking_number, image_type)
 	saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
-	return saved_file
+	frappe.db.set(source_doc, 'label_%i' % box_sequence_number, saved_file.file_url)
+
+# #############################################################################
+# #############################################################################
 
 
 def send_request_to_fedex(box, shipment, box_sequence_number):
 	try:
 		box.save()
 		shipment.send_request()
+		return shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
 	except Exception as error:
 		if "Customs Value is required" in str(error):
 			frappe.throw(_("International Shipment option is required".upper()))
 		else:
 			frappe.throw(_("[BOX # {}] Error from Fedex: {}".format(box_sequence_number, str(error))))
+
+# #############################################################################
+# #############################################################################
 
 
 def add_total_weight(shipment, all_boxes):
@@ -505,6 +501,9 @@ def add_total_weight(shipment, all_boxes):
 	total_for_all_shipment_weight.Units = all_boxes[0].weight_units
 
 	shipment.RequestedShipment.TotalWeight = total_for_all_shipment_weight
+
+# #############################################################################
+# #############################################################################
 
 
 def parse_items_in_box(box):
