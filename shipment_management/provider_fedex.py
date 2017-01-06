@@ -143,144 +143,126 @@ def estimate_delivery_time(OriginPostalCode=None,
 	return avc_request.ShipDate
 
 
-# ###############################################################################
-# ###############################################################################
-# ###############################################################################
-
-# ################## SHIPMENT PRIMARY WORKFLOW ##################################
-
-
-def _create_package(shipment,
-						  sequence_number=None,
-						  package_weight_value=0,
-						  package_weight_units=None,
-						  physical_packaging=None,
-						  insure_currency="USD",
-						  insured_amount=None):
-
-	package_weight = shipment.create_wsdl_object_of_type('Weight')
-	package_weight.Value = package_weight_value
-	package_weight.Units = package_weight_units
-
-	package = shipment.create_wsdl_object_of_type('RequestedPackageLineItem')
-
-	package.PhysicalPackaging = physical_packaging
-	package.Weight = package_weight
-
-	if insured_amount:
-		package_insure = shipment.create_wsdl_object_of_type('Money')
-
-		package_insure.Currency = insure_currency
-		package_insure.Amount = insured_amount
-
-		package.InsuredValue = package_insure
-
-	package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
-	package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'SERVICE_DEFAULT'
-	package.SequenceNumber = sequence_number
-	return package
-
+# #############################################################################
+# #############################################################################
 # #############################################################################
 
 
-def add_export_detail(shipment):
-	"""
-	For The FTR Exemption or AES Citation we are provided to be valid for EEI.
-	if shipment is for Canada or Mexico or shipment custom value is more that 2500 $
+def create_fedex_package(sequence_number, shipment, box, source_doc):
 
-	"""
-	export_detail = shipment.create_wsdl_object_of_type('ExportDetail')
-	export_detail.ExportComplianceStatement = ExportComplianceStatement
-	shipment.RequestedShipment.CustomsClearanceDetail.ExportDetail = export_detail
+	items_in_one_box = parse_items_in_box(box)
+
+	package_weight = shipment.create_wsdl_object_of_type('Weight')
+	package_weight.Value = box.weight_value
+	package_weight.Units = box.weight_units
+
+	package = shipment.create_wsdl_object_of_type('RequestedPackageLineItem')
+	package.PhysicalPackaging = box.physical_packaging
+	package.Weight = package_weight
+
+	package1_insure = shipment.create_wsdl_object_of_type('Money')
+	package1_insure.Currency = 'USD'
+	#package1_insure.Amount = sum([get_item_by_item_code(source_doc, item).insurance for item in items_in_one_box])
+	package1_insure.Amount = 1
+
+	package.InsuredValue = package1_insure
+	shipment.RequestedShipment.TotalInsuredValue = package1_insure
+
+	package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
+	package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'SERVICE_DEFAULT'
+
+	package.SequenceNumber = sequence_number
+
+	if source_doc.international_shipment:
+
+		custom_value = 0
+
+		for item in items_in_one_box:
+
+			quantity = items_in_one_box[item]
+
+			commodity = shipment.create_wsdl_object_of_type('Commodity')
+			commodity.Name = get_item_by_item_code(source_doc, item).name
+			commodity.NumberOfPieces = quantity
+			commodity.Description = get_item_by_item_code(source_doc, item).description
+			commodity.CountryOfManufacture = source_doc.shipper_address_country_code
+
+			# TODO Weight of one unit in box
+
+			package_weight = shipment.create_wsdl_object_of_type('Weight')
+			package_weight.Value = box.weight_value / quantity
+			package_weight.Units = box.weight_units
+			commodity.Weight = package_weight
+
+			# -------
+
+			commodity.Quantity = quantity
+			commodity.QuantityUnits = 'EA'
+
+			commodity.UnitPrice.Currency = "USD"
+			commodity.UnitPrice.Amount = get_item_by_item_code(source_doc, item).rate
+
+			commodity.CustomsValue.Currency = "USD"
+			commodity.CustomsValue.Amount = get_item_by_item_code(source_doc, item).custom_value
+
+			if commodity.CustomsValue.Amount == 0:
+				frappe.throw(_("CUSTOM VALUE = 0. Please specify custom value in items"))
+
+			shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Amount = commodity.CustomsValue.Amount
+			shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Currency = commodity.CustomsValue.Currency
+
+			if commodity.CustomsValue.Amount >= 2500 or source_doc.recipient_address_country_code in ['CA', 'MX']:
+				export_detail = shipment.create_wsdl_object_of_type('ExportDetail')
+				export_detail.ExportComplianceStatement = ExportComplianceStatement
+				shipment.RequestedShipment.CustomsClearanceDetail.ExportDetail = export_detail
+
+			shipment.add_commodity(commodity)
+
+			commodity_message = """
+					<b style="background-color: rgba(152, 216, 91, 0.43);">THE PACKAGE # {box_number} </b><br>
+					<b>NAME</b>                     {name}<br>
+					<b>NUMBER OF PIECES </b>        =  {number_of_pieces}<br>
+					<b>DESCRIPTION</b> <br>
+					{description}<br>
+					<b>COUNTRY OF MANUFACTURE </b>  =  {country_manufacture}<br>
+					<b>WIGHT  </b>                  =  {wight} <br>
+					<b>QUANTITY     </b>            =  {quantity} <br>
+					<b>QUANTITY UNITS   </b>        =  {quantity_unites} <br>
+					<b>UNIT PRICE CURRENCY    </b>  =  {unit_price_currency} <br>
+					<b>UNIT PRICE AMOUNT    </b>    =  {unit_price_amount} <br>
+					<b>CUSTOM VALUE CURRENCY   </b> =  {custom_value_currency} <br>
+					<b>CUSTOM VALUE AMOUNT    </b>  =  {custom_value_amount} <br>
+					<br>
+					""".format(box_number=sequence_number,
+							   name=commodity.Name,
+							   number_of_pieces=commodity.NumberOfPieces,
+							   description=commodity.Description,
+							   country_manufacture=commodity.CountryOfManufacture,
+							   wight="%s %s" % (commodity.Weight.Value, commodity.Weight.Units),
+							   quantity=commodity.Quantity,
+							   quantity_unites=commodity.QuantityUnits,
+							   unit_price_currency=commodity.UnitPrice.Currency,
+							   unit_price_amount=commodity.UnitPrice.Amount,
+							   custom_value_currency=commodity.CustomsValue.Currency,
+							   custom_value_amount=commodity.CustomsValue.Amount)
+
+			if sequence_number != 1:
+				commodity_message = source_doc.commodity_information + commodity_message
+
+		frappe.db.set(source_doc, 'commodity_information', unicode(commodity_message))
+
+		custom_value += get_item_by_item_code(source_doc, item).custom_value
+
+	frappe.db.set(box, 'total_box_custom_value', custom_value)
+
+	frappe.db.set(box, 'total_box_insurance', sum([get_item_by_item_code(source_doc, item).insurance for item in items_in_one_box]))
+
+	return package
 
 
-def _create_commodity_for_package(box, package_weight, sequence_number, shipment, source_doc):
-	"""
-	Only for international shipment
-	"""
-	commodity = shipment.create_wsdl_object_of_type('Commodity')
-	print box.items_in_box
-
-	items = parse_items_in_box(box)
-
-	box_custom_value = 0
-	box_rate = 0
-	box_quantity = 0
-
-	for item in items:
-		quantity_in_box = items[item]
-
-		item = get_item_by_item_code(source_doc=source_doc, item_code=item)
-
-		box_custom_value += item.custom_value * quantity_in_box
-		box_rate += item.rate * quantity_in_box
-		box_quantity += quantity_in_box
-
-		print "Item {} | Custom code {} | Insurance {} | Quantity {}".format(item.item_code, item.custom_value, item.insurance, quantity_in_box)
-
-	print "-----------------"
-
-	commodity.UnitPrice.Amount = box_rate
-	commodity.Name = "Shipment with " + ",".join(
-		get_item_by_item_code(source_doc, item).item_name for item in items)
-
-	commodity.Description = ";<br>".join("<b>%s</b> <br><i>%s</i>" % (get_item_by_item_code(source_doc, item).item_name,
-																	  get_item_by_item_code(source_doc, item).description) for item in items)
-
-	commodity.CustomsValue.Amount = box_custom_value
-
-	commodity.CountryOfManufacture = source_doc.shipper_address_country_code
-	commodity.NumberOfPieces = box_quantity
-	commodity.Quantity = box_quantity
-	commodity.Weight = package_weight
-	commodity.QuantityUnits = 'EA'
-
-	commodity.UnitPrice.Currency = "USD"
-	commodity.CustomsValue.Currency = "USD"
-
-	shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Amount = commodity.CustomsValue.Amount
-	shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Currency = commodity.CustomsValue.Currency
-
-	if commodity.CustomsValue.Amount >= 2500 or source_doc.recipient_address_country_code in ['CA', 'MX']:
-		add_export_detail(shipment)
-
-	shipment.add_commodity(commodity)
-
-	commodity_message = """
-		<b style="background-color: rgba(152, 216, 91, 0.43);">THE PACKAGE # {box_number} </b><br>
-		<b>NAME</b>                     {name}<br>
-		<b>NUMBER OF PIECES </b>        =  {number_of_pieces}<br>
-		<b>DESCRIPTION</b> <br>
-		{description}<br>
-		<b>COUNTRY OF MANUFACTURE </b>  =  {country_manufacture}<br>
-		<b>WIGHT  </b>                  =  {wight} <br>
-		<b>QUANTITY     </b>            =  {quantity} <br>
-		<b>QUANTITY UNITS   </b>        =  {quantity_unites} <br>
-		<b>UNIT PRICE CURRENCY    </b>  =  {unit_price_currency} <br>
-		<b>UNIT PRICE AMOUNT    </b>    =  {unit_price_amount} <br>
-		<b>CUSTOM VALUE CURRENCY   </b> =  {custom_value_currency} <br>
-		<b>CUSTOM VALUE AMOUNT    </b>  =  {custom_value_amount} <br>
-		<br>
-		""".format(box_number=sequence_number,
-				   name=commodity.Name,
-				   number_of_pieces=commodity.NumberOfPieces,
-				   description=commodity.Description,
-				   country_manufacture=commodity.CountryOfManufacture,
-				   wight="%s %s" % (commodity.Weight.Value, commodity.Weight.Units),
-				   quantity=commodity.Quantity,
-				   quantity_unites=commodity.QuantityUnits,
-				   unit_price_currency=commodity.UnitPrice.Currency,
-				   unit_price_amount=commodity.UnitPrice.Amount,
-				   custom_value_currency=commodity.CustomsValue.Currency,
-				   custom_value_amount=commodity.CustomsValue.Amount)
-
-	if sequence_number != 1:
-		commodity_message = source_doc.commodity_information + commodity_message
-
-	# #################################################
-
-	frappe.db.set(source_doc, 'commodity_information', unicode(commodity_message))
-	frappe.db.set(box, 'total_box_custom_value', commodity.CustomsValue.Amount)
+# #############################################################################
+# #############################################################################
+# #############################################################################
 
 
 def create_fedex_shipment(source_doc):
@@ -365,27 +347,13 @@ def create_fedex_shipment(source_doc):
 	shipment.RequestedShipment.TotalWeight = total_for_all_shipment_weight
 
 	for i, box in enumerate(all_boxes):
-
 		box_sequence_number = i + 1
+		package = create_fedex_package(sequence_number=box_sequence_number,
+									   shipment=shipment,
+									   box=box,
+									   source_doc=source_doc)
 
-		total_box_insurance = get_box_total_insurance(source_doc, box)
-		frappe.db.set(box, 'total_box_insurance', total_box_insurance)
-
-		fedex_package = _create_package(shipment=shipment,
-										sequence_number=box_sequence_number,
-										package_weight_value=box.weight_value,
-										package_weight_units=box.weight_units,
-										physical_packaging=box.physical_packaging,
-										insured_amount=total_box_insurance)
-
-		if source_doc.international_shipment:
-			_create_commodity_for_package(box=box,
-										  package_weight=fedex_package.Weight,
-										  sequence_number=box_sequence_number,
-										  shipment=shipment,
-										  source_doc=source_doc)
-
-		shipment.RequestedShipment.RequestedPackageLineItems = [fedex_package]
+		shipment.RequestedShipment.RequestedPackageLineItems = [package]
 		shipment.RequestedShipment.PackageCount = len(all_boxes)
 
 		if box_sequence_number > 1:
@@ -393,9 +361,15 @@ def create_fedex_shipment(source_doc):
 			shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
 			shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
 
-		_send_request_to_fedex(sequence_number=box_sequence_number,
-							   box=box,
-							   shipment=shipment)
+		try:
+			box.save()
+			shipment.send_request()
+
+		except Exception as error:
+			if "Customs Value is required" in str(error):
+				frappe.throw(_("International Shipment option is required".upper()))
+			else:
+				frappe.throw(_("[BOX # {}] Error from Fedex: {}".format(box_sequence_number, str(error))))
 
 		label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
@@ -406,9 +380,7 @@ def create_fedex_shipment(source_doc):
 
 			frappe.db.set(source_doc, 'tracking_number', master_tracking_number)
 			frappe.db.set(source_doc, 'master_tracking_id_type', master_tracking_id_type)
-
 			frappe.db.set(box, 'tracking_number', master_tracking_number)
-			frappe.db.set(box, 'total_box_insurance', total_box_insurance)
 
 		box_tracking_number = label.TrackingIds[0].TrackingNumber
 		ascii_label_data = label.Label.Parts[0].Image
@@ -443,34 +415,6 @@ def create_fedex_shipment(source_doc):
 	frappe.msgprint("DONE!", "Tracking number:{}".format(master_tracking_number))
 
 
-# ##############################################################################
-# ##############################################################################
-
-
-def _send_request_to_fedex(sequence_number, box, shipment):
-	try:
-		box.save()
-
-		shipment.send_request()
-
-	except Exception as error:
-		if "Customs Value is required" in str(error):
-			frappe.throw(_("International Shipment option is required".upper()))
-
-		elif "customs value" in str(error):
-			frappe.throw(_("""[BOX # {0}]
-			Error from Fedex: {1}.
-			Insurance: {2}
-			Custom Value: {3}
-			ITEMS IN BOX: {4}""".format(sequence_number,
-										str(error),
-										box.total_box_insurance,
-										box.total_box_custom_value,
-										box.items_in_box)))
-		else:
-			frappe.throw(_("[BOX # {}] Error from Fedex: {}".format(sequence_number, str(error))))
-
-
 # #############################################################################
 # #############################################################################
 
@@ -500,22 +444,6 @@ def get_item_by_item_code(source_doc, item_code):
 	for item in all_delivery_items:
 		if item.item_code == item_code:
 			return item
-
-# #############################################################################
-# #############################################################################
-
-
-def get_box_total_insurance(source_doc, box):
-	"""
-	Insurance of all items in box calculation:
-	"""
-	dict_of_items_in_box = parse_items_in_box(box)
-	total_box_insurance = 0
-	for item in dict_of_items_in_box:
-		item_quantity = dict_of_items_in_box[item]
-		total_box_insurance += int(get_item_by_item_code(source_doc, item).insurance) * item_quantity
-
-	return total_box_insurance
 
 # #############################################################################
 # #############################################################################
