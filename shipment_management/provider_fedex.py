@@ -162,11 +162,17 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 	package1_insure = shipment.create_wsdl_object_of_type('Money')
 	package1_insure.Currency = 'USD'
-	#package1_insure.Amount = sum([get_item_by_item_code(source_doc, item).insurance for item in items_in_one_box])
-	package1_insure.Amount = 1
-
+	package1_insure.Amount = sum([get_item_by_item_code(source_doc, item).insurance for item in items_in_one_box])
 	package.InsuredValue = package1_insure
-	shipment.RequestedShipment.TotalInsuredValue = package1_insure
+	# Specifies the declared value for carriage of the package.
+	# The declared value for carriage represents the maximum liability of FedEx
+	# in connection with a shipment, including, but not limited to, any loss,
+	# damage, delay, mis-delivery, nondelivery, misinformation,
+	# any failure to provide information, or mis-delivery of information
+	# relating to the package.This field is only used for INDIVIDUAL_PACKAGES
+	# and PACKAGE_GROUPS. Ignored for PACKAGE_SUMMARY,
+	# in which case totalInsuredValue and packageCount on the shipment will be used
+	# to determine this value.
 
 	package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
 	package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'SERVICE_DEFAULT'
@@ -181,27 +187,41 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 			quantity = items_in_one_box[item]
 
+			# For international multiple piece shipments,
+			# commodity information must be passed in the Master and on each child transaction.
+            # If this shipment cotains more than four commodities line items,
+			# the four highest valued should be included in the first 4 occurances for this request.
+
 			commodity = shipment.create_wsdl_object_of_type('Commodity')
-			commodity.Name = get_item_by_item_code(source_doc, item).name
-			commodity.NumberOfPieces = quantity
+			commodity.Name = get_item_by_item_code(source_doc, item).name # Name of this commodity.
+
+			commodity.NumberOfPieces = quantity # Total number of pieces of this commodity
+
+			# Complete and accurate description of this commodity:
 			commodity.Description = get_item_by_item_code(source_doc, item).description
+
 			commodity.CountryOfManufacture = source_doc.shipper_address_country_code
 
-			# TODO Weight of one unit in box
-
+			# Total weight of this commodity. 1 explicit decimal position.
+			# Max length 11 including decimal.
 			package_weight = shipment.create_wsdl_object_of_type('Weight')
-			package_weight.Value = box.weight_value / quantity
+			package_weight.Value = box.weight_value / quantity # TODO
 			package_weight.Units = box.weight_units
 			commodity.Weight = package_weight
 
-			# -------
-
+			# This field is used for enterprise transactions:
 			commodity.Quantity = quantity
+
+			# Unit of measure used to express the quantity of this commodity line item:
 			commodity.QuantityUnits = 'EA'
 
+			# Value of each unit in Quantity. Six explicit decimal positions, Max length 18 including decimal:
 			commodity.UnitPrice.Currency = "USD"
 			commodity.UnitPrice.Amount = get_item_by_item_code(source_doc, item).rate
 
+			# Total customs value for this line item.
+			# It should equal the commodity unit quantity times commodity unit value.
+			# Six explicit decimal positions, max length 18 including decimal:
 			commodity.CustomsValue.Currency = "USD"
 			commodity.CustomsValue.Amount = get_item_by_item_code(source_doc, item).custom_value
 
@@ -336,62 +356,91 @@ def create_fedex_shipment(source_doc):
 	DictDiffer.validate_shipment_integrity(source_doc)
 
 	# #############################################################################
+	# #############################################################################
+	# #############################################################################
+	# #############################################################################
 
 	labels = []
 
 	all_boxes = source_doc.get_all_children("DTI Shipment Package")
 
-	total_for_all_shipment_weight = shipment.create_wsdl_object_of_type('Weight')
-	total_for_all_shipment_weight.Value = sum([box.weight_value for box in all_boxes])
-	total_for_all_shipment_weight.Units = all_boxes[0].weight_units
-	shipment.RequestedShipment.TotalWeight = total_for_all_shipment_weight
+	# The total number of packages in the entire shipment (even when the shipment spans multiple transactions.)
+	shipment.RequestedShipment.PackageCount = len(all_boxes)
 
-	for i, box in enumerate(all_boxes):
-		box_sequence_number = i + 1
+	# #############################################################################
+
+	# total_insure = shipment.create_wsdl_object_of_type('Money')
+	# total_insure.Currency = 'USD'
+	#
+	# total_for_all_shipment_insurance = 0
+	# total_box = 0
+	#
+	# for box in all_boxes:
+	# 	for item in parse_items_in_box(box):
+	# 		total_box += get_item_by_item_code(source_doc, item).insurance
+	# 	total_for_all_shipment_insurance += total_box
+	#
+	# total_insure.Amount = total_for_all_shipment_insurance
+	# shipment.RequestedShipment.TotalInsuredValue = total_insure
+
+	# Specifies the total declared value for carriage of the shipment.
+	# The declared value for carriage represents the maximum liability of FedEx in
+	# connection with a shipment, including, but not limited to,
+	# any loss, damage, delay, mis-delivery, nondelivery, misinformation,
+	# any failure to provide information, or mis-delivery of information relating to the shipment.
+
+	# #############################################################################
+
+	# First box
+
+	master_box = all_boxes[0]
+	box_sequence_number = 1
+	package = create_fedex_package(sequence_number=box_sequence_number,
+								   shipment=shipment,
+								   box=master_box,
+								   source_doc=source_doc)
+
+	shipment.RequestedShipment.RequestedPackageLineItems = [package]
+
+	if source_doc.international_shipment:
+		add_total_weight(shipment, all_boxes)
+
+	send_request_to_fedex(master_box, shipment, box_sequence_number)
+
+	label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
+
+	master_tracking_number = label.TrackingIds[0].TrackingNumber
+	master_tracking_id_type = label.TrackingIds[0].TrackingIdType
+	master_tracking_form_id = label.TrackingIds[0].FormId
+
+	frappe.db.set(source_doc, 'tracking_number', master_tracking_number)
+	frappe.db.set(source_doc, 'master_tracking_id_type', master_tracking_id_type)
+	frappe.db.set(master_box, 'tracking_number', master_tracking_number)
+
+	saved_file = save_label(label, master_tracking_number, GENERATE_IMAGE_TYPE.lower(), source_doc, master_box)
+	labels.append(saved_file.file_url)
+
+	# =======================================================
+
+	# For other boxes
+
+	for i, box in enumerate(all_boxes[1:]):
+		box_sequence_number += 1
 		package = create_fedex_package(sequence_number=box_sequence_number,
 									   shipment=shipment,
 									   box=box,
 									   source_doc=source_doc)
 
 		shipment.RequestedShipment.RequestedPackageLineItems = [package]
-		shipment.RequestedShipment.PackageCount = len(all_boxes)
 
-		if box_sequence_number > 1:
-			shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
-			shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
-			shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
+		shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
+		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
+		shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
 
-		try:
-			box.save()
-			shipment.send_request()
-
-		except Exception as error:
-			if "Customs Value is required" in str(error):
-				frappe.throw(_("International Shipment option is required".upper()))
-			else:
-				frappe.throw(_("[BOX # {}] Error from Fedex: {}".format(box_sequence_number, str(error))))
-
+		send_request_to_fedex(box, shipment, box_sequence_number)
 		label = shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
-		if box_sequence_number == 1:
-			master_tracking_number = label.TrackingIds[0].TrackingNumber
-			master_tracking_id_type = label.TrackingIds[0].TrackingIdType
-			master_tracking_form_id = label.TrackingIds[0].FormId
-
-			frappe.db.set(source_doc, 'tracking_number', master_tracking_number)
-			frappe.db.set(source_doc, 'master_tracking_id_type', master_tracking_id_type)
-			frappe.db.set(box, 'tracking_number', master_tracking_number)
-
-		box_tracking_number = label.TrackingIds[0].TrackingNumber
-		ascii_label_data = label.Label.Parts[0].Image
-		label_binary_data = binascii.a2b_base64(ascii_label_data)
-
-		frappe.db.set(box, 'tracking_number', box_tracking_number)
-
-		file_name = "label_%s_%s.%s" % (master_tracking_number, box_tracking_number, GENERATE_IMAGE_TYPE.lower())
-
-		saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
-
+		saved_file = save_label(label, master_tracking_number, GENERATE_IMAGE_TYPE.lower(), source_doc, box)
 		labels.append(saved_file.file_url)
 
 	# ############################################################################
@@ -417,6 +466,45 @@ def create_fedex_shipment(source_doc):
 
 # #############################################################################
 # #############################################################################
+
+def save_label(label, master_tracking_number, image_type, source_doc, box):
+	box_tracking_number = label.TrackingIds[0].TrackingNumber
+	ascii_label_data = label.Label.Parts[0].Image
+	label_binary_data = binascii.a2b_base64(ascii_label_data)
+
+	frappe.db.set(box, 'tracking_number', box_tracking_number)
+
+	file_name = "label_%s_%s.%s" % (master_tracking_number, box_tracking_number, image_type)
+	saved_file = save_file(file_name, label_binary_data, source_doc.doctype, source_doc.name, is_private=1)
+	return saved_file
+
+
+def send_request_to_fedex(box, shipment, box_sequence_number):
+	try:
+		box.save()
+		shipment.send_request()
+
+	except Exception as error:
+		if "Customs Value is required" in str(error):
+			frappe.throw(_("International Shipment option is required".upper()))
+		else:
+			frappe.throw(_("[BOX # {}] Error from Fedex: {}".format(box_sequence_number, str(error))))
+
+
+def add_total_weight(shipment, all_boxes):
+	"""
+	TotalWeight:
+	Identifies the total weight of the shipment being conveyed to FedEx.
+	This is only applicable to International shipments
+	and should only be used on the first package of a mutiple piece shipment.
+	This value contains 1 explicit decimal position
+	"""
+
+	total_for_all_shipment_weight = shipment.create_wsdl_object_of_type('Weight')
+	total_for_all_shipment_weight.Value = sum([box.weight_value for box in all_boxes])
+	total_for_all_shipment_weight.Units = all_boxes[0].weight_units
+
+	shipment.RequestedShipment.TotalWeight = total_for_all_shipment_weight
 
 
 def parse_items_in_box(box):
@@ -562,6 +650,8 @@ def get_package_rate(international=False,
 
 	if "Service is not allowed" in str(data['Notifications'][0]['Message']):
 		frappe.throw(_("WARNING: Service is not allowed. Please verify address data!"))
+
+	# Todo add ore info to rate for all type?
 
 	return data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']
 
