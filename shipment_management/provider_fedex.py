@@ -160,10 +160,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 	package.PhysicalPackaging = box.physical_packaging
 	package.Weight = package_weight
 
-	package1_insure = shipment.create_wsdl_object_of_type('Money')
-	package1_insure.Currency = 'USD'
-	package1_insure.Amount = sum([get_item_by_item_code(source_doc, item).insurance for item in items_in_one_box])
-	package.InsuredValue = package1_insure
+	# InsuredValue:
 	# Specifies the declared value for carriage of the package.
 	# The declared value for carriage represents the maximum liability of FedEx
 	# in connection with a shipment, including, but not limited to, any loss,
@@ -173,6 +170,10 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 	# and PACKAGE_GROUPS. Ignored for PACKAGE_SUMMARY,
 	# in which case totalInsuredValue and packageCount on the shipment will be used
 	# to determine this value.
+	package1_insure = shipment.create_wsdl_object_of_type('Money')
+	package1_insure.Currency = 'USD'
+	package1_insure.Amount = sum([get_item_by_item_code(source_doc, item).insurance for item in items_in_one_box])
+	package.InsuredValue = package1_insure
 
 	package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
 	package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'SERVICE_DEFAULT'
@@ -183,17 +184,17 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 		custom_value = 0
 
-		for item in items_in_one_box:
+		for i, item in enumerate(items_in_one_box):
 
 			quantity = items_in_one_box[item]
 
 			# For international multiple piece shipments,
 			# commodity information must be passed in the Master and on each child transaction.
-            # If this shipment cotains more than four commodities line items,
+            # If this shipment contains more than four commodities line items,
 			# the four highest valued should be included in the first 4 occurances for this request.
 
 			commodity = shipment.create_wsdl_object_of_type('Commodity')
-			commodity.Name = get_item_by_item_code(source_doc, item).name # Name of this commodity.
+			commodity.Name = get_item_by_item_code(source_doc, item).item_name # Name of this commodity.
 
 			commodity.NumberOfPieces = quantity # Total number of pieces of this commodity
 
@@ -238,11 +239,9 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 			shipment.add_commodity(commodity)
 
-			commodity_message = """
-					<b style="background-color: rgba(152, 216, 91, 0.43);">THE PACKAGE # {box_number} </b><br>
-					<b>NAME</b>                     {name}<br>
+			commodity_message = """<div style="color: #36414c; background-color: #f0f5f5; font-size: 80% ; padding: 10px; border-radius: 5px; border: 3px solid;"><b>ITEM NAME</b> = {name} <br>
 					<b>NUMBER OF PIECES </b>        =  {number_of_pieces}<br>
-					<b>DESCRIPTION</b> <br>
+					<b>DESCRIPTION:</b> <br>
 					{description}<br>
 					<b>COUNTRY OF MANUFACTURE </b>  =  {country_manufacture}<br>
 					<b>WIGHT  </b>                  =  {wight} <br>
@@ -251,8 +250,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 					<b>UNIT PRICE CURRENCY    </b>  =  {unit_price_currency} <br>
 					<b>UNIT PRICE AMOUNT    </b>    =  {unit_price_amount} <br>
 					<b>CUSTOM VALUE CURRENCY   </b> =  {custom_value_currency} <br>
-					<b>CUSTOM VALUE AMOUNT    </b>  =  {custom_value_amount} <br>
-					<br>
+					<b>CUSTOM VALUE AMOUNT    </b>  =  {custom_value_amount} <br></div>
 					""".format(box_number=sequence_number,
 							   name=commodity.Name,
 							   number_of_pieces=commodity.NumberOfPieces,
@@ -266,10 +264,10 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 							   custom_value_currency=commodity.CustomsValue.Currency,
 							   custom_value_amount=commodity.CustomsValue.Amount)
 
-			if sequence_number != 1:
-				commodity_message = source_doc.commodity_information + commodity_message
+			if i > 0:
+				commodity_message = box.commodity_information + "<br>" + commodity_message
 
-		frappe.db.set(source_doc, 'commodity_information', unicode(commodity_message))
+			frappe.db.set(box, 'commodity_information', unicode(commodity_message))
 
 		custom_value += get_item_by_item_code(source_doc, item).custom_value
 
