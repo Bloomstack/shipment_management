@@ -192,7 +192,6 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 			# commodity information must be passed in the Master and on each child transaction.
             # If this shipment contains more than four commodities line items,
 			# the four highest valued should be included in the first 4 occurances for this request.
-
 			commodity = shipment.create_wsdl_object_of_type('Commodity')
 			commodity.Name = get_item_by_item_code(source_doc, item).item_name # Name of this commodity.
 
@@ -203,8 +202,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 			commodity.CountryOfManufacture = source_doc.shipper_address_country_code
 
-			# Total weight of this commodity. 1 explicit decimal position.
-			# Max length 11 including decimal.
+			# Total weight of this commodity.
 			package_weight = shipment.create_wsdl_object_of_type('Weight')
 			package_weight.Value = box.weight_value / quantity # TODO
 			package_weight.Units = box.weight_units
@@ -222,20 +220,19 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 			# Total customs value for this line item.
 			# It should equal the commodity unit quantity times commodity unit value.
-			# Six explicit decimal positions, max length 18 including decimal:
 			commodity.CustomsValue.Currency = "USD"
-			commodity.CustomsValue.Amount = get_item_by_item_code(source_doc, item).custom_value
+			commodity.CustomsValue.Amount = get_item_by_item_code(source_doc, item).custom_value * commodity.Quantity
 
 			if commodity.CustomsValue.Amount == 0:
 				frappe.throw(_("CUSTOM VALUE = 0. Please specify custom value in items"))
-
-			shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Amount = commodity.CustomsValue.Amount
-			shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Currency = commodity.CustomsValue.Currency
 
 			if commodity.CustomsValue.Amount >= 2500 or source_doc.recipient_address_country_code in ['CA', 'MX']:
 				export_detail = shipment.create_wsdl_object_of_type('ExportDetail')
 				export_detail.ExportComplianceStatement = ExportComplianceStatement
 				shipment.RequestedShipment.CustomsClearanceDetail.ExportDetail = export_detail
+
+			shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Amount = commodity.CustomsValue.Amount
+			shipment.RequestedShipment.CustomsClearanceDetail.CustomsValue.Currency = commodity.CustomsValue.Currency
 
 			shipment.add_commodity(commodity)
 
