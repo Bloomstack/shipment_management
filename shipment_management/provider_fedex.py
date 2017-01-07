@@ -202,9 +202,9 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 			commodity.CountryOfManufacture = source_doc.shipper_address_country_code
 
-			# Total weight of this commodity.
+			# # Total weight of this commodity.
 			package_weight = shipment.create_wsdl_object_of_type('Weight')
-			package_weight.Value = box.weight_value / quantity # TODO
+			package_weight.Value = box.weight_value / quantity # TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			package_weight.Units = box.weight_units
 			commodity.Weight = package_weight
 
@@ -245,9 +245,9 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 					<b>QUANTITY     </b>            =  {quantity} <br>
 					<b>QUANTITY UNITS   </b>        =  {quantity_unites} <br>
 					<b>UNIT PRICE CURRENCY    </b>  =  {unit_price_currency} <br>
-					<b>UNIT PRICE AMOUNT    </b>    =  {unit_price_amount} <br>
+					<b>UNIT PRICE AMOUNT (RATE) </b>    =  {unit_price_amount} <br>
 					<b>CUSTOM VALUE CURRENCY   </b> =  {custom_value_currency} <br>
-					<b>CUSTOM VALUE AMOUNT    </b>  =  {custom_value_amount} <br></div>
+					<b>TOTAL CUSTOM VALUE AMOUNT    </b>  =  {custom_value_amount} <br></div>
 					""".format(box_number=sequence_number,
 							   name=commodity.Name,
 							   number_of_pieces=commodity.NumberOfPieces,
