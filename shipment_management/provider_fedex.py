@@ -171,9 +171,8 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 	package1_insure.Currency = 'USD'
 
 	# Todo - investigate !
-	package1_insure.Amount = sum([get_item_by_item_code(source_doc, item).insurance for item in items_in_one_box])
-	#package1_insure.Amount = get_total_box_value(box=box, source_doc=source_doc, attrib='insurance')
-
+	#package1_insure.Amount = sum([get_item_by_item_code(source_doc, item).insurance for item in items_in_one_box])
+	package1_insure.Amount = get_total_box_value(box=box, source_doc=source_doc, attrib='insurance')
 	package.InsuredValue = package1_insure
 
 	# ------------------------
@@ -190,6 +189,16 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 		for i, item in enumerate(items_in_one_box):
 
 			quantity = items_in_one_box[item]
+
+			# ########################
+
+			# Total Insured value exceeds customs value (Error code: 2519)
+			# Insured Value can not exceed customs value (Error code: 2251)
+			# Fix:
+
+			package.InsuredValue.Amount = get_item_by_item_code(source_doc, item).insurance
+
+			# #######################
 
 			# For international multiple piece shipments,
 			# commodity information must be passed in the Master and on each child transaction.
