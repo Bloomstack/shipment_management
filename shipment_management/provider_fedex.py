@@ -152,28 +152,31 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 	items_in_one_box = parse_items_in_box(box)
 
-	package_weight = shipment.create_wsdl_object_of_type('Weight')
-	package_weight.Value = box.weight_value
-	package_weight.Units = box.weight_units
+	# ------------------------
 
+	# Weight:
+
+	package_weight = shipment.create_wsdl_object_of_type('Weight')
+	package_weight.Value = get_total_box_value(box=box, source_doc=source_doc, attrib='weight_value')
+	package_weight.Units = get_shipment_weight_units(source_doc)
 	package = shipment.create_wsdl_object_of_type('RequestedPackageLineItem')
 	package.PhysicalPackaging = box.physical_packaging
 	package.Weight = package_weight
 
-	# InsuredValue:
-	# Specifies the declared value for carriage of the package.
-	# The declared value for carriage represents the maximum liability of FedEx
-	# in connection with a shipment, including, but not limited to, any loss,
-	# damage, delay, mis-delivery, nondelivery, misinformation,
-	# any failure to provide information, or mis-delivery of information
-	# relating to the package.This field is only used for INDIVIDUAL_PACKAGES
-	# and PACKAGE_GROUPS. Ignored for PACKAGE_SUMMARY,
-	# in which case totalInsuredValue and packageCount on the shipment will be used
-	# to determine this value.
+	# ------------------------
+
+	# Insurance:
+
 	package1_insure = shipment.create_wsdl_object_of_type('Money')
 	package1_insure.Currency = 'USD'
+
+	# Todo - investigate !
 	package1_insure.Amount = sum([get_item_by_item_code(source_doc, item).insurance for item in items_in_one_box])
+	#package1_insure.Amount = get_total_box_value(box=box, source_doc=source_doc, attrib='insurance')
+
 	package.InsuredValue = package1_insure
+
+	# ------------------------
 
 	package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
 	package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'SERVICE_DEFAULT'
@@ -182,7 +185,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 	if source_doc.international_shipment:
 
-		custom_value = 0
+		total_box_custom_value = 0
 
 		for i, item in enumerate(items_in_one_box):
 
@@ -192,8 +195,9 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 			# commodity information must be passed in the Master and on each child transaction.
             # If this shipment contains more than four commodities line items,
 			# the four highest valued should be included in the first 4 occurances for this request.
+
 			commodity = shipment.create_wsdl_object_of_type('Commodity')
-			commodity.Name = get_item_by_item_code(source_doc, item).item_name # Name of this commodity.
+			commodity.Name = get_item_by_item_code(source_doc, item).item_name  # Name of this commodity.
 
 			commodity.NumberOfPieces = quantity # Total number of pieces of this commodity
 
@@ -202,10 +206,11 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 			commodity.CountryOfManufacture = source_doc.shipper_address_country_code
 
-			# # Total weight of this commodity.
+			# Weight of this commodity:
+
 			package_weight = shipment.create_wsdl_object_of_type('Weight')
-			package_weight.Value = box.weight_value / quantity # TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			package_weight.Units = box.weight_units
+			package_weight.Value = get_item_by_item_code(source_doc, item).weight_value
+			package_weight.Units = get_shipment_weight_units(source_doc)
 			commodity.Weight = package_weight
 
 			# This field is used for enterprise transactions:
@@ -219,9 +224,12 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 			commodity.UnitPrice.Amount = get_item_by_item_code(source_doc, item).rate
 
 			# Total customs value for this line item.
-			# It should equal the commodity unit quantity times commodity unit value.
+			# It should equal the commodity unit quantity times commodity unit value:
+
 			commodity.CustomsValue.Currency = "USD"
-			commodity.CustomsValue.Amount = get_item_by_item_code(source_doc, item).custom_value * commodity.Quantity
+			commodity.CustomsValue.Amount = get_item_by_item_code(source_doc, item).custom_value * quantity
+
+			total_box_custom_value += commodity.CustomsValue.Amount
 
 			if commodity.CustomsValue.Amount == 0:
 				frappe.throw(_("CUSTOM VALUE = 0. Please specify custom value in items"))
@@ -236,7 +244,9 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 			shipment.add_commodity(commodity)
 
-			commodity_message = """<div style="color: #36414c; background-color: #f0f5f5; font-size: 80% ; padding: 10px; border-radius: 5px; border: 3px solid;"><b>ITEM NAME</b> = {name} <br>
+			commodity_message = """<div style="color: #36414c; background-color: #f0f5f5;
+			font-size: 80% ; padding: 10px; border-radius: 10px; border: 2px groove;">
+			<b>ITEM NAME</b> = {name} <br>
 					<b>NUMBER OF PIECES </b>        =  {number_of_pieces}<br>
 					<b>DESCRIPTION:</b> <br>
 					{description}<br>
@@ -266,11 +276,9 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 			frappe.db.set(box, 'commodity_information', unicode(commodity_message))
 
-		custom_value += get_item_by_item_code(source_doc, item).custom_value
-
-	frappe.db.set(box, 'total_box_custom_value', custom_value)
-
-	frappe.db.set(box, 'total_box_insurance', sum([get_item_by_item_code(source_doc, item).insurance for item in items_in_one_box]))
+		frappe.db.set(box, 'total_box_custom_value', total_box_custom_value)
+		frappe.db.set(box, 'total_box_insurance', get_total_box_value(box=box, source_doc=source_doc, attrib='insurance'))
+	frappe.db.set(box, 'total_box_weight', '%s (%s)' % (package_weight.Value, get_shipment_weight_units(source_doc)))
 
 	return package
 
@@ -352,38 +360,12 @@ def create_fedex_shipment(source_doc):
 
 	# #############################################################################
 	# #############################################################################
-	# #############################################################################
-	# #############################################################################
 
 	all_boxes = source_doc.get_all_children("DTI Shipment Package")
 
 	# The total number of packages in the entire shipment
 	# (even when the shipment spans multiple transactions.)
 	shipment.RequestedShipment.PackageCount = len(all_boxes)
-
-	# #############################################################################
-
-	# total_insure = shipment.create_wsdl_object_of_type('Money')
-	# total_insure.Currency = 'USD'
-	#
-	# total_for_all_shipment_insurance = 0
-	# total_box = 0
-	#
-	# for box in all_boxes:
-	# 	for item in parse_items_in_box(box):
-	# 		total_box += get_item_by_item_code(source_doc, item).insurance
-	# 	total_for_all_shipment_insurance += total_box
-	#
-	# total_insure.Amount = total_for_all_shipment_insurance
-	# shipment.RequestedShipment.TotalInsuredValue = total_insure
-
-	# Specifies the total declared value for carriage of the shipment.
-	# The declared value for carriage represents the maximum liability of FedEx in
-	# connection with a shipment, including, but not limited to,
-	# any loss, damage, delay, mis-delivery, nondelivery, misinformation,
-	# any failure to provide information, or mis-delivery of information relating to the shipment.
-
-	# #############################################################################
 
 	# First box
 
@@ -397,7 +379,15 @@ def create_fedex_shipment(source_doc):
 	shipment.RequestedShipment.RequestedPackageLineItems = [package]
 
 	if source_doc.international_shipment:
-		add_total_weight(shipment, all_boxes)
+		"""
+		TotalWeight:
+		Identifies the total weight of the shipment being conveyed to FedEx.
+		This is only applicable to International shipments
+		and should only be used on the first package of a multiple piece shipment.
+		This value contains 1 explicit decimal position
+		"""
+		shipment.RequestedShipment.TotalWeight.Units = get_shipment_weight_units(source_doc)
+		shipment.RequestedShipment.TotalWeight.Value = get_total_shipment_value(source_doc=source_doc, attrib='weight_value')
 
 	label = send_request_to_fedex(master_box, shipment, box_sequence_number)
 
@@ -442,6 +432,8 @@ def create_fedex_shipment(source_doc):
 	frappe.db.set(source_doc, 'total_insurance', sum([box.total_box_insurance for box in all_boxes]))
 	frappe.db.set(source_doc, 'total_custom_value', sum([box.total_box_custom_value for box in all_boxes]))
 
+	frappe.db.set(source_doc, 'total_weight', '%s (%s)' % (get_total_shipment_value(source_doc=source_doc, attrib='weight_value'), get_shipment_weight_units(source_doc)))
+
 	# #############################################################################
 	# #############################################################################
 
@@ -482,20 +474,40 @@ def send_request_to_fedex(box, shipment, box_sequence_number):
 # #############################################################################
 
 
-def add_total_weight(shipment, all_boxes):
-	"""
-	TotalWeight:
-	Identifies the total weight of the shipment being conveyed to FedEx.
-	This is only applicable to International shipments
-	and should only be used on the first package of a mutiple piece shipment.
-	This value contains 1 explicit decimal position
-	"""
+def get_shipment_weight_units(source_doc):
+	weight_units = set()
 
-	total_for_all_shipment_weight = shipment.create_wsdl_object_of_type('Weight')
-	total_for_all_shipment_weight.Value = sum([box.weight_value for box in all_boxes])
-	total_for_all_shipment_weight.Units = all_boxes[0].weight_units
+	for box in source_doc.box_list:
+		items = parse_items_in_box(box)
+		for item in items:
+			weight_units.add(get_item_by_item_code(source_doc, item).weight_units)
 
-	shipment.RequestedShipment.TotalWeight = total_for_all_shipment_weight
+		if len(weight_units) > 1:
+			frappe.throw(_("Please select the same weight units for all items. They can't be different."))
+
+	return weight_units.pop()
+
+# #############################################################################
+# #############################################################################
+
+
+def get_total_box_value(box, source_doc, attrib):
+	"""
+	Fox insurance, weight and etc. calculation for box
+	"""
+	box_total = 0
+	items = parse_items_in_box(box)
+	for item in items:
+		quantity_in_box = items[item]
+		box_total += getattr(get_item_by_item_code(source_doc=source_doc, item_code=item), attrib) * quantity_in_box
+	return box_total
+
+
+def get_total_shipment_value(source_doc, attrib):
+	"""
+	Fox insurance, weight  and etc.calculation for all shipment
+	"""
+	return sum([get_total_box_value(box, source_doc, attrib) for box in source_doc.box_list])
 
 # #############################################################################
 # #############################################################################
@@ -645,9 +657,12 @@ def get_package_rate(international=False,
 	if "Service is not allowed" in str(data['Notifications'][0]['Message']):
 		frappe.throw(_("WARNING: Service is not allowed. Please verify address data!"))
 
-	# Todo add ore info to rate for all type?
+	frappe.throw(data)
 
-	return data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']
+	try:
+		data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']
+	except KeyError:
+		frappe.throw(data)
 
 
 @check_permission()
@@ -684,6 +699,50 @@ def get_shipment_rate(doc_name):
 							package_list=rate_box_list)
 
 
+def get_all_rates(doc_name):
+	rate_info = ""
+
+	source_doc = frappe.get_doc("DTI Shipment Note", doc_name)
+	BOXES = source_doc.get_all_children("DTI Shipment Package")
+
+	# TODO
+	rate_box_list = []
+	for i, box in enumerate(BOXES):
+		rate_box_list.append({'weight_value': "LB",
+							  'weight_units': 1,
+							  'physical_packaging': box.physical_packaging,
+							  'group_package_count': i+1,
+							  'insured_amount': box.total_box_insurance})
+
+
+	for service_type in ["STANDARD_OVERNIGHT",
+	 "PRIORITY_OVERNIGHT",
+	 "FEDEX_GROUND",
+	 "FEDEX_EXPRESS_SAVER",
+	 "FEDEX_2_DAY",
+	 "SAME_DAY",
+	 "INTERNATIONAL_ECONOMY",
+	 "INTERNATIONAL_PRIORITY"]:
+
+		rate = get_package_rate(international=source_doc.international_shipment,
+								DropoffType=source_doc.drop_off_type,
+								ServiceType=service_type,
+								PackagingType=source_doc.packaging_type,
+								ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
+								ShipperPostalCode=source_doc.shipper_address_postal_code,
+								ShipperCountryCode=source_doc.shipper_address_country_code,
+								RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_province_code,
+								RecipientPostalCode=source_doc.recipient_address_postal_code,
+								RecipientCountryCode=source_doc.recipient_address_country_code,
+								EdtRequestType='NONE',
+								PaymentType=source_doc.payment_type,
+								package_list=rate_box_list)
+
+		rate_info += "%s - %s (%s) " % (service_type, rate["Amount"], rate["Currency"])
+
+	return rate_info
+
+
 @check_permission()
 @frappe.whitelist()
 def set_shipment_rate(doc_name):
@@ -708,7 +767,7 @@ def show_shipment_estimates(doc_name):
 
 	DictDiffer.validate_shipment_integrity(source_doc=source_doc)
 
-	rate = get_shipment_rate(doc_name)
+	rate_info = get_all_rates(doc_name)
 
 	time = estimate_delivery_time(OriginPostalCode=source_doc.recipient_address_postal_code,
 						          OriginCountryCode=source_doc.recipient_address_postal_code,
@@ -718,8 +777,8 @@ def show_shipment_estimates(doc_name):
 	frappe.msgprint("""Shipment calculator estimates the time and cost of delivery based on the destination and service.
 					<br>
 					<br>
-					<b>Rate: </b> %s (%s) <br>
-					<b>Delivery Time: </b>%s"""% (rate["Amount"], rate["Currency"], time), "INFO")
+					<b>Rate: <br> %s  <br>
+					<b>Delivery Time: </b>%s"""% (rate_info, time), "INFO")
 
 
 # #############################################################################
@@ -872,13 +931,6 @@ class DictDiffer(object):
 
 		if not boxes:
 			frappe.throw(_("Please create shipment box packages!"))
-
-		# ---------------------------------
-
-		if len(set([box.weight_units for box in boxes])) > 1:
-			frappe.throw(_("Please select the same weight units for all boxes. They can't be different."))
-
-		# ---------------------------------
 
 		parsed_items_per_box = {i: parse_items_in_box(package) for i, package in enumerate(boxes)}
 		all_items_in_all_boxes = {}
