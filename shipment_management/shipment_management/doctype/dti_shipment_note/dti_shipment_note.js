@@ -13,7 +13,6 @@ give_estimates = function(doc) {
 
 cur_frm.cscript.estimate = function() {
         cur_frm.save();
-        var loadTime = window.performance.timing.domContentLoadedEventEnd- window.performance.timing.navigationStart;
 
         setTimeout(function() {
            cur_frm.refresh_fields();
@@ -22,7 +21,6 @@ cur_frm.cscript.estimate = function() {
 	      give_estimates(cur_frm)
         }, 5000);
 
-        console.log(loadTime);
 	}
 
 // --------------------------------------------------------------
@@ -68,16 +66,24 @@ frappe.ui.form.on("DTI Shipment Package", "items_in_box", function (frm, _doctyp
           }
 
         var currentValues = calculatePackageValues(frm.doc.delivery_items, processedInput.items);
+
+
         currentPackage.total_box_insurance = currentValues.insurance;
         currentPackage.total_box_custom_value = currentValues.customValue;
+        currentPackage.total_box_weight = currentValues.weightValue;
+
         cur_frm.refresh_fields("total_box_insurance")
         cur_frm.refresh_fields("total_box_custom_value")
+        cur_frm.refresh_fields("total_box_weight")
+
 
         for (var i = 0, global_insuarance = 0; i < frm.doc.box_list.length; global_insuarance += frm.doc.box_list[i++].total_box_insurance);
         for (var i = 0, global_custom_value = 0; i < frm.doc.box_list.length; global_custom_value += frm.doc.box_list[i++].total_box_custom_value);
+        for (var i = 0, global_weight_value = 0; i < frm.doc.box_list.length; global_weight_value += frm.doc.box_list[i++].total_box_weight);
 
         frappe.model.set_value(currentPackage.parenttype, currentPackage.parent, 'total_insurance', global_insuarance);
         frappe.model.set_value(currentPackage.parenttype, currentPackage.parent, 'total_custom_value', global_custom_value);
+        frappe.model.set_value(currentPackage.parenttype, currentPackage.parent, 'total_weight', global_weight_value);
 
     }
 
@@ -132,12 +138,14 @@ function processItemsInTheBox(rawItems) {
 }
 
 function calculatePackageValues(allItems, enteredItems) {
-    var result = { insurance: 0, customValue: 0 };
+    var result = { insurance: 0, customValue: 0,  weightValue : 0};
     for (var i = 0; i < enteredItems.length; i++) {
         var item = getItemByItemCode(allItems, enteredItems[i].itemCode);
         if (!!item) {
+
             result.insurance += item.insurance * enteredItems[i].qty;
             result.customValue += item.custom_value * enteredItems[i].qty;
+            result.weightValue += item.weight_value * enteredItems[i].qty;
         }
     }
     return result;
