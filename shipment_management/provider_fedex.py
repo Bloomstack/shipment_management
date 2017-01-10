@@ -286,8 +286,17 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 			frappe.db.set(box, 'commodity_information', unicode(commodity_message))
 
 		frappe.db.set(box, 'total_box_custom_value', total_box_custom_value)
-		frappe.db.set(box, 'total_box_insurance', get_total_box_value(box=box, source_doc=source_doc, attrib='insurance'))
-	frappe.db.set(box, 'total_box_weight', '%s (%s)' % (package_weight.Value, get_shipment_weight_units(source_doc)))
+
+	# -----------------------------
+
+	frappe.db.set(box, 'total_box_insurance', get_total_box_value(box=box,
+																  source_doc=source_doc,
+																  attrib='insurance'))
+
+	frappe.db.set(box, 'total_box_weight', '%s (%s)' % (get_total_box_value(box=box,
+																			source_doc=source_doc,
+																			attrib='weight_value'),
+														get_shipment_weight_units(source_doc)))
 
 	return package
 
@@ -434,9 +443,38 @@ def create_fedex_shipment(source_doc):
 
 	# ############################################################################
 	# ############################################################################
+	# ############################################################################
+	# ############################################################################
 
-	set_delivery_time(source_doc)
-	set_shipment_rate(source_doc.name)
+	try:
+		delivery_time = estimate_delivery_time(OriginPostalCode=source_doc.shipper_address_postal_code,
+											   OriginCountryCode=source_doc.shipper_address_country_code,
+											   DestinationPostalCode=source_doc.recipient_address_postal_code,
+											   DestinationCountryCode=source_doc.recipient_address_country_code)
+		frappe.db.set(source_doc, 'delivery_time', delivery_time)
+		frappe.msgprint("Delivery Time: %s" % delivery_time, "Updated!")
+	except Exception as error:
+		frappe.throw(_("Delivery time error - %s" % error))
+
+	# ############################################################################
+	# ############################################################################
+
+	try:
+		rate = get_shipment_rate(source_doc.name)
+		frappe.db.set(source_doc, 'shipment_rate',
+					  """
+					  <p style="padding: 15px; align: center; color: #36414c; background-color: #F9FBB6; height: 80px; width: 450px;">
+					  TotalNetChargeWithDutiesAndTaxes: <br>
+					  <b>%s (%s)</b> </p>
+					  """ % (rate["Amount"], rate["Currency"]))
+
+		frappe.msgprint("Rate: %s (%s)" % (rate["Amount"], rate["Currency"]), "Updated!")
+	except Exception as error:
+		frappe.msgprint(error)
+		frappe.db.set(source_doc, 'shipment_rate', "N/A")
+
+	# ############################################################################
+	# ############################################################################
 
 	frappe.db.set(source_doc, 'total_insurance', sum([box.total_box_insurance for box in all_boxes]))
 	frappe.db.set(source_doc, 'total_custom_value', sum([box.total_box_custom_value for box in all_boxes]))
@@ -606,7 +644,7 @@ def get_package_rate(international=False,
 	{"weight_value":"10004000",
 	"weight_units":"LB",
 	"physical_packaging":"BOX",
-	"group_package_count":"1",
+	"group_package_count":"2",
 	"insured_amount":"100"}]
 
 	_______________________________
@@ -666,10 +704,8 @@ def get_package_rate(international=False,
 	if "Service is not allowed" in str(data['Notifications'][0]['Message']):
 		frappe.throw(_("WARNING: Service is not allowed. Please verify address data!"))
 
-	frappe.throw(data)
-
 	try:
-		data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']
+		return data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']
 	except KeyError:
 		frappe.throw(data)
 
@@ -682,8 +718,11 @@ def get_shipment_rate(doc_name):
 
 	rate_box_list = []
 	for i, box in enumerate(BOXES):
-		rate_box_list.append({'weight_value': box.weight_value,
-							  'weight_units': box.weight_units,
+		box_weight_value = get_total_box_value(box=box, source_doc=source_doc, attrib='weight_value')
+		box_weight_units = get_shipment_weight_units(source_doc)
+
+		rate_box_list.append({'weight_value': box_weight_value,
+							  'weight_units': box_weight_units,
 							  'physical_packaging': box.physical_packaging,
 							  'group_package_count': i+1,
 							  'insured_amount': box.total_box_insurance})
@@ -707,31 +746,56 @@ def get_shipment_rate(doc_name):
 							PaymentType=source_doc.payment_type,
 							package_list=rate_box_list)
 
+# #############################################################################
+# #############################################################################
 
-def get_all_rates(doc_name):
-	rate_info = ""
 
+@check_permission()
+@frappe.whitelist()
+def show_shipment_estimates(doc_name):
+	"""
+	Fedex's shipping calculator estimates the time and cost of delivery based on the destination and service.
+	"""
 	source_doc = frappe.get_doc("DTI Shipment Note", doc_name)
-	BOXES = source_doc.get_all_children("DTI Shipment Package")
 
-	# TODO
+	DictDiffer.validate_shipment_integrity(source_doc=source_doc)
+
+	frappe.msgprint("Shipment calculator estimates the time and cost of delivery based on the destination and service.",
+					"INFO")
+
+	# ===============================================================
+
+	# Delivery time
+
+	time = estimate_delivery_time(OriginPostalCode=source_doc.recipient_address_postal_code,
+						          OriginCountryCode=source_doc.recipient_address_postal_code,
+						          DestinationPostalCode=source_doc.shipper_address_country_code,
+						          DestinationCountryCode=source_doc.shipper_address_postal_code)
+
+	frappe.msgprint("<b>Delivery time</b> : %s" % time, "INFO")
+
+	# ===============================================================
+
+	# Calculate Rate:
+
 	rate_box_list = []
-	for i, box in enumerate(BOXES):
-		rate_box_list.append({'weight_value': "LB",
-							  'weight_units': 1,
+	for i, box in enumerate(source_doc.get_all_children("DTI Shipment Package")):
+
+		box_weight_value = get_total_box_value(box=box, source_doc=source_doc, attrib='weight_value')
+		box_weight_units = get_shipment_weight_units(source_doc)
+
+		rate_box_list.append({'weight_value': box_weight_value,
+							  'weight_units': box_weight_units,
 							  'physical_packaging': box.physical_packaging,
 							  'group_package_count': i+1,
 							  'insured_amount': box.total_box_insurance})
 
+	if source_doc.international_shipment:
+		type_list = ["INTERNATIONAL_ECONOMY", "INTERNATIONAL_PRIORITY"]
+	else:
+		type_list = ["STANDARD_OVERNIGHT", "PRIORITY_OVERNIGHT", "FEDEX_EXPRESS_SAVER", "FEDEX_GROUND", "FEDEX_2_DAY", "SAME_DAY"]
 
-	for service_type in ["STANDARD_OVERNIGHT",
-	 "PRIORITY_OVERNIGHT",
-	 "FEDEX_GROUND",
-	 "FEDEX_EXPRESS_SAVER",
-	 "FEDEX_2_DAY",
-	 "SAME_DAY",
-	 "INTERNATIONAL_ECONOMY",
-	 "INTERNATIONAL_PRIORITY"]:
+	for service_type in type_list:
 
 		rate = get_package_rate(international=source_doc.international_shipment,
 								DropoffType=source_doc.drop_off_type,
@@ -747,62 +811,7 @@ def get_all_rates(doc_name):
 								PaymentType=source_doc.payment_type,
 								package_list=rate_box_list)
 
-		rate_info += "%s - %s (%s) " % (service_type, rate["Amount"], rate["Currency"])
-
-	return rate_info
-
-
-@check_permission()
-@frappe.whitelist()
-def set_shipment_rate(doc_name):
-	source_doc = frappe.get_doc("DTI Shipment Note", doc_name)
-
-	try:
-		rate = get_shipment_rate(doc_name)
-		frappe.db.set(source_doc, 'shipment_rate', "%s (%s)" % (rate["Amount"], rate["Currency"]))
-
-		frappe.msgprint("Rate: %s (%s)" % (rate["Amount"], rate["Currency"]), "Updated!")
-	except Exception:
-		frappe.db.set(source_doc, 'shipment_rate', "N/A")
-
-
-@check_permission()
-@frappe.whitelist()
-def show_shipment_estimates(doc_name):
-	"""
-	Fedex's shipping calculator estimates the time and cost of delivery based on the destination and service.
-	"""
-	source_doc = frappe.get_doc("DTI Shipment Note", doc_name)
-
-	DictDiffer.validate_shipment_integrity(source_doc=source_doc)
-
-	rate_info = get_all_rates(doc_name)
-
-	time = estimate_delivery_time(OriginPostalCode=source_doc.recipient_address_postal_code,
-						          OriginCountryCode=source_doc.recipient_address_postal_code,
-						          DestinationPostalCode=source_doc.shipper_address_country_code,
-						          DestinationCountryCode=source_doc.shipper_address_postal_code)
-
-	frappe.msgprint("""Shipment calculator estimates the time and cost of delivery based on the destination and service.
-					<br>
-					<br>
-					<b>Rate: <br> %s  <br>
-					<b>Delivery Time: </b>%s"""% (rate_info, time), "INFO")
-
-
-# #############################################################################
-# #############################################################################
-
-def set_delivery_time(source_doc):
-	try:
-		delivery_time = estimate_delivery_time(OriginPostalCode=source_doc.shipper_address_postal_code,
-											   OriginCountryCode=source_doc.shipper_address_country_code,
-											   DestinationPostalCode=source_doc.recipient_address_postal_code,
-											   DestinationCountryCode=source_doc.recipient_address_country_code)
-		frappe.db.set(source_doc, 'delivery_time', delivery_time)
-		frappe.msgprint("Delivery Time: %s" % delivery_time, "Updated!")
-	except Exception as error:
-		frappe.throw(_("Delivery time error - %s" % error))
+		frappe.msgprint("%s - %s (%s) " % (service_type, rate["Amount"], rate["Currency"]), "INFO")
 
 
 # #############################################################################

@@ -18,7 +18,7 @@ cur_frm.cscript.estimate = function() {
            cur_frm.reload_doc();
            cur_frm.refresh_fields();
 	      give_estimates(cur_frm)
-        }, 5000);
+        }, 20000);
 	}
 
 // --------------------------------------------------------------
@@ -27,7 +27,7 @@ frappe.ui.form.on('DTI Shipment Note', {
 	refresh: function(frm) {
             cur_frm.refresh_fields();
             $("[data-fieldname='international_shipment']").css({'text-transform': 'uppercase', 'font-size':'16px'})
-            $("[data-fieldname='shipment_rate']").css({'background-color': 'rgba(152, 216, 91, 0.43)'})
+            //$("[data-fieldname='shipment_rate']").css({'background-color': 'rgba(152, 216, 91, 0.43)'})
             $("[data-fieldname='estimate']:button").addClass('btn-primary')
 
             if ((cur_frm.doc.label_1) && (cur_frm.doc.docstatus == 1)) {
@@ -46,39 +46,39 @@ frappe.ui.form.on('DTI Shipment Note', {
 
 // --------------------------------------------------------------
 
-    frappe.ui.form.on("DTI Shipment Package", "items_in_box", function (frm, _doctype, currentPackageName) {
-        var currentPackage = getPackageByName(frm.doc.box_list, currentPackageName);
-        if (currentPackage) {
-            var processedInput = processItemsInTheBox(currentPackage.items_in_box);
+frappe.ui.form.on("DTI Shipment Package", "items_in_box", function (frm, _doctype, currentPackageName) {
+    var currentPackage = getPackageByName(frm.doc.box_list, currentPackageName);
+    if (currentPackage) {
+        var processedInput = processItemsInTheBox(currentPackage.items_in_box);
 
-            if (processedInput.invalidLines.length) {
-                alert(__("WARNING! Bad lines:\n" + processedInput.invalidLines.join("\n")));
-            }
-
-            for (var i = 0; i < processedInput.items.length; i++)
-              var curent_item_code_from_user = processedInput.items[i].itemCode
-
-              var parsed_item = getItemByItemCode(frm.doc.delivery_items, curent_item_code_from_user)
-
-              if (!!parsed_item){
-                show_alert(__("OK! Added to box: "+ curent_item_code_from_user));
-              }
-
-            var currentValues = calculatePackageValues(frm.doc.delivery_items, processedInput.items);
-            currentPackage.total_box_insurance = currentValues.insurance;
-            currentPackage.total_box_custom_value = currentValues.customValue;
-            cur_frm.refresh_fields("total_box_insurance")
-            cur_frm.refresh_fields("total_box_custom_value")
-
-            for (var i = 0, global_insuarance = 0; i < frm.doc.box_list.length; global_insuarance += frm.doc.box_list[i++].total_box_insurance);
-            for (var i = 0, global_custom_value = 0; i < frm.doc.box_list.length; global_custom_value += frm.doc.box_list[i++].total_box_custom_value);
-
-            frappe.model.set_value(currentPackage.parenttype, currentPackage.parent, 'total_insurance', global_insuarance);
-            frappe.model.set_value(currentPackage.parenttype, currentPackage.parent, 'total_custom_value', global_custom_value);
-
+        if (processedInput.invalidLines.length) {
+            alert(__("WARNING! Bad lines:\n" + processedInput.invalidLines.join("\n")));
         }
 
-    });
+        for (var i = 0; i < processedInput.items.length; i++)
+          var curent_item_code_from_user = processedInput.items[i].itemCode
+
+          var parsed_item = getItemByItemCode(frm.doc.delivery_items, curent_item_code_from_user)
+
+          if (!!parsed_item){
+            show_alert(__("OK! Added to box: "+ curent_item_code_from_user));
+          }
+
+        var currentValues = calculatePackageValues(frm.doc.delivery_items, processedInput.items);
+        currentPackage.total_box_insurance = currentValues.insurance;
+        currentPackage.total_box_custom_value = currentValues.customValue;
+        cur_frm.refresh_fields("total_box_insurance")
+        cur_frm.refresh_fields("total_box_custom_value")
+
+        for (var i = 0, global_insuarance = 0; i < frm.doc.box_list.length; global_insuarance += frm.doc.box_list[i++].total_box_insurance);
+        for (var i = 0, global_custom_value = 0; i < frm.doc.box_list.length; global_custom_value += frm.doc.box_list[i++].total_box_custom_value);
+
+        frappe.model.set_value(currentPackage.parenttype, currentPackage.parent, 'total_insurance', global_insuarance);
+        frappe.model.set_value(currentPackage.parenttype, currentPackage.parent, 'total_custom_value', global_custom_value);
+
+    }
+
+});
 
 // --------------------------------------------------------------
 
