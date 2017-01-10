@@ -79,8 +79,8 @@ def setUpModule():
 	# -------------------------------
 	logger = logging.getLogger('fedex')
 	ch = logging.StreamHandler()
-	ch.setLevel(logging.ERROR)
-	logger.setLevel(logging.ERROR)
+	ch.setLevel(logging.DEBUG)
+	logger.setLevel(logging.DEBUG)
 	logger.addHandler(ch)
 
 
@@ -95,21 +95,21 @@ def tearDownModule():
 ###########################################################################
 ###########################################################################
 
-class TestDocTypes(unittest.TestCase):
-	def test_fedex_configuration(self):
-		fedex_config = frappe.new_doc("DTI Fedex Configuration")
-
-		fedex_config.fedex_config_name = "TestFedexName"
-		fedex_config.fedex_key = "TestKey"
-		fedex_config.password = "TestPassword"
-		fedex_config.account_number = "TestAccountNumber"
-		fedex_config.meter_number = "TestMeterNumber"
-		fedex_config.freight_account_number = "FreightAccountNumber"
-		fedex_config.use_test_server = False
-
-		fedex_config.save()
-
-		delete_from_db(doc_type_table="tabDTI Fedex Configuration", key='name', value=fedex_config.fedex_config_name)
+# class TestDocTypes(unittest.TestCase):
+# 	def test_fedex_configuration(self):
+# 		fedex_config = frappe.new_doc("DTI Fedex Configuration")
+#
+# 		fedex_config.fedex_config_name = "TestFedexName"
+# 		fedex_config.fedex_key = "TestKey"
+# 		fedex_config.password = "TestPassword"
+# 		fedex_config.account_number = "TestAccountNumber"
+# 		fedex_config.meter_number = "TestMeterNumber"
+# 		fedex_config.freight_account_number = "FreightAccountNumber"
+# 		fedex_config.use_test_server = False
+#
+# 		fedex_config.save()
+#
+# 		delete_from_db(doc_type_table="tabDTI Fedex Configuration", key='name', value=fedex_config.fedex_config_name)
 
 
 ###########################################################################
@@ -172,6 +172,47 @@ class TestShipmentInternational(unittest.TestCase):
 
 		self.note_list.append(self.note)
 
+	def get_saved_domestic_shipment_note(self, test_data_for_items=[]):
+
+		self.note = frappe.new_doc("DTI Shipment Note")
+
+		delivery_note, items = get_delivery_note(amount_of_items=len(test_data_for_items))
+
+		for i, item in enumerate(items):
+			item.insurance = test_data_for_items[i]['insurance']
+			item.qty = test_data_for_items[i]['quantity']
+			item.weight_value = test_data_for_items[i]['weight_value']
+			item.weight_units = test_data_for_items[i]['weight_units']
+
+		self.note.update({"delivery_note": delivery_note,
+						  "international_shipment": False,
+						  "service_type_domestic": "STANDARD_OVERNIGHT",
+						  "recipient_contact_person_name": "George",
+						  "recipient_company_name": "Ukraine book shop",
+						  "recipient_contact_phone_number": "0234876",
+						  "recipient_address_street_lines": "Lesi Ukrainki 23 fl 788",
+						  "recipient_address_city": "Kiev",
+						  "recipient_address_state_or_province_code": "",
+						  "recipient_address_country_code": "UA",
+						  "recipient_address_postal_code": "02140",
+						  "contact_email": "shop@gmail.com",
+						  "shipper_contact_person_name": "Terry Gihtrer",
+						  "shipper_company_name": "JH Audio Company",
+						  "shipper_contact_phone_number": "12345678",
+						  "shipper_address_street_lines": "Street 123456",
+						  "shipper_address_city": "Herndon",
+						  "shipper_address_state_or_province_code": "VA",
+						  "shipper_address_country_code": "US",
+						  "shipper_address_postal_code": "20171",
+						  "delivery_items": items,
+						  })
+
+		self.note.save()
+
+		print "NOTE :", self.note.name
+
+		self.note_list.append(self.note)
+
 	def submit_and_validate(self):
 		self.assertEqual(self.note.tracking_number, "0000-0000-0000-0000")
 		self.assertEqual(self.note.shipment_note_status, "NEW")
@@ -205,90 +246,90 @@ class TestShipmentInternational(unittest.TestCase):
 		self.note.append("box_list", {"physical_packaging": physical_packaging,
 									  "items_in_box": text})
 
-	def test_shipment_note_1(self):
-		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
-			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value': 70,
-																			 'insurance': 50,
-																			 'quantity': 5,
-																			 'weight_value': 1,
-																			 'weight_units': 'LB'}])
-
-			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
-
-			self.submit_and_validate()
-
-	def test_shipment_note_2(self):
-
-		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
-			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value': 70,
-																			 'insurance': 0,
-																			 'quantity': 5,
-																			 'weight_value': 1,
-																			 'weight_units': 'LB'
-																			 }])
-
-			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
-
-			self.submit_and_validate()
-
-	def test_shipment_note_3(self):
-
-		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
-			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value': 0,
-																			 'insurance': 0,
-																			 'quantity': 5,
-																			 'weight_value': 1,
-																			 'weight_units': 'LB'}])
-
-			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
-
-			self.validate_error_during_shipment_creation(expected_error_message="CUSTOM VALUE = 0")
-
-	def test_shipment_note_4(self):
-		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
-			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value': 5,
-																			 'insurance': 100000,
-																			 'quantity': 5,
-																			 'weight_value': 1,
-																			 'weight_units': 'LB'
-																			 }])
-
-			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
-
-			self.validate_error_during_shipment_creation(expected_error_message=
-														 "Total Insured value exceeds customs value (Error code: 2519)")
-
-	def test_shipment_note_5(self):
-		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
-			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value': 8,
-																			 'insurance': 6,
-																			 'quantity': 2,
-																			 'weight_value': 1,
-																			 'weight_units': 'LB'},
-																			{'custom_value':7,
-																			 'insurance': 2,
-																			 'quantity': 5,
-																			 'weight_value': 1,
-																			 'weight_units': 'LB'},
-																			{'custom_value': 6,
-																			 'insurance': 5,
-																			 'quantity': 4,
-																			 'weight_value': 1,
-																			 'weight_units': 'LB'},
-																			{'custom_value': 6,
-																			 'insurance': 5,
-																			 'quantity': 4,
-																			 'weight_value': 1,
-																			 'weight_units': 'LB'}])
-
-			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
-
-			self.submit_and_validate()
+	# def test_shipment_note_1(self):
+	# 	for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
+	# 		self.get_saved_international_shipment_note(type=ship_type,
+	# 												   test_data_for_items=[{'custom_value': 70,
+	# 																		 'insurance': 50,
+	# 																		 'quantity': 5,
+	# 																		 'weight_value': 1,
+	# 																		 'weight_units': 'LB'}])
+	#
+	# 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+	#
+	# 		self.submit_and_validate()
+	#
+	# def test_shipment_note_2(self):
+	#
+	# 	for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
+	# 		self.get_saved_international_shipment_note(type=ship_type,
+	# 												   test_data_for_items=[{'custom_value': 70,
+	# 																		 'insurance': 0,
+	# 																		 'quantity': 5,
+	# 																		 'weight_value': 1,
+	# 																		 'weight_units': 'LB'
+	# 																		 }])
+	#
+	# 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+	#
+	# 		self.submit_and_validate()
+	#
+	# def test_shipment_note_3(self):
+	#
+	# 	for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
+	# 		self.get_saved_international_shipment_note(type=ship_type,
+	# 												   test_data_for_items=[{'custom_value': 0,
+	# 																		 'insurance': 0,
+	# 																		 'quantity': 5,
+	# 																		 'weight_value': 1,
+	# 																		 'weight_units': 'LB'}])
+	#
+	# 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+	#
+	# 		self.validate_error_during_shipment_creation(expected_error_message="CUSTOM VALUE = 0")
+	#
+	# def test_shipment_note_4(self):
+	# 	for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
+	# 		self.get_saved_international_shipment_note(type=ship_type,
+	# 												   test_data_for_items=[{'custom_value': 5,
+	# 																		 'insurance': 100000,
+	# 																		 'quantity': 5,
+	# 																		 'weight_value': 1,
+	# 																		 'weight_units': 'LB'
+	# 																		 }])
+	#
+	# 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+	#
+	# 		self.validate_error_during_shipment_creation(expected_error_message=
+	# 													 "Total Insured value exceeds customs value (Error code: 2519)")
+	#
+	# def test_shipment_note_5(self):
+	# 	for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
+	# 		self.get_saved_international_shipment_note(type=ship_type,
+	# 												   test_data_for_items=[{'custom_value': 8,
+	# 																		 'insurance': 6,
+	# 																		 'quantity': 2,
+	# 																		 'weight_value': 1,
+	# 																		 'weight_units': 'LB'},
+	# 																		{'custom_value':7,
+	# 																		 'insurance': 2,
+	# 																		 'quantity': 5,
+	# 																		 'weight_value': 1,
+	# 																		 'weight_units': 'LB'},
+	# 																		{'custom_value': 6,
+	# 																		 'insurance': 5,
+	# 																		 'quantity': 4,
+	# 																		 'weight_value': 1,
+	# 																		 'weight_units': 'LB'},
+	# 																		{'custom_value': 6,
+	# 																		 'insurance': 5,
+	# 																		 'quantity': 4,
+	# 																		 'weight_value': 1,
+	# 																		 'weight_units': 'LB'}])
+	#
+	# 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+	#
+	# 		self.submit_and_validate()
 
 	def test_shipment_note_6(self):
 		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
@@ -321,7 +362,7 @@ class TestShipmentInternational(unittest.TestCase):
 			self.submit_and_validate()
 
 	def test_shipment_note_7(self):
-		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
+		for ship_type in ['INTERNATIONAL_PRIORITY']:
 			self.get_saved_international_shipment_note(type=ship_type,
 													   test_data_for_items=[
 														   {'custom_value': 3,
@@ -375,105 +416,131 @@ class TestShipmentInternational(unittest.TestCase):
 
 			self.submit_and_validate()
 
-	def test_shipment_note_8(self):
-		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
-			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[{'custom_value': 2501,
-																			 'insurance': 2501,
-																			 'quantity': 1,
-																			 'weight_value': 1,
-																			 'weight_units': 'LB'}])
+	# def test_shipment_note_8(self):
+	# 	for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
+	# 		self.get_saved_international_shipment_note(type=ship_type,
+	# 												   test_data_for_items=[{'custom_value': 2501,
+	# 																		 'insurance': 2501,
+	# 																		 'quantity': 1,
+	# 																		 'weight_value': 1,
+	# 																		 'weight_units': 'LB'}])
+	#
+	# 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+	#
+	# 		self.submit_and_validate()
 
-			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
-			self.submit_and_validate()
+	# def test_shipment_note_9(self):
+	# 	self.get_saved_international_shipment_note(type='INTERNATIONAL_PRIORITY',
+	# 											   test_data_for_items=[
+	# 												   {'custom_value': 3,
+	# 													'insurance': 1,
+	# 													'quantity': 5,
+	# 													'weight_value': 0.1,
+	# 													'weight_units': 'LB'},
+	# 												   {'custom_value': 5,
+	# 													'insurance': 3,
+	# 													'quantity': 5,
+	# 													'weight_value': 1,
+	# 													'weight_units': 'LB'},
+	# 												   {'custom_value': 3,
+	# 													'insurance': 1,
+	# 													'quantity': 5,
+	# 													'weight_value': 0.1,
+	# 													'weight_units': 'LB'},
+	# 												   {'custom_value': 5,
+	# 													'insurance': 3,
+	# 													'quantity': 5,
+	# 													'weight_value': 1,
+	# 													'weight_units': 'LB'},
+	# 												   {'custom_value': 5,
+	# 													'insurance': 3,
+	# 													'quantity': 5,
+	# 													'weight_value': 1,
+	# 													'weight_units': 'LB'},
+	# 												   {'custom_value': 6,
+	# 													'insurance': 4,
+	# 													'quantity': 4,
+	# 													'weight_value': 0.1,
+	# 													'weight_units': 'LB'},
+	# 												   {'custom_value': 10,
+	# 													'insurance': 9,
+	# 													'quantity': 4,
+	# 													'weight_value': 1,
+	# 													'weight_units': 'LB'},
+	# 												   {'custom_value': 5,
+	# 													'insurance': 3,
+	# 													'quantity': 5,
+	# 													'weight_value': 0.3,
+	# 													'weight_units': 'LB'},
+	# 												   {'custom_value': 10,
+	# 													'insurance': 9,
+	# 													'quantity': 4,
+	# 													'weight_value': 1,
+	# 													'weight_units': 'LB'}])
+	#
+	# 	self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+	#
+	# 	self.submit_and_validate()
 
-	def test_shipment_note_9(self):
-		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
-			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[
-														   {'custom_value': 8,
-															'insurance': 6,
-															'quantity': 2,
-															'weight_value': 1,
-															'weight_units': 'LB'},
-														   {'custom_value': 7,
-															'insurance': 2,
-															'quantity': 5,
-															'weight_value': 1,
-															'weight_units': 'LB'},
-														   {'custom_value': 6,
-															'insurance': 5,
-															'quantity': 4,
-															'weight_value': 1,
-															'weight_units': 'LB'},
-														   {'custom_value': 6,
-															'insurance': 5,
-															'quantity': 2,
-															'weight_value': 1,
-															'weight_units': 'LB'}])
+	# def test_shipment_note_11(self):
+	# 	pass
+	# float
 
-			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[0]])
-			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[1:3])
-			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[3]])
+	# ---------------------------------------------------
 
-			self.submit_and_validate()
+	def test_shipment_note_21(self):
+		self.get_saved_international_shipment_note(type='INTERNATIONAL_PRIORITY',
+											  test_data_for_items=[
+													   {'custom_value': 3,
+														'insurance': 1,
+														'quantity': 5,
+														'weight_value': 0.1,
+														'weight_units': 'LB'},
+													   {'custom_value': 5,
+														'insurance': 3,
+														'quantity': 5,
+														'weight_value': 1,
+														'weight_units': 'LB'},
+													   {'custom_value': 3,
+														'insurance': 1,
+														'quantity': 5,
+														'weight_value': 0.1,
+														'weight_units': 'LB'},
+													   {'custom_value': 5,
+														'insurance': 3,
+														'quantity': 5,
+														'weight_value': 1,
+														'weight_units': 'LB'},
+													   {'custom_value': 5,
+														'insurance': 3,
+														'quantity': 5,
+														'weight_value': 1,
+														'weight_units': 'LB'},
+													   {'custom_value': 6,
+														'insurance': 4,
+														'quantity': 4,
+														'weight_value': 0.1,
+														'weight_units': 'LB'},
+													   {'custom_value': 10,
+														'insurance': 9,
+														'quantity': 4,
+														'weight_value': 1,
+														'weight_units': 'LB'},
+													   {'custom_value': 5,
+														'insurance': 3,
+														'quantity': 5,
+														'weight_value': 0.3,
+														'weight_units': 'LB'},
+													   {'custom_value': 10,
+														'insurance': 9,
+														'quantity': 4,
+														'weight_value': 1,
+														'weight_units': 'LB'}])
 
-	def test_shipment_note_10(self):
-		for ship_type in ['INTERNATIONAL_PRIORITY', 'INTERNATIONAL_ECONOMY']:
-			self.get_saved_international_shipment_note(type=ship_type,
-													   test_data_for_items=[
-														   {'custom_value': 3,
-															'insurance': 1,
-															'quantity': 5,
-															'weight_value': 1,
-															'weight_units': 'LB'},
-														   {'custom_value': 5,
-															'insurance': 3,
-															'quantity': 5,
-															'weight_value': 1,
-															'weight_units': 'LB'},
-														   {'custom_value': 3,
-															'insurance': 1,
-															'quantity': 5,
-															'weight_value': 1,
-															'weight_units': 'LB'},
-														   {'custom_value': 5,
-															'insurance': 3,
-															'quantity': 5,
-															'weight_value': 1,
-															'weight_units': 'LB'},
-														   {'custom_value': 5,
-															'insurance': 3,
-															'quantity': 5,
-															'weight_value': 1,
-															'weight_units': 'LB'},
-														   {'custom_value': 6,
-															'insurance': 4,
-															'quantity': 4,
-															'weight_value': 1,
-															'weight_units': 'LB'},
-														   {'custom_value': 10,
-															'insurance': 9,
-															'quantity': 4,
-															'weight_value': 1,
-															'weight_units': 'LB'},
-														   {'custom_value': 5,
-															'insurance': 3,
-															'quantity': 5,
-															'weight_value': 1,
-															'weight_units': 'LB'},
-														   {'custom_value': 10,
-															'insurance': 9,
-															'quantity': 4,
-															'weight_value': 1,
-															'weight_units': 'LB'}])
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
-			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[:5])
-			self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[5:])
-
-			self.submit_and_validate()
-
+		self.submit_and_validate()
 
 if __name__ == '__main__':
 	unittest.main()

@@ -193,7 +193,6 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 			# ########################
 
 			# Total Insured value exceeds customs value (Error code: 2519)
-			# Insured Value can not exceed customs value (Error code: 2251)
 			# Fix:
 
 			package.InsuredValue.Amount = get_item_by_item_code(source_doc, item).insurance
@@ -671,6 +670,7 @@ def get_package_rate(international=False,
 	rate.RequestedShipment.Recipient.Address.StateOrProvinceCode = RecipientStateOrProvinceCode
 	rate.RequestedShipment.Recipient.Address.PostalCode = RecipientPostalCode
 	rate.RequestedShipment.Recipient.Address.CountryCode = RecipientCountryCode
+
 	rate.RequestedShipment.EdtRequestType = EdtRequestType
 	rate.RequestedShipment.ShippingChargesPayment.PaymentType = PaymentType
 
@@ -702,7 +702,10 @@ def get_package_rate(international=False,
 	data = json.loads(response_json)
 
 	if "Service is not allowed" in str(data['Notifications'][0]['Message']):
-		frappe.throw(_("WARNING: Service is not allowed. Please verify address data!"))
+
+		debug_info = "%s <br> %s <br> %s" % (rate.RequestedShipment.ServiceType, rate.RequestedShipment.Shipper, rate.RequestedShipment.Recipient)
+
+		frappe.throw(_("WARNING: Service is not allowed. Please verify address data! <br> % s" % debug_info))
 
 	try:
 		return data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']
@@ -721,11 +724,13 @@ def get_shipment_rate(doc_name):
 		box_weight_value = get_total_box_value(box=box, source_doc=source_doc, attrib='weight_value')
 		box_weight_units = get_shipment_weight_units(source_doc)
 
+		box_insurance = get_total_box_value(box=box, source_doc=source_doc, attrib='insurance')
+
 		rate_box_list.append({'weight_value': box_weight_value,
 							  'weight_units': box_weight_units,
 							  'physical_packaging': box.physical_packaging,
 							  'group_package_count': i+1,
-							  'insured_amount': box.total_box_insurance})
+							  'insured_amount': box_insurance})
 
 	if source_doc.international_shipment:
 		service_type = source_doc.service_type_international
@@ -784,11 +789,13 @@ def show_shipment_estimates(doc_name):
 		box_weight_value = get_total_box_value(box=box, source_doc=source_doc, attrib='weight_value')
 		box_weight_units = get_shipment_weight_units(source_doc)
 
+		box_insurance = get_total_box_value(box=box, source_doc=source_doc, attrib='insurance')
+
 		rate_box_list.append({'weight_value': box_weight_value,
 							  'weight_units': box_weight_units,
 							  'physical_packaging': box.physical_packaging,
 							  'group_package_count': i+1,
-							  'insured_amount': box.total_box_insurance})
+							  'insured_amount': box_insurance})
 
 	if source_doc.international_shipment:
 		type_list = ["INTERNATIONAL_ECONOMY", "INTERNATIONAL_PRIORITY"]
@@ -796,7 +803,6 @@ def show_shipment_estimates(doc_name):
 		type_list = ["STANDARD_OVERNIGHT", "PRIORITY_OVERNIGHT", "FEDEX_EXPRESS_SAVER", "FEDEX_GROUND", "FEDEX_2_DAY", "SAME_DAY"]
 
 	for service_type in type_list:
-
 		rate = get_package_rate(international=source_doc.international_shipment,
 								DropoffType=source_doc.drop_off_type,
 								ServiceType=service_type,
@@ -811,7 +817,7 @@ def show_shipment_estimates(doc_name):
 								PaymentType=source_doc.payment_type,
 								package_list=rate_box_list)
 
-		frappe.msgprint("%s - %s (%s) " % (service_type, rate["Amount"], rate["Currency"]), "INFO")
+		frappe.msgprint("<b>%s</b> : %s (%s)<br>" % (service_type, rate["Amount"], rate["Currency"]))
 
 
 # #############################################################################

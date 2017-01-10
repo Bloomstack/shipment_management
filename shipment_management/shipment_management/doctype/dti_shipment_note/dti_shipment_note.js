@@ -13,12 +13,16 @@ give_estimates = function(doc) {
 
 cur_frm.cscript.estimate = function() {
         cur_frm.save();
+        var loadTime = window.performance.timing.domContentLoadedEventEnd- window.performance.timing.navigationStart;
+
         setTimeout(function() {
            cur_frm.refresh_fields();
            cur_frm.reload_doc();
            cur_frm.refresh_fields();
 	      give_estimates(cur_frm)
-        }, 20000);
+        }, 5000);
+
+        console.log(loadTime);
 	}
 
 // --------------------------------------------------------------
@@ -27,7 +31,6 @@ frappe.ui.form.on('DTI Shipment Note', {
 	refresh: function(frm) {
             cur_frm.refresh_fields();
             $("[data-fieldname='international_shipment']").css({'text-transform': 'uppercase', 'font-size':'16px'})
-            //$("[data-fieldname='shipment_rate']").css({'background-color': 'rgba(152, 216, 91, 0.43)'})
             $("[data-fieldname='estimate']:button").addClass('btn-primary')
 
             if ((cur_frm.doc.label_1) && (cur_frm.doc.docstatus == 1)) {
@@ -280,51 +283,3 @@ frappe.ui.form.on('DTI Shipment Note', "delivery_note", function (frm) {
 }
 
 )
-
-
-
-// --------------------------------------------------------------
-
-// CALCULATE RATE AND DELIVERY ESTIMATION TIME ON FLY
-
-//all_required = function (frm, fields) {
-//    for (var i in fields) {
-//        if (!frm.doc[fields[i]]) {
-//            return false;
-//        }
-//    }
-//    return true;
-//}
-//
-//multifield_events = function (fields, callback) {
-//    var obj = {};
-//    for (var i in fields) {
-//        // console.log("watching for ", fields[i], i);
-//        (function (field) {
-//            obj[field] = function (frm) { callback(field, frm, all_required(frm, fields)); };
-//        } (fields[i]));
-//    }
-//    return obj;
-//}
-
-//frappe.ui.form.on('DTI Shipment Note', $.extend(multifield_events([
-//    'recipient_address_country_code',
-//    'recipient_address_postal_code',
-//    'shipper_address_country_code',
-//    'shipper_address_postal_code'
-//], function (field, frm, all_fields_set) {
-//    // console.log("field change", field, frm);
-//    // console.log((all_fields_set)?"ALL REQUIRED FIELDS FOR DELIVERY-TIME ARE SET":"MISSING REQUIRED FIELDS FOR DELIVERY TIME");
-//
-//
-//    //        var rate = get_rate()
-//    //        console.log("RATE ================>>>>>>>>>", rate)
-//    //        frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'shipment_rate', "0");
-//
-//            var time = delivery_time()
-//            frappe.model.set_value('DTI Shipment Note', cur_frm.doc.name, 'delivery_time', time);
-//
-//
-//}), {
-
-// --------------------------------------------------------------
