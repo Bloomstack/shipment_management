@@ -31,6 +31,14 @@ frappe.ui.form.on('DTI Shipment Note', {
             $("[data-fieldname='international_shipment']").css({'text-transform': 'uppercase', 'font-size':'16px'})
             $("[data-fieldname='estimate']:button").addClass('btn-primary')
 
+            if (frm.doc.__islocal)
+            {
+            frm.set_value("total_insurance", "0")
+            frm.set_value("total_custom_value", "0")
+            frm.set_value("total_weight", "0")
+            }
+
+
             if ((cur_frm.doc.label_1) && (cur_frm.doc.docstatus == 1)) {
                 cur_frm.add_custom_button(__('Print label'),
                     function () {

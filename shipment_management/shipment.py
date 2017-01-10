@@ -266,6 +266,9 @@ def get_delivery_items(delivery_note_name):
 ##############################################################################
 
 def write_to_log(message):
+	"""
+	/frappe-bench/logs/frappe.log
+	"""
 	frappe.logger().info('[SHIPMENT APP] :: ' + message)
 
 

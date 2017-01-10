@@ -14,7 +14,7 @@ from frappe.utils.file_manager import *
 
 
 from config.app_config import PRIMARY_FEDEX_DOC_NAME, ExportComplianceStatement
-from shipment import check_permission
+from shipment import check_permission, write_to_log
 
 
 # #############################################################################
@@ -170,8 +170,6 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 	package1_insure = shipment.create_wsdl_object_of_type('Money')
 	package1_insure.Currency = 'USD'
 
-	# Todo - investigate !
-	#package1_insure.Amount = sum([get_item_by_item_code(source_doc, item).insurance for item in items_in_one_box])
 	package1_insure.Amount = get_total_box_value(box=box, source_doc=source_doc, attrib='insurance')
 	package.InsuredValue = package1_insure
 
@@ -193,8 +191,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 			# ########################
 
 			# Total Insured value exceeds customs value (Error code: 2519)
-			# Fix:
-
+			# FIX :
 			package.InsuredValue.Amount = get_item_by_item_code(source_doc, item).insurance
 
 			# #######################
@@ -475,10 +472,15 @@ def create_fedex_shipment(source_doc):
 	# ############################################################################
 	# ############################################################################
 
-	frappe.db.set(source_doc, 'total_insurance', sum([box.total_box_insurance for box in all_boxes]))
-	frappe.db.set(source_doc, 'total_custom_value', sum([box.total_box_custom_value for box in all_boxes]))
+	frappe.db.set(source_doc, 'total_insurance',  (get_total_shipment_value(source_doc=source_doc,
+																			attrib='insurance')))
 
-	frappe.db.set(source_doc, 'total_weight', '%s (%s)' % (get_total_shipment_value(source_doc=source_doc, attrib='weight_value'), get_shipment_weight_units(source_doc)))
+	if source_doc.international_shipment:
+		frappe.db.set(source_doc, 'total_custom_value', sum([box.total_box_custom_value for box in all_boxes]))
+
+	frappe.db.set(source_doc, 'total_weight', '%s (%s)' % (get_total_shipment_value(source_doc=source_doc,
+																					attrib='weight_value'),
+														   get_shipment_weight_units(source_doc)))
 
 	# #############################################################################
 	# #############################################################################
@@ -701,6 +703,8 @@ def get_package_rate(international=False,
 	response_json = subject_to_json(rate.response)
 	data = json.loads(response_json)
 
+	write_to_log("Rate service response:" + str(data))
+
 	if "Service is not allowed" in str(data['Notifications'][0]['Message']):
 
 		debug_info = "%s <br> %s <br> %s" % (rate.RequestedShipment.ServiceType, rate.RequestedShipment.Shipper, rate.RequestedShipment.Recipient)
@@ -800,13 +804,19 @@ def show_shipment_estimates(doc_name):
 	if source_doc.international_shipment:
 		type_list = ["INTERNATIONAL_ECONOMY", "INTERNATIONAL_PRIORITY"]
 	else:
-		type_list = ["STANDARD_OVERNIGHT", "PRIORITY_OVERNIGHT", "FEDEX_EXPRESS_SAVER", "FEDEX_GROUND", "FEDEX_2_DAY", "SAME_DAY"]
+		type_list = ["STANDARD_OVERNIGHT", "PRIORITY_OVERNIGHT", "FEDEX_EXPRESS_SAVER", "FEDEX_GROUND", "FEDEX_2_DAY"]
 
 	for service_type in type_list:
+		# TODO - Remove YOUR_PACKAGING and use real PackagingType from doc, investigate error:
+		# {u'Notifications': [{u'Source': u'crs', u'Message': u'Service is not allowed.  ', u'Code': u'868',
+		# u'LocalizedMessage': u'Service is not allowed.  ', u'Severity': u'ERROR'}],
+		#  u'Version': {u'Major': 18, u'ServiceId': u'crs', u'Intermediate': 0, u'Minor': 0},
+		#  u'HighestSeverity': u'ERROR'}
+
 		rate = get_package_rate(international=source_doc.international_shipment,
 								DropoffType=source_doc.drop_off_type,
 								ServiceType=service_type,
-								PackagingType=source_doc.packaging_type,
+								PackagingType='YOUR_PACKAGING',
 								ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
 								ShipperPostalCode=source_doc.shipper_address_postal_code,
 								ShipperCountryCode=source_doc.shipper_address_country_code,

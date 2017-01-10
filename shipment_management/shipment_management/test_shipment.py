@@ -134,8 +134,8 @@ class TestDataConfig(object):
 		 'quantity': 5,
 		 'weight_value': 1,
 		 'weight_units': 'LB'},
-		{'custom_value': 5,
-		 'insurance': 3,
+		{'custom_value': 0.5,
+		 'insurance': 0.3,
 		 'quantity': 5,
 		 'weight_value': 1,
 		 'weight_units': 'LB'},
@@ -147,7 +147,7 @@ class TestDataConfig(object):
 		{'custom_value': 10,
 		 'insurance': 9,
 		 'quantity': 4,
-		 'weight_value': 1,
+		 'weight_value': 0.1,
 		 'weight_units': 'LB'},
 		{'custom_value': 5,
 		 'insurance': 3,
@@ -157,7 +157,7 @@ class TestDataConfig(object):
 		{'custom_value': 10,
 		 'insurance': 9,
 		 'quantity': 4,
-		 'weight_value': 1,
+		 'weight_value': 0.2,
 		 'weight_units': 'LB'}]
 
 ExportTestDataDetailMaxValue=[{'custom_value': 2501,
@@ -169,7 +169,7 @@ ExportTestDataDetailMaxValue=[{'custom_value': 2501,
 ###########################################################################
 
 
-class TestShipment(unittest.TestCase):
+class TestShipmentBase(unittest.TestCase):
 	def setUp(self):
 		self.note_list = []
 
@@ -182,7 +182,7 @@ class TestShipment(unittest.TestCase):
 	# 	delete_from_db(doc_type_table="tabDTI Shipment Note Item", key='parent', value=note.name)
 	# 	delete_from_db(doc_type_table="tabDTI Shipment Package", key='parent', value=note.name)
 
-	def get_saved_shipment_note(self, international_shipment=False, service_type=None, test_data_for_items=[]):
+	def get_saved_shipment_note(self, international_shipment=False, test_data_for_items=[]):
 
 		self.note = frappe.new_doc("DTI Shipment Note")
 
@@ -197,45 +197,53 @@ class TestShipment(unittest.TestCase):
 			item.weight_value = test_data_for_items[i]['weight_value']
 			item.weight_units = test_data_for_items[i]['weight_units']
 
-		self.note.update({"delivery_note": delivery_note,
-						  "international_shipment": international_shipment,
-						  "contact_email": "1234567@gmail.com",
-						  "shipper_contact_person_name": "Alex Sopperty",
-						  "shipper_company_name": "Coca cola",
-						  "shipper_contact_phone_number": "12345678",
-						  "shipper_address_street_lines": "Street 123456",
-						  "shipper_address_city": "Herndon",
-						  "shipper_address_state_or_province_code": "VA",
-						  "shipper_address_country_code": "US",
-						  "shipper_address_postal_code": "20171",
-						  "delivery_items": items })
-
 		if international_shipment:
-			if not service_type:
-				service_type = "INTERNATIONAL_PRIORITY"
+			self.note.update({"delivery_note": delivery_note,
+							  "international_shipment": True,
+							  "service_type_international": "INTERNATIONAL_ECONOMY",
+							  "recipient_contact_person_name": "Retty Geropter",
+							  "recipient_company_name": "Sony Corporation",
+							  "recipient_contact_phone_number": "676786786876",
+							  "recipient_address_street_lines": "Lesi Ukrainki 23 fl 34",
+							  "recipient_address_city": "Kiev",
+							  "recipient_address_state_or_province_code": "",
+							  "recipient_address_country_code": "UA",
+							  "recipient_address_postal_code": "02140",
+							  "contact_email": "1234567@gmail.com",
+							  "shipper_contact_person_name": "Bora Bora",
+							  "shipper_company_name": "Katerina",
+							  "shipper_contact_phone_number": "12345678",
+							  "shipper_address_street_lines": "Street 123456",
+							  "shipper_address_city": "Herndon",
+							  "shipper_address_state_or_province_code": "VA",
+							  "shipper_address_country_code": "US",
+							  "shipper_address_postal_code": "20192",
+							  "delivery_items": items,
+							  })
 
-			self.note.update({"service_type_international": service_type,
-							"recipient_contact_person_name": "Jeniffer Lopez",
-							"recipient_company_name": "Jehiffer Company",
-							"recipient_contact_phone_number": "676786786876",
-							"recipient_address_street_lines": "Reuoiu Str 348",
-							"recipient_address_city": "Herndon",
-							"recipient_address_state_or_province_code": "VA",
-							"recipient_address_country_code": "US",
-							"recipient_address_postal_code": "20171"})
 		else:
-			if not service_type:
-				service_type = "STANDARD_OVERNIGHT"
-
-			self.note.update({"service_type_domestic": service_type,
-						  "recipient_contact_person_name": "George",
-						  "recipient_company_name": "Ukraine Book Shop",
-						  "recipient_contact_phone_number": "0234876",
-						  "recipient_address_street_lines": "Lesi Ukrainki 23 fl 788",
-						  "recipient_address_city": "Kiev",
-						  "recipient_address_state_or_province_code": "",
-						  "recipient_address_country_code": "UA",
-						  "recipient_address_postal_code": "02140"})
+			self.note.update({"delivery_note": delivery_note,
+							  "international_shipment": False,
+							  "service_type_domestic": "FEDEX_2_DAY",
+							  "recipient_contact_person_name": "George",
+							  "recipient_company_name": "Fantastic Book shop",
+							  "recipient_contact_phone_number": "0234876",
+							  "recipient_address_street_lines": "b/t 24th St & 23rd St Potrero Hill",
+							  "recipient_address_city": "Minnesota",
+							  "recipient_address_state_or_province_code": "MN",
+							  "recipient_address_country_code": "US",
+							  "recipient_address_postal_code": "55037",
+							  "contact_email": "shop@gmail.com",
+							  "shipper_contact_person_name": "Terry Gihtrer-Assew",
+							  "shipper_company_name": "JH Audio Company",
+							  "shipper_contact_phone_number": "12345678",
+							  "shipper_address_street_lines": "St & 230rd St Terropty Hill",
+							  "shipper_address_city": "Florida",
+							  "shipper_address_state_or_province_code": "FL",
+							  "shipper_address_country_code": "US",
+							  "shipper_address_postal_code": "32216",
+							  "delivery_items": items,
+							  })
 
 		self.note.save()
 
@@ -266,7 +274,6 @@ class TestShipment(unittest.TestCase):
 				self.fail("Wrong expected error: %s" % error)
 
 	def add_to_box(self, physical_packaging="BOX", items_to_ship_in_one_box=[]):
-
 		text = "\n".join(r"{}:{}".format(item.item_code, int(item.qty)) for item in items_to_ship_in_one_box)
 
 		print "BOX:"
@@ -276,10 +283,48 @@ class TestShipment(unittest.TestCase):
 		self.note.append("box_list", {"physical_packaging": physical_packaging,
 									  "items_in_box": text})
 
-	def test_shipment_note_1(self):
-		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.BigTestDataList)
+# ##########################################################################
+# ##########################################################################
+
+
+class TestCaseDomestic(TestShipmentBase):
+
+	def test_all_in_one_box(self):
+		self.get_saved_shipment_note(international_shipment=True,
+									 test_data_for_items=TestDataConfig.BigTestDataList)
 
 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+
+		self.submit_and_validate()
+
+	def test_all_in_different_boxes(self):
+		self.get_saved_shipment_note(international_shipment=True,
+									 test_data_for_items=TestDataConfig.BigTestDataList)
+
+		for i in xrange(len(TestDataConfig.BigTestDataList)):
+			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[i]])
+
+		self.submit_and_validate()
+
+# ##########################################################################
+# ##########################################################################
+
+
+class TestCaseInternational(TestShipmentBase):
+	def test_all_in_one_box(self):
+		self.get_saved_shipment_note(international_shipment=False,
+									 test_data_for_items=TestDataConfig.BigTestDataList)
+
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+
+		self.submit_and_validate()
+
+	def test_all_in_different_boxes(self):
+		self.get_saved_shipment_note(international_shipment=False,
+									 test_data_for_items=TestDataConfig.BigTestDataList)
+
+		for i in xrange(len(TestDataConfig.BigTestDataList)):
+			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[i]])
 
 		self.submit_and_validate()
 
