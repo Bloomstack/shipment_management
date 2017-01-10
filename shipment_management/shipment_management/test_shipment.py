@@ -160,11 +160,11 @@ class TestDataConfig(object):
 		 'weight_value': 0.2,
 		 'weight_units': 'LB'}]
 
-ExportTestDataDetailMaxValue=[{'custom_value': 2501,
-					           'insurance': 2501,
-					           'quantity': 1,
-					           'weight_value': 1,
-					           'weight_units': 'LB'}]
+	ExportTestDataDetailMaxValue=[{'custom_value': 2501,
+								   'insurance': 2501,
+								   'quantity': 1,
+								   'weight_value': 1,
+								   'weight_units': 'LB'}]
 
 ###########################################################################
 
@@ -282,6 +282,7 @@ class TestShipmentBase(unittest.TestCase):
 
 		self.note.append("box_list", {"physical_packaging": physical_packaging,
 									  "items_in_box": text})
+		self.note.save()
 
 # ##########################################################################
 # ##########################################################################
@@ -306,27 +307,86 @@ class TestCaseDomestic(TestShipmentBase):
 
 		self.submit_and_validate()
 
+	def test_export_detail(self):
+		self.get_saved_shipment_note(international_shipment=True,
+									 test_data_for_items=TestDataConfig.ExportTestDataDetailMaxValue)
+
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+
+		self.submit_and_validate()
+
+
 # ##########################################################################
 # ##########################################################################
 
 
 class TestCaseInternational(TestShipmentBase):
 	def test_all_in_one_box(self):
-		self.get_saved_shipment_note(international_shipment=False,
-									 test_data_for_items=TestDataConfig.BigTestDataList)
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.BigTestDataList)
 
 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
 		self.submit_and_validate()
 
-	def test_all_in_different_boxes(self):
-		self.get_saved_shipment_note(international_shipment=False,
-									 test_data_for_items=TestDataConfig.BigTestDataList)
+	def test_all_in_different_boxes_1(self):
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.BigTestDataList)
 
 		for i in xrange(len(TestDataConfig.BigTestDataList)):
 			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[i]])
 
 		self.submit_and_validate()
+
+	def test_all_in_different_boxes_2(self):
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.BigTestDataList)
+
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[1:3])
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[3:4])
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[5:9])
+
+		self.submit_and_validate()
+
+	def test_all_in_different_boxes_3(self):
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.BigTestDataList)
+
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[1:3])
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[5:9])
+
+		self.submit_and_validate()
+
+	def test_export_detail(self):
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.ExportTestDataDetailMaxValue)
+
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+
+		self.submit_and_validate()
+
+	def test_insurance_and_custom_value(self):
+		self.get_saved_shipment_note(international_shipment=True,
+									 test_data_for_items=[{'custom_value': 2,
+														 'insurance': 1000,
+														 'quantity': 5,
+														 'weight_value': 1,
+														 'weight_units': 'LB'
+														 }])
+
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+
+		self.validate_error_during_shipment_creation(expected_error_message=
+													 "Total Insured value exceeds customs value (Error code: 2519)")
+
+	def test_insurance_and_custom_value_2(self):
+		self.get_saved_shipment_note(international_shipment=True,
+									 test_data_for_items=[{'custom_value': 0,
+														 'insurance': 1,
+														 'quantity': 5,
+														 'weight_value': 1,
+														 'weight_units': 'LB'
+														 }])
+
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+
+		self.validate_error_during_shipment_creation(expected_error_message=
+													 "CUSTOM VALUE = 0")
 
 if __name__ == '__main__':
 	unittest.main()
