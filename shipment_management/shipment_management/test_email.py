@@ -1,14 +1,14 @@
 import frappe
 
 from shipment_management.email_controller import send_email, get_content_picked_up, get_content_completed, get_content_cancel, get_content_fail
-from test_fedex import TestShipmentBase, get_delivery_note
+from test_fedex import TestShipmentBase, get_delivery_note, delete_from_db
 
 
 class TestCaseEmail(TestShipmentBase):
 
-	def test_email_configuration(self):
-
+	def setUp(self):
 		self.note = frappe.new_doc("DTI Shipment Note")
+		self.note_list = []
 
 		delivery_note, items = get_delivery_note(amount_of_items=1)
 
@@ -44,6 +44,12 @@ class TestCaseEmail(TestShipmentBase):
 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
 		self.submit_and_validate()
+
+		self.note.save()
+
+		self.note_list.append(self.note)
+
+	def test_email_configuration(self):
 
 		message = get_content_picked_up(self.note)
 		send_email(message=message,
