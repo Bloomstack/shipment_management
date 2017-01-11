@@ -3,13 +3,13 @@ import unittest
 import datetime
 
 from shipment_management.shipment import *
-from shipment_management.provider_fedex import get_html_code_status_with_fedex_tracking_number, get_package_rate, \
-	estimate_delivery_time
+from shipment_management.provider_fedex import get_html_code_status_with_fedex_tracking_number, get_fedex_packages_rate, \
+	estimate_fedex_delivery_time
 from shipment_management.config.app_config import SupportedProviderList
 
 # API for Shopping card:
-# get_package_rate
-# estimate_delivery_time
+# get_fedex_packages_rate
+# estimate_fedex_delivery_time
 # get_carriers_list
 
 
@@ -27,19 +27,19 @@ class TestCaseFedexAPI(unittest.TestCase):
 
 	def tests_get_package_rate_for_one_package_domestic(self):
 
-		response = get_package_rate(international=False,
-									DropoffType='REGULAR_PICKUP',
-									ServiceType='FEDEX_GROUND',
-									PackagingType='YOUR_PACKAGING',
-									ShipperStateOrProvinceCode='SC',
-									ShipperPostalCode='29631',
-									ShipperCountryCode='US',
-									RecipientStateOrProvinceCode='NC',
-									RecipientPostalCode='27577',
-									RecipientCountryCode='US',
-									EdtRequestType='NONE',
-									PaymentType='SENDER',
-									package_list=[{'weight_value': 1.0,
+		response = get_fedex_packages_rate(international=False,
+										   DropoffType='REGULAR_PICKUP',
+										   ServiceType='FEDEX_GROUND',
+										   PackagingType='YOUR_PACKAGING',
+										   ShipperStateOrProvinceCode='SC',
+										   ShipperPostalCode='29631',
+										   ShipperCountryCode='US',
+										   RecipientStateOrProvinceCode='NC',
+										   RecipientPostalCode='27577',
+										   RecipientCountryCode='US',
+										   EdtRequestType='NONE',
+										   PaymentType='SENDER',
+										   package_list=[{'weight_value': 1.0,
 												   'weight_units': "LB",
 												   'physical_packaging': 'BOX',
 												   'group_package_count': 1,
@@ -50,19 +50,19 @@ class TestCaseFedexAPI(unittest.TestCase):
 
 	def tests_get_package_rate_for_two_packages_domestic(self):
 
-		response = get_package_rate(international=False,
-									DropoffType='REGULAR_PICKUP',
-									ServiceType='FEDEX_GROUND',
-									PackagingType='YOUR_PACKAGING',
-									ShipperStateOrProvinceCode='SC',
-									ShipperPostalCode='29631',
-									ShipperCountryCode='US',
-									RecipientStateOrProvinceCode='NC',
-									RecipientPostalCode='27577',
-									RecipientCountryCode='US',
-									EdtRequestType='NONE',
-									PaymentType='SENDER',
-									package_list=[{'weight_value': 1.0,
+		response = get_fedex_packages_rate(international=False,
+										   DropoffType='REGULAR_PICKUP',
+										   ServiceType='FEDEX_GROUND',
+										   PackagingType='YOUR_PACKAGING',
+										   ShipperStateOrProvinceCode='SC',
+										   ShipperPostalCode='29631',
+										   ShipperCountryCode='US',
+										   RecipientStateOrProvinceCode='NC',
+										   RecipientPostalCode='27577',
+										   RecipientCountryCode='US',
+										   EdtRequestType='NONE',
+										   PaymentType='SENDER',
+										   package_list=[{'weight_value': 1.0,
 												   'weight_units': "LB",
 												   'physical_packaging': 'BOX',
 												   'group_package_count': 1,
@@ -78,19 +78,19 @@ class TestCaseFedexAPI(unittest.TestCase):
 
 	def tests_get_package_rate_for_one_package_international(self):
 
-		response = get_package_rate(international=True,
-									DropoffType='REGULAR_PICKUP',
-									ServiceType='INTERNATIONAL_ECONOMY',
-									PackagingType='YOUR_PACKAGING',
-									ShipperStateOrProvinceCode='SC',
-									ShipperPostalCode='29631',
-									ShipperCountryCode='US',
-									RecipientStateOrProvinceCode='',
-									RecipientPostalCode='02140',
-									RecipientCountryCode='UA',
-									EdtRequestType='NONE',
-									PaymentType='SENDER',
-									package_list=[{'weight_value': 1.0,
+		response = get_fedex_packages_rate(international=True,
+										   DropoffType='REGULAR_PICKUP',
+										   ServiceType='INTERNATIONAL_ECONOMY',
+										   PackagingType='YOUR_PACKAGING',
+										   ShipperStateOrProvinceCode='SC',
+										   ShipperPostalCode='29631',
+										   ShipperCountryCode='US',
+										   RecipientStateOrProvinceCode='',
+										   RecipientPostalCode='02140',
+										   RecipientCountryCode='UA',
+										   EdtRequestType='NONE',
+										   PaymentType='SENDER',
+										   package_list=[{'weight_value': 1.0,
 												   'weight_units': "LB",
 												   'physical_packaging': 'BOX',
 												   'group_package_count': 1,
@@ -101,19 +101,19 @@ class TestCaseFedexAPI(unittest.TestCase):
 
 	def tests_get_package_rate_for_two_packages_international(self):
 
-		response = get_package_rate(international=True,
-									DropoffType='REGULAR_PICKUP',
-									ServiceType='INTERNATIONAL_ECONOMY',
-									PackagingType='YOUR_PACKAGING',
-									ShipperStateOrProvinceCode='SC',
-									ShipperPostalCode='29631',
-									ShipperCountryCode='US',
-									RecipientStateOrProvinceCode='',
-									RecipientPostalCode='02140',
-									RecipientCountryCode='UA',
-									EdtRequestType='NONE',
-									PaymentType='SENDER',
-									package_list=[{'weight_value': 1.0,
+		response = get_fedex_packages_rate(international=True,
+										   DropoffType='REGULAR_PICKUP',
+										   ServiceType='INTERNATIONAL_ECONOMY',
+										   PackagingType='YOUR_PACKAGING',
+										   ShipperStateOrProvinceCode='SC',
+										   ShipperPostalCode='29631',
+										   ShipperCountryCode='US',
+										   RecipientStateOrProvinceCode='',
+										   RecipientPostalCode='02140',
+										   RecipientCountryCode='UA',
+										   EdtRequestType='NONE',
+										   PaymentType='SENDER',
+										   package_list=[{'weight_value': 1.0,
 												   'weight_units': "LB",
 												   'physical_packaging': 'BOX',
 												   'group_package_count': 1,
@@ -128,10 +128,10 @@ class TestCaseFedexAPI(unittest.TestCase):
 		self.assertEqual(response['Amount'], 126.31)
 
 	def tests_estimate_delivery_time(self):
-		response = estimate_delivery_time(OriginPostalCode='M5V 3A4',
-										  OriginCountryCode='CA',
-										  DestinationPostalCode='27577',
-										  DestinationCountryCode='US')
+		response = estimate_fedex_delivery_time(OriginPostalCode='M5V 3A4',
+												OriginCountryCode='CA',
+												DestinationPostalCode='27577',
+												DestinationCountryCode='US')
 
 		try:
 			datetime.datetime.strptime(response, "%Y-%m-%d")

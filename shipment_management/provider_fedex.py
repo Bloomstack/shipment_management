@@ -127,10 +127,10 @@ CONFIG_OBJ = get_fedex_config()
 
 @check_permission()
 @frappe.whitelist()
-def estimate_delivery_time(OriginPostalCode=None,
-						   OriginCountryCode=None,
-						   DestinationPostalCode=None,
-						   DestinationCountryCode=None):
+def estimate_fedex_delivery_time(OriginPostalCode=None,
+								 OriginCountryCode=None,
+								 DestinationPostalCode=None,
+								 DestinationCountryCode=None):
 
 	avc_request = FedexAvailabilityCommitmentRequest(CONFIG_OBJ)
 
@@ -443,10 +443,10 @@ def create_fedex_shipment(source_doc):
 	# ############################################################################
 
 	try:
-		delivery_time = estimate_delivery_time(OriginPostalCode=source_doc.shipper_address_postal_code,
-											   OriginCountryCode=source_doc.shipper_address_country_code,
-											   DestinationPostalCode=source_doc.recipient_address_postal_code,
-											   DestinationCountryCode=source_doc.recipient_address_country_code)
+		delivery_time = estimate_fedex_delivery_time(OriginPostalCode=source_doc.shipper_address_postal_code,
+													 OriginCountryCode=source_doc.shipper_address_country_code,
+													 DestinationPostalCode=source_doc.recipient_address_postal_code,
+													 DestinationCountryCode=source_doc.recipient_address_country_code)
 		frappe.db.set(source_doc, 'delivery_time', delivery_time)
 		frappe.msgprint("Delivery Time: %s" % delivery_time, "Updated!")
 	except Exception as error:
@@ -456,7 +456,7 @@ def create_fedex_shipment(source_doc):
 	# ############################################################################
 
 	try:
-		rate = get_shipment_rate(source_doc.name)
+		rate = get_all_shipment_rate(source_doc.name)
 		frappe.db.set(source_doc, 'shipment_rate',
 					  """
 					  <p style="padding: 15px; align: center; color: #36414c; background-color: #F9FBB6; height: 80px; width: 450px;">
@@ -593,19 +593,19 @@ def get_item_by_item_code(source_doc, item_code):
 
 @check_permission()
 @frappe.whitelist()
-def get_package_rate(international=False,
-					 DropoffType=None,
-					 ServiceType=None,
-					 PackagingType=None,
-					 ShipperStateOrProvinceCode=None,
-					 ShipperPostalCode=None,
-					 ShipperCountryCode=None,
-					 RecipientStateOrProvinceCode=None,
-					 RecipientPostalCode=None,
-					 RecipientCountryCode=None,
-					 EdtRequestType=None,
-					 PaymentType=None,
-					 package_list=None):
+def get_fedex_packages_rate(international=False,
+							DropoffType=None,
+							ServiceType=None,
+							PackagingType=None,
+							ShipperStateOrProvinceCode=None,
+							ShipperPostalCode=None,
+							ShipperCountryCode=None,
+							RecipientStateOrProvinceCode=None,
+							RecipientPostalCode=None,
+							RecipientCountryCode=None,
+							EdtRequestType=None,
+							PaymentType=None,
+							package_list=None):
 
 	"""
 	:param international:
@@ -719,7 +719,7 @@ def get_package_rate(international=False,
 
 @check_permission()
 @frappe.whitelist()
-def get_shipment_rate(doc_name):
+def get_all_shipment_rate(doc_name):
 	source_doc = frappe.get_doc("DTI Shipment Note", doc_name)
 	BOXES = source_doc.get_all_children("DTI Shipment Package")
 
@@ -741,19 +741,19 @@ def get_shipment_rate(doc_name):
 	else:
 		service_type = source_doc.service_type_domestic
 
-	return get_package_rate(international=source_doc.international_shipment,
-							DropoffType=source_doc.drop_off_type,
-							ServiceType=service_type,
-							PackagingType=source_doc.packaging_type,
-							ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
-							ShipperPostalCode=source_doc.shipper_address_postal_code,
-							ShipperCountryCode=source_doc.shipper_address_country_code,
-							RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_province_code,
-							RecipientPostalCode=source_doc.recipient_address_postal_code,
-							RecipientCountryCode=source_doc.recipient_address_country_code,
-							EdtRequestType='NONE',
-							PaymentType=source_doc.payment_type,
-							package_list=rate_box_list)
+	return get_fedex_packages_rate(international=source_doc.international_shipment,
+								   DropoffType=source_doc.drop_off_type,
+								   ServiceType=service_type,
+								   PackagingType=source_doc.packaging_type,
+								   ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
+								   ShipperPostalCode=source_doc.shipper_address_postal_code,
+								   ShipperCountryCode=source_doc.shipper_address_country_code,
+								   RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_province_code,
+								   RecipientPostalCode=source_doc.recipient_address_postal_code,
+								   RecipientCountryCode=source_doc.recipient_address_country_code,
+								   EdtRequestType='NONE',
+								   PaymentType=source_doc.payment_type,
+								   package_list=rate_box_list)
 
 # #############################################################################
 # #############################################################################
@@ -776,10 +776,10 @@ def show_shipment_estimates(doc_name):
 
 	# Delivery time
 
-	time = estimate_delivery_time(OriginPostalCode=source_doc.recipient_address_postal_code,
-						          OriginCountryCode=source_doc.recipient_address_postal_code,
-						          DestinationPostalCode=source_doc.shipper_address_country_code,
-						          DestinationCountryCode=source_doc.shipper_address_postal_code)
+	time = estimate_fedex_delivery_time(OriginPostalCode=source_doc.recipient_address_postal_code,
+										OriginCountryCode=source_doc.recipient_address_postal_code,
+										DestinationPostalCode=source_doc.shipper_address_country_code,
+										DestinationCountryCode=source_doc.shipper_address_postal_code)
 
 	frappe.msgprint("<b>Delivery time</b> : %s" % time, "INFO")
 
@@ -808,24 +808,21 @@ def show_shipment_estimates(doc_name):
 
 	for service_type in type_list:
 		# TODO - Remove YOUR_PACKAGING and use real PackagingType from doc, investigate error:
-		# {u'Notifications': [{u'Source': u'crs', u'Message': u'Service is not allowed.  ', u'Code': u'868',
-		# u'LocalizedMessage': u'Service is not allowed.  ', u'Severity': u'ERROR'}],
-		#  u'Version': {u'Major': 18, u'ServiceId': u'crs', u'Intermediate': 0, u'Minor': 0},
-		#  u'HighestSeverity': u'ERROR'}
+		# Service is not allowed. (Code = 868)
 
-		rate = get_package_rate(international=source_doc.international_shipment,
-								DropoffType=source_doc.drop_off_type,
-								ServiceType=service_type,
-								PackagingType='YOUR_PACKAGING',
-								ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
-								ShipperPostalCode=source_doc.shipper_address_postal_code,
-								ShipperCountryCode=source_doc.shipper_address_country_code,
-								RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_province_code,
-								RecipientPostalCode=source_doc.recipient_address_postal_code,
-								RecipientCountryCode=source_doc.recipient_address_country_code,
-								EdtRequestType='NONE',
-								PaymentType=source_doc.payment_type,
-								package_list=rate_box_list)
+		rate = get_fedex_packages_rate(international=source_doc.international_shipment,
+									   DropoffType=source_doc.drop_off_type,
+									   ServiceType=service_type,
+									   PackagingType='YOUR_PACKAGING',
+									   ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
+									   ShipperPostalCode=source_doc.shipper_address_postal_code,
+									   ShipperCountryCode=source_doc.shipper_address_country_code,
+									   RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_province_code,
+									   RecipientPostalCode=source_doc.recipient_address_postal_code,
+									   RecipientCountryCode=source_doc.recipient_address_country_code,
+									   EdtRequestType='NONE',
+									   PaymentType=source_doc.payment_type,
+									   package_list=rate_box_list)
 
 		frappe.msgprint("<b>%s</b> : %s (%s)<br>" % (service_type, rate["Amount"], rate["Currency"]))
 

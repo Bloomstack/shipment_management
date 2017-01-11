@@ -111,6 +111,9 @@ class TestDocTypes(unittest.TestCase):
 
 
 ###########################################################################
+###########################################################################
+###########################################################################
+
 
 class TestDataConfig(object):
 	BigTestDataList = [
@@ -165,6 +168,100 @@ class TestDataConfig(object):
 								   'quantity': 1,
 								   'weight_value': 1,
 								   'weight_units': 'LB'}]
+
+	InsuranceZeroForAllItems = [
+	{'custom_value': 3,
+	 'insurance': 0,
+	 'quantity': 5,
+	 'weight_value': 0.1,
+	 'weight_units': 'LB'},
+	{'custom_value': 5,
+	 'insurance': 0,
+	 'quantity': 5,
+	 'weight_value': 1,
+	 'weight_units': 'LB'},
+	{'custom_value': 3,
+	 'insurance': 0,
+	 'quantity': 5,
+	 'weight_value': 0.1,
+	 'weight_units': 'LB'},
+	{'custom_value': 5,
+	 'insurance': 0,
+	 'quantity': 5,
+	 'weight_value': 1,
+	 'weight_units': 'LB'},
+	{'custom_value': 0.5,
+	 'insurance': 0,
+	 'quantity': 5,
+	 'weight_value': 1,
+	 'weight_units': 'LB'},
+	{'custom_value': 6,
+	 'insurance': 0,
+	 'quantity': 4,
+	 'weight_value': 0.1,
+	 'weight_units': 'LB'},
+	{'custom_value': 10,
+	 'insurance': 0,
+	 'quantity': 4,
+	 'weight_value': 0.1,
+	 'weight_units': 'LB'},
+	{'custom_value': 5,
+	 'insurance': 0,
+	 'quantity': 5,
+	 'weight_value': 0.3,
+	 'weight_units': 'LB'},
+	{'custom_value': 10,
+	 'insurance': 0,
+	 'quantity': 4,
+	 'weight_value': 0.2,
+	 'weight_units': 'LB'}]
+
+	InsuranceZeroForPartItems = [
+	{'custom_value': 3,
+	 'insurance': 0.4,
+	 'quantity': 5,
+	 'weight_value': 0.1,
+	 'weight_units': 'LB'},
+	{'custom_value': 5,
+	 'insurance': 0,
+	 'quantity': 5,
+	 'weight_value': 1,
+	 'weight_units': 'LB'},
+	{'custom_value': 3,
+	 'insurance': 0,
+	 'quantity': 5,
+	 'weight_value': 0.1,
+	 'weight_units': 'LB'},
+	{'custom_value': 5,
+	 'insurance': 0,
+	 'quantity': 5,
+	 'weight_value': 1,
+	 'weight_units': 'LB'},
+	{'custom_value': 0.5,
+	 'insurance': 0,
+	 'quantity': 5,
+	 'weight_value': 1,
+	 'weight_units': 'LB'},
+	{'custom_value': 6,
+	 'insurance': 1,
+	 'quantity': 4,
+	 'weight_value': 0.1,
+	 'weight_units': 'LB'},
+	{'custom_value': 10,
+	 'insurance': 0,
+	 'quantity': 4,
+	 'weight_value': 0.1,
+	 'weight_units': 'LB'},
+	{'custom_value': 5,
+	 'insurance': 0,
+	 'quantity': 5,
+	 'weight_value': 0.3,
+	 'weight_units': 'LB'},
+	{'custom_value': 10,
+	 'insurance': 5,
+	 'quantity': 4,
+	 'weight_value': 0.2,
+	 'weight_units': 'LB'}]
 
 ###########################################################################
 
@@ -246,8 +343,9 @@ class TestShipmentBase(unittest.TestCase):
 							  })
 
 		self.note.save()
-
-		print "NOTE :", self.note.name
+		print "-" * 45
+		print "      [ %s ] " % self.note.name
+		print "-" * 45
 
 		self.note_list.append(self.note)
 
@@ -276,9 +374,8 @@ class TestShipmentBase(unittest.TestCase):
 	def add_to_box(self, physical_packaging="BOX", items_to_ship_in_one_box=[]):
 		text = "\n".join(r"{}:{}".format(item.item_code, int(item.qty)) for item in items_to_ship_in_one_box)
 
-		print "BOX:"
+		print "\nAdded to the box:"
 		print text
-		print "-" * 30
 
 		self.note.append("box_list", {"physical_packaging": physical_packaging,
 									  "items_in_box": text})
@@ -291,16 +388,14 @@ class TestShipmentBase(unittest.TestCase):
 class TestCaseDomestic(TestShipmentBase):
 
 	def test_all_in_one_box(self):
-		self.get_saved_shipment_note(international_shipment=True,
-									 test_data_for_items=TestDataConfig.BigTestDataList)
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.BigTestDataList)
 
 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
 		self.submit_and_validate()
 
 	def test_all_in_different_boxes(self):
-		self.get_saved_shipment_note(international_shipment=True,
-									 test_data_for_items=TestDataConfig.BigTestDataList)
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.BigTestDataList)
 
 		for i in xrange(len(TestDataConfig.BigTestDataList)):
 			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[i]])
@@ -308,13 +403,41 @@ class TestCaseDomestic(TestShipmentBase):
 		self.submit_and_validate()
 
 	def test_export_detail(self):
-		self.get_saved_shipment_note(international_shipment=True,
-									 test_data_for_items=TestDataConfig.ExportTestDataDetailMaxValue)
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.ExportTestDataDetailMaxValue)
 
 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
 		self.submit_and_validate()
 
+	def test_insurance_zero_1(self):
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.InsuranceZeroForAllItems)
+
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+
+		self.submit_and_validate()
+
+	def test_insurance_zero_2(self):
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.InsuranceZeroForAllItems)
+
+		for i in xrange(len(TestDataConfig.InsuranceZeroForAllItems)):
+			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[i]])
+
+		self.submit_and_validate()
+
+	def test_insurance_zero_3(self):
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.InsuranceZeroForPartItems)
+
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+
+		self.submit_and_validate()
+
+	def test_insurance_zero_4(self):
+		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.InsuranceZeroForPartItems)
+
+		for i in xrange(len(TestDataConfig.InsuranceZeroForPartItems)):
+			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[i]])
+
+		self.submit_and_validate()
 
 # ##########################################################################
 # ##########################################################################
@@ -322,14 +445,16 @@ class TestCaseDomestic(TestShipmentBase):
 
 class TestCaseInternational(TestShipmentBase):
 	def test_all_in_one_box(self):
-		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.BigTestDataList)
+		self.get_saved_shipment_note(international_shipment=True,
+									 test_data_for_items=TestDataConfig.BigTestDataList)
 
 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
 		self.submit_and_validate()
 
 	def test_all_in_different_boxes_1(self):
-		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.BigTestDataList)
+		self.get_saved_shipment_note(international_shipment=True,
+										test_data_for_items=TestDataConfig.BigTestDataList)
 
 		for i in xrange(len(TestDataConfig.BigTestDataList)):
 			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[i]])
@@ -337,7 +462,7 @@ class TestCaseInternational(TestShipmentBase):
 		self.submit_and_validate()
 
 	def test_all_in_different_boxes_2(self):
-		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.BigTestDataList)
+		self.get_saved_shipment_note(international_shipment=True, test_data_for_items=TestDataConfig.BigTestDataList)
 
 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[1:3])
 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[3:4])
@@ -346,7 +471,7 @@ class TestCaseInternational(TestShipmentBase):
 		self.submit_and_validate()
 
 	def test_all_in_different_boxes_3(self):
-		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.BigTestDataList)
+		self.get_saved_shipment_note(international_shipment=True, test_data_for_items=TestDataConfig.BigTestDataList)
 
 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[1:3])
 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items[5:9])
@@ -354,7 +479,7 @@ class TestCaseInternational(TestShipmentBase):
 		self.submit_and_validate()
 
 	def test_export_detail(self):
-		self.get_saved_shipment_note(test_data_for_items=TestDataConfig.ExportTestDataDetailMaxValue)
+		self.get_saved_shipment_note(international_shipment=True, test_data_for_items=TestDataConfig.ExportTestDataDetailMaxValue)
 
 		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
 
@@ -387,6 +512,40 @@ class TestCaseInternational(TestShipmentBase):
 
 		self.validate_error_during_shipment_creation(expected_error_message=
 													 "CUSTOM VALUE = 0")
+
+	def test_insurance_zero_1(self):
+		self.get_saved_shipment_note(international_shipment=True,
+									 test_data_for_items=TestDataConfig.InsuranceZeroForAllItems)
+
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+
+		self.submit_and_validate()
+
+	def test_insurance_zero_2(self):
+		self.get_saved_shipment_note(international_shipment=True,
+									 test_data_for_items=TestDataConfig.InsuranceZeroForAllItems)
+
+		for i in xrange(len(TestDataConfig.InsuranceZeroForAllItems)):
+			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[i]])
+
+		self.submit_and_validate()
+
+	def test_insurance_zero_3(self):
+		self.get_saved_shipment_note(international_shipment=True,
+									 test_data_for_items=TestDataConfig.InsuranceZeroForPartItems)
+
+		self.add_to_box(items_to_ship_in_one_box=self.note.delivery_items)
+
+		self.submit_and_validate()
+
+	def test_insurance_zero_4(self):
+		self.get_saved_shipment_note(international_shipment=True,
+									 test_data_for_items=TestDataConfig.InsuranceZeroForPartItems)
+
+		for i in xrange(len(TestDataConfig.InsuranceZeroForPartItems)):
+			self.add_to_box(items_to_ship_in_one_box=[self.note.delivery_items[i]])
+
+		self.submit_and_validate()
 
 if __name__ == '__main__':
 	unittest.main()
