@@ -7,7 +7,6 @@ import string
 import frappe
 import logging
 
-from frappe.utils import today
 from frappe.utils.make_random import get_random
 
 from shipment_management.provider_fedex import parse_items_in_box, get_item_by_item_code, delete_fedex_shipment
