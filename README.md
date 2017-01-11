@@ -133,3 +133,21 @@ Report List -> New -> Save
 - get_fedex_packages_rate
 - estimate_fedex_delivery_time
 - get_carriers_list
+
+
+# 14. Technical dept
+
+1) Fedex status code are used - like PU, AA and etc.
+
+It will be better to add some Fedex status mapper for show more user-friendly statuses like:
+- At Airport 
+- Plane Landed 
+- At Delivery 
+- In Progress
+
+2) Real Delivery Note and Delivery Note Items are used in test - it will be better to create all tests data it tests.
+
+3) We should remove TEMP-FEDEX Folder from our source code and import from fedex in python libs after Pull Request will be merged - https://github.com/python-fedex-devs/python-fedex/pull/84
+
+4) RATE (provider_fedex.py)
+We should remove YOUR_PACKAGING and use real PackagingType from doc, investigate error: Service is not allowed. (Code = 868)
