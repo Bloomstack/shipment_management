@@ -7,11 +7,6 @@ from shipment_management.provider_fedex import get_html_code_status_with_fedex_t
 	estimate_fedex_delivery_time
 from shipment_management.config.app_config import SupportedProviderList
 
-# API for Shopping card:
-# get_fedex_packages_rate
-# estimate_fedex_delivery_time
-# get_carriers_list
-
 
 class TestCaseFedexAPI(unittest.TestCase):
 	def setUp(self):

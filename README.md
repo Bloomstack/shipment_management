@@ -114,7 +114,7 @@ bench run-tests --app shipment_management
 ```
 or
 ```
-bench run-tests --module "shipment_management.shipment_management.test_fedex_shipment"
+bench run-tests --module "shipment_management.shipment_management.test_fedex"
 ```
 
 # 10. Permissions
