@@ -99,37 +99,6 @@ FedEx Corporation is a US multinational courier delivery services company.
 The company is known for its overnight shipping service, but also for pioneering a system 
 that could track packages and provide real-time updates on package location.
 
-
-### Fedex Statuses
-
-Example(Maintained by Fedex):
-- At Airport
-- Plane Landed
-- At Delivery
-- In Progress
-- At FedEx Facility
-- At Pickup
-- Picked Up    ------> It triggers email to customer
-- Arrived at
-- CDO Requested
-- At USPS facility
-- CDO Modified
-- Shipment Canceled
-- CDO Cancelled
-- Location Changed
-- Return to Shipper
-- Delivery Delay
-- Delivery Exception
-- Delivered   -----------> For shipment note completing
-- Departed FedEx Location
-- Shipment Exception
-- Vehicle dispatched
-- At Sort Facility
-- Delay
-- Enroute to Airport delay
-- Transfer
-
-
 # 8. Status Check Web Page
 Added web page for customer to provide possibility to check status by tracking number
 
@@ -145,7 +114,7 @@ bench run-tests --app shipment_management
 ```
 or
 ```
-bench run-tests --module "shipment_management.shipment_management.test_shipment"
+bench run-tests --module "shipment_management.shipment_management.test_fedex_shipment"
 ```
 
 # 10. Permissions
@@ -161,6 +130,6 @@ Report List -> New -> Save
 
 
 # 13. API for shopping cart 
-- get_package_rate
-- estimate_delivery_time
+- get_fedex_packages_rate
+- estimate_fedex_delivery_time
 - get_carriers_list
