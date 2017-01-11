@@ -271,7 +271,9 @@ class TestShipmentBase(unittest.TestCase):
 
 	def tearDown(self):
 		for note in self.note_list:
-			delete_fedex_shipment(note)
+			if self.note.tracking_number != "0000-0000-0000-0000":
+				delete_fedex_shipment(note)
+
 			delete_from_db(doc_type_table="tabDTI Shipment Note", key='name', value=note.name)
 			delete_from_db(doc_type_table="tabDTI Shipment Note Item", key='parent', value=note.name)
 			delete_from_db(doc_type_table="tabDTI Shipment Package", key='parent', value=note.name)
