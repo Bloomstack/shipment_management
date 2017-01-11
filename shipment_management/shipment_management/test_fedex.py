@@ -270,13 +270,11 @@ class TestShipmentBase(unittest.TestCase):
 		self.note_list = []
 
 	def tearDown(self):
-		pass
-
-	# for note in self.note_list:
-	# 	delete_fedex_shipment(note)
-	# 	delete_from_db(doc_type_table="tabDTI Shipment Note", key='name', value=note.name)
-	# 	delete_from_db(doc_type_table="tabDTI Shipment Note Item", key='parent', value=note.name)
-	# 	delete_from_db(doc_type_table="tabDTI Shipment Package", key='parent', value=note.name)
+		for note in self.note_list:
+			delete_fedex_shipment(note)
+			delete_from_db(doc_type_table="tabDTI Shipment Note", key='name', value=note.name)
+			delete_from_db(doc_type_table="tabDTI Shipment Note Item", key='parent', value=note.name)
+			delete_from_db(doc_type_table="tabDTI Shipment Package", key='parent', value=note.name)
 
 	def get_saved_shipment_note(self, international_shipment=False, test_data_for_items=[]):
 

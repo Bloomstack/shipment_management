@@ -69,6 +69,12 @@ def get_content_picked_up(shipment_note):
 
 	items_html += "</table>"
 
+	if shipment_note.international_shipment:
+		service_type = shipment_note.service_type_international
+
+	else:
+		service_type = shipment_note.service_type_domestic
+
 	return frappe.render_template("templates/email/picked_up.html",
 								  {"customer_name": shipment_note.recipient_company_name,
 								   "shipment_note_address": address_string,
@@ -76,8 +82,8 @@ def get_content_picked_up(shipment_note):
 								   "sales_order_id": shipment_note.sales_order,
 								   "delivery_note": shipment_note.delivery_note,
 								   "carrier_name": shipment_note.shipment_provider,
-								   "delivery_type": shipment_note.service_type,
-								   "rate": shipment_note.rate,
+								   "delivery_type": service_type,
+								   "rate": shipment_note.shipment_rate,
 								   "tracking_number": shipment_note.tracking_number,
 								   "delivery_time": shipment_note.delivery_time})
 

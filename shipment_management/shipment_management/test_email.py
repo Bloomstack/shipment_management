@@ -16,7 +16,7 @@ class TestCaseEmail(TestShipmentBase):
 			item.insurance = 0
 			item.qty = 1
 			item.weight_value = 2
-			item.weight_units = 2
+			item.weight_units = 'LB'
 
 		self.note.update({"delivery_note": delivery_note,
 						  "international_shipment": False,
