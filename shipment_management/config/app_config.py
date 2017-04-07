@@ -5,7 +5,7 @@ class SupportedProviderList(object):
 
 PRIMARY_FEDEX_DOC_NAME = "Fedex Test Server Config"
 
-
+# WTF? Move this to site_config / DB 
 class FedexTestServerConfiguration(object):
     key = '0uSKxCgw6AZANfZ5'
     password = 'WFDeuKsHwGuplTgd7ESLK0FpB'
