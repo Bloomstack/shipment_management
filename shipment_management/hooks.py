@@ -96,3 +96,6 @@ scheduler_events = {
 # 	"frappe.desk.doctype.event.event.get_events": "shipment_management.event.get_events"
 # }
 
+shipping_rate_api = [
+    { "name": "FedEx", "module": "shipment_management.api" }
+]
