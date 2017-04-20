@@ -15,18 +15,18 @@ VALID_PACKAGING_TYPES = (
 )
 
 SERVICE_TYPES = (
-	"FEDEX_2_DAY",
-	"FEDEX_EXPRESS_SAVER",
-	"FEDEX_GROUND",
-	"FIRST_OVERNIGHT",
-	"PRIORITY_OVERNIGHT",
-	"STANDARD_OVERNIGHT"
+	("FEDEX_2_DAY", "FedEx 2 Day"),
+	("FEDEX_EXPRESS_SAVER", "FedEx Express Saver"),
+	("FEDEX_GROUND", "FedEx Ground"),
+	("FIRST_OVERNIGHT", "FedEx First Class Overnight"),
+	("PRIORITY_OVERNIGHT", "FedEx Priority Overnight"),
+	("STANDARD_OVERNIGHT", "FedEx Standard Overnight")
 )
 
 SERVICE_TYPES_INTERNATIONAL = (
-	"INTERNATIONAL_ECONOMY",
-	"INTERNATIONAL_FIRST",
-	"INTERNATIONAL_PRIORITY"
+	("INTERNATIONAL_ECONOMY", "FedEx Int. Economy"),
+	("INTERNATIONAL_FIRST", "FedEx Int. First Class"),
+	("INTERNATIONAL_PRIORITY", "FedEx Int. Priority")
 )
 
 def normalize_state(country, state):
@@ -76,22 +76,21 @@ def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING
 		package_list=packages
 	)
 
-	rates = {}
-	services = list()
-	services += SERVICE_TYPES
-
-	if from_country != to_country:
-		services += SERVICE_TYPES_INTERNATIONAL
+	rates = []
+	if from_country == to_country:
+		services = SERVICE_TYPES
+	else:
+		services = SERVICE_TYPES_INTERNATIONAL
 
 	for serviceType in services:
 		try:
-			args["ServiceType"] = serviceType
+			args["ServiceType"] = serviceType[0]
 			rate = get_fedex_packages_rate(**args)
-			rates[serviceType] = rate
+			rates.append({ "fee": rate.get("Amount"), "label": serviceType[1], "name": serviceType[0] })
 		except Exception as ex:
 			print(ex)
 
-	return rates
+	return sorted(rates, key=lambda rate: rate["fee"])
 
 
 def test_rates_api():
@@ -109,7 +108,7 @@ def test_rates_api():
 
 	packages = [
 		{"weight_value": 100,
-		"weight_units":"LB"},
+		},
 		#"physical_packaging":"BOX"},
 		#"group_package_count": 1,
 		#"insured_amount":1000},

@@ -97,5 +97,5 @@ scheduler_events = {
 # }
 
 shipping_rate_api = [
-    { "name": "FedEx", "module": "shipment_management.api" }
+    { "name": "FedEx", "module": "shipment_management.api.get_rates" }
 ]
