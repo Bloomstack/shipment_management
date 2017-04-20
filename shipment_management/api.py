@@ -108,7 +108,7 @@ def test_rates_api():
 
 	packages = [
 		{"weight_value": 100,
-		},
+		 "weight_units": "LB"},
 		#"physical_packaging":"BOX"},
 		#"group_package_count": 1,
 		#"insured_amount":1000},
