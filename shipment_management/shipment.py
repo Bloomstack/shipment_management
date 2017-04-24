@@ -20,7 +20,7 @@ from email_controller import send_email, get_content_picked_up, get_content_fail
 
 def check_permission():
 	def innerfn(fn):
-		for role in ["Shipment Management Admin", "Shipment Management User", "Admin"]:
+		for role in ["Shipment Management Admin", "Shipment Management User", "Admin", "Administrator"]:
 			if str(role) in frappe.get_roles():
 				break
 			frappe.throw(_("Permission denied for = {}".format(frappe.session.user)), frappe.PermissionError)
