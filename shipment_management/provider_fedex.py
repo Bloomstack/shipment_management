@@ -125,7 +125,7 @@ CONFIG_OBJ = get_fedex_config()
 # #############################################################################
 # #############################################################################
 
-@check_permission()
+@check_permission
 @frappe.whitelist()
 def estimate_fedex_delivery_time(OriginPostalCode=None,
 								 OriginCountryCode=None,
@@ -590,8 +590,6 @@ def get_item_by_item_code(source_doc, item_code):
 # #############################################################################
 # #############################################################################
 
-
-@check_permission()
 @frappe.whitelist()
 def get_fedex_packages_rate(international=False,
 							DropoffType=None,
@@ -717,7 +715,7 @@ def get_fedex_packages_rate(international=False,
 		frappe.throw(data)
 
 
-@check_permission()
+@check_permission
 @frappe.whitelist()
 def get_all_shipment_rate(doc_name):
 	source_doc = frappe.get_doc("DTI Shipment Note", doc_name)
@@ -759,7 +757,7 @@ def get_all_shipment_rate(doc_name):
 # #############################################################################
 
 
-@check_permission()
+@check_permission
 @frappe.whitelist()
 def show_shipment_estimates(doc_name):
 	"""
