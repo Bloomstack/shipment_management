@@ -18,13 +18,13 @@ from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NA
 from email_controller import send_email, get_content_picked_up, get_content_fail, get_content_completed
 
 
-def check_permission():
-	def innerfn(fn):
+def check_permission(fn):
+	def innerfn(*args, **kwargs):
 		for role in ["Shipment Management Admin", "Shipment Management User", "Admin"]:
 			if str(role) in frappe.get_roles():
 				break
 			frappe.throw(_("Permission denied for = {}".format(frappe.session.user)), frappe.PermissionError)
-		return fn
+		return fn(*args, **kwargs)
 
 	return innerfn
 
@@ -56,7 +56,7 @@ class ShipmentNoteOperationalStatus(object):
 
 
 ##############################################################################
-@check_permission()
+@check_permission
 @frappe.whitelist()
 def get_sales_order(delivery_note_name):
 	against_sales_order = frappe.db.sql('''SELECT against_sales_order from `tabDelivery Note Item` WHERE parent="%s"''' % delivery_note_name, as_dict=True)
@@ -67,7 +67,7 @@ def get_sales_order(delivery_note_name):
 ##############################################################################
 
 
-@check_permission()
+@check_permission
 @frappe.whitelist()
 def get_carriers_list():
 	return [SupportedProviderList.Fedex]
@@ -222,7 +222,7 @@ def get_recipient(delivery_note_name):
 	return recipient
 
 
-@check_permission()
+@check_permission
 @frappe.whitelist()
 def get_recipient_details(delivery_note_name):
 	recipient = get_recipient(delivery_note_name)
@@ -237,7 +237,7 @@ def get_recipient_details(delivery_note_name):
 			"contact_email": ", ".join(recipient.contact.Email_List)}
 
 
-@check_permission()
+@check_permission
 @frappe.whitelist()
 def get_shipper_details(delivery_note_name):
 	shipper = get_shipper(delivery_note_name)
@@ -254,7 +254,7 @@ def get_shipper_details(delivery_note_name):
 ##############################################################################
 
 
-@check_permission()
+@check_permission
 @frappe.whitelist()
 def get_delivery_items(delivery_note_name):
 	return frappe.db.sql('''SELECT * from `tabDelivery Note Item` WHERE parent="%s"''' % delivery_note_name,
@@ -272,7 +272,7 @@ def write_to_log(message):
 	frappe.logger().info('[SHIPMENT APP] :: ' + message)
 
 
-@check_permission()
+@check_permission
 @frappe.whitelist()
 def shipment_status_update_controller():
 	"""
@@ -346,7 +346,7 @@ def shipment_status_update_controller():
 ##############################################################################
 ##############################################################################
 
-@check_permission()
+@check_permission
 @frappe.whitelist()
 def make_new_shipment_note_from_delivery_note(source_name, target_doc=None):
 	doclist = get_mapped_doc("Delivery Note", source_name, {
