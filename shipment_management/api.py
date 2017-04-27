@@ -74,7 +74,8 @@ def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING
 		RecipientStateOrProvinceCode=normalize_state(from_address.get("country"), from_address.get("state")),
 		RecipientPostalCode=from_address.get("pincode"),
 		RecipientCountryCode=from_country,
-		package_list=packages
+		package_list=packages,
+		ignoreErrors=True
 	)
 
 	rates = []
@@ -87,7 +88,9 @@ def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING
 		try:
 			args["ServiceType"] = serviceType[0]
 			rate = get_fedex_packages_rate(**args)
-			rates.append({ "fee": rate.get("Amount"), "label": serviceType[1], "name": serviceType[0] })
+			if rate:
+				rates.append({ "fee": rate.get("Amount"), "label": serviceType[1], "name": serviceType[0] })
+			
 		except Exception as ex:
 			print(ex)
 
