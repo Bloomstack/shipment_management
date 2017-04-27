@@ -603,7 +603,8 @@ def get_fedex_packages_rate(international=False,
 							RecipientCountryCode=None,
 							EdtRequestType=None,
 							PaymentType=None,
-							package_list=None):
+							package_list=None,
+							ignoreErrors=False):
 
 	"""
 	:param international:
@@ -700,10 +701,13 @@ def get_fedex_packages_rate(international=False,
 
 	response_json = subject_to_json(rate.response)
 	data = json.loads(response_json)
+	#print(str(data))
 
 	write_to_log("Rate service response:" + str(data))
 
 	if "Service is not allowed" in str(data['Notifications'][0]['Message']):
+		if ignoreErrors:
+			return None
 
 		debug_info = "%s <br> %s <br> %s" % (rate.RequestedShipment.ServiceType, rate.RequestedShipment.Shipper, rate.RequestedShipment.Recipient)
 
@@ -712,7 +716,9 @@ def get_fedex_packages_rate(international=False,
 	try:
 		return data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']
 	except KeyError:
-		frappe.throw(data)
+		if not ignoreErrors:
+			frappe.throw(data)
+		return None
 
 
 @check_permission
