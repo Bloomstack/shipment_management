@@ -30,9 +30,10 @@ SERVICE_TYPES_INTERNATIONAL = (
 )
 
 def normalize_state(country, state):
-	for name, abbr in COUNTRY_STATE_CODES[country].iteritems():
-		if name.upper() == state.upper():
-			return abbr.upper()
+	if COUNTRY_STATE_CODES.get('country'):
+		for name, abbr in COUNTRY_STATE_CODES[country].iteritems():
+			if name.upper() == state.upper():
+				return abbr.upper()
 
 	return state
 
