@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 import frappe
-import requests
 from provider_fedex import get_fedex_packages_rate
 from country_code_config import COUNTRY_STATE_CODES
 
@@ -69,12 +68,12 @@ def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING
 		PackagingType=packaging_type,
 		EdtRequestType='NONE',
 		PaymentType='SENDER',
-		ShipperStateOrProvinceCode=from_address.get("state"),
-		ShipperPostalCode=from_address.get("pincode"),
-		ShipperCountryCode=from_country,
-		RecipientStateOrProvinceCode=get_state_code(to_address),
-		RecipientPostalCode=to_address.get("pincode"),
-		RecipientCountryCode=to_country,
+		ShipperStateOrProvinceCode=normalize_state(to_address.get("country"), to_address.get("state")),
+		ShipperPostalCode=to_address.get("pincode"),
+		ShipperCountryCode=to_country,
+		RecipientStateOrProvinceCode=normalize_state(from_address.get("country"), from_address.get("state")),
+		RecipientPostalCode=from_address.get("pincode"),
+		RecipientCountryCode=from_country,
 		package_list=packages,
 		ignoreErrors=True
 	)
@@ -96,15 +95,6 @@ def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING
 			print(ex)
 
 	return sorted(rates, key=lambda rate: rate["fee"])
-
-def get_state_code(address):
-	URL = "https://maps.googleapis.com/maps/api/geocode/json?address=" \
-	+ address.get("city") + " " + address.get("pincode") + " " + address.get("country")
-	r = requests.get(URL)
-	data = r.json().get("results")[0].get("address_components")
-	for address_component in data:
-		if address_component.get("long_name") == address.get("state"):
-			return address_component.get("short_name")
 
 
 def test_rates_api():
@@ -135,5 +125,3 @@ def test_rates_api():
 
 	result = get_rates(from_address, to_address, packages)
 	print(result)
-
-
