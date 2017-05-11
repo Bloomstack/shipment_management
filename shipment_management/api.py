@@ -38,6 +38,7 @@ def normalize_state(country, state):
 
 	return state
 
+
 def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING"):
 	"""Simple wrapper over fedex rating service.
 	It takes the standard address field values for the from_ and to_ addresses
@@ -64,46 +65,31 @@ def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING
 	from_country = frappe.get_value("Country", from_address.get("country"), "code")
 	to_country = frappe.get_value("Country", to_address.get("country"), "code")
 
-	print from_address.get("state"), "STATE"
-
 	args = dict(
 		DropoffType='REGULAR_PICKUP',
 		PackagingType=packaging_type,
 		EdtRequestType='NONE',
 		PaymentType='SENDER',
-		ShipperStateOrProvinceCode=to_address.get("state"),
-		ShipperPostalCode=to_address.get("pincode"),
-		ShipperCountryCode=to_country,
-		RecipientStateOrProvinceCode=get_state_code(from_address),
-		RecipientPostalCode=from_address.get("pincode"),
-		RecipientCountryCode=from_country,
+		ShipperStateOrProvinceCode=from_address.get("state"),
+		ShipperPostalCode=from_address.get("pincode"),
+		ShipperCountryCode=from_country,
+		RecipientStateOrProvinceCode=get_state_code(to_address),
+		RecipientPostalCode=to_address.get("pincode"),
+		RecipientCountryCode=to_country,
 		package_list=packages,
 		ignoreErrors=True
 	)
 
-	rates = []
-	if from_country == to_country:
-		services = SERVICE_TYPES
-	else:
-		services = SERVICE_TYPES_INTERNATIONAL
-
-	for serviceType in services:
-		try:
-			args["ServiceType"] = serviceType[0]
-			rate = get_fedex_packages_rate(**args)
-			if rate:
-				rates.append({ "fee": rate.get("Amount"), "label": serviceType[1], "name": serviceType[0] })
-			
-		except Exception as ex:
-			print(ex)
-
+	rates = get_fedex_packages_rate(**args)
 	return sorted(rates, key=lambda rate: rate["fee"])
 
 def get_state_code(address):
 	URL = "https://maps.googleapis.com/maps/api/geocode/json?address=" \
-	+ address.get("city") + " " + address.get("pincode") + " " + address.get("country")
+	+ " ".join((address.get("city"), address.get("pincode"), address.get("country")))
 	r = requests.get(URL)
-	data = r.json().get("results")[0].get("address_components")
+	data = r.json()
+	if data: 
+		data = data.get("results")[0].get("address_components")
 	for address_component in data:
 		if address_component.get("long_name") == address.get("state"):
 			return address_component.get("short_name")
