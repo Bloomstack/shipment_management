@@ -10,10 +10,11 @@ from frappe.model.document import get_doc
 from frappe.model.mapper import get_mapped_doc
 
 from comment_controller import CommentController
-from country_code_config import get_country_code, get_country_state_code
 
 from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NAME, SupportedProviderList, \
 	StatusMapFedexAndShipmentNote
+
+from utils import get_state_code, get_country_code
 
 from email_controller import send_email, get_content_picked_up, get_content_fail, get_content_completed
 
@@ -162,8 +163,8 @@ def get_shipper(delivery_note_name):
 					shipper.address.PostalCode = company_address[0].pincode
 
 				if company_address[0].state:
-					shipper.address.StateOrProvinceCode = get_country_state_code(country=shipper.address.Country,
-																				 state=company_address[0].state)
+					shipper.address.StateOrProvinceCode = get_state_code({"country" : shipper.address.Country,
+																				 "state" : company_address[0].state})
 
 	return shipper
 
@@ -207,8 +208,8 @@ def get_recipient(delivery_note_name):
 		if shipping_address[0].country:
 			recipient.address.Country = shipping_address[0].country
 			recipient.address.CountryCode = get_country_code(recipient.address.Country)
-			recipient.address.StateOrProvinceCode = get_country_state_code(country=recipient.address.Country,
-																		   state=shipping_address[0].state)
+			recipient.address.StateOrProvinceCode = get_state_code({"country" : recipient.address.Country,
+																		   "state" : shipping_address[0].state})
 
 	if primary_contact:
 		if not recipient.contact.PhoneNumber:
