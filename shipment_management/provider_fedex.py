@@ -703,8 +703,6 @@ def get_fedex_packages_rate(international=False,
 	response_json = subject_to_json(rate.response)
 	data = json.loads(response_json)
 
-	#print(str(data))
-
 	write_to_log("Rate service response:" + str(data))
 
 	if "Service is not allowed" in str(data['Notifications'][0]['Message']):
