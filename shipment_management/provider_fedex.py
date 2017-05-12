@@ -695,10 +695,10 @@ def get_fedex_packages_rate(international=False,
 
 
 	try:
- 		rate.send_request()
- 	except Exception as e:
- 		if 'RequestedPackageLineItem object cannot be null or empty' in str(e):
- 			raise Exception("WARNING: Please create packages with shipment")
+		rate.send_request()
+	except Exception as e:
+		if 'RequestedPackageLineItem object cannot be null or empty' in str(e):
+			raise Exception("WARNING: Please create packages with shipment")
 
 	response_json = subject_to_json(rate.response)
 	data = json.loads(response_json)
@@ -729,6 +729,8 @@ def get_fedex_packages_rate(international=False,
 	
 	if len(rates) == 1:
 		return rates[0]
+	else:
+		return rates
 
 
 @check_permission
