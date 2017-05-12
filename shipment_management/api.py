@@ -84,3 +84,4 @@ def test_rates_api():
 	]
 
 	result = get_rates(from_address, to_address, packages)
+	print result

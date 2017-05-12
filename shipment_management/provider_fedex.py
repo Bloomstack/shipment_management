@@ -719,7 +719,8 @@ def get_fedex_packages_rate(international=False,
 		for service in data["RateReplyDetails"]:
 			rates.append({'fee' : 
 				service['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']['Amount'],
-						'label' : service['ServiceType'].replace("_", " ")})
+						'label' : service['ServiceType'].replace("_", " "),
+						'name' : service['ServiceType']})
 	except KeyError:
 		if not ignoreErrors:
 			frappe.throw(data)
