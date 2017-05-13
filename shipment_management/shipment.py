@@ -222,7 +222,6 @@ def get_recipient(delivery_note_name):
 	return recipient
 
 
-@check_permission
 @frappe.whitelist()
 def get_recipient_details(delivery_note_name):
 	recipient = get_recipient(delivery_note_name)

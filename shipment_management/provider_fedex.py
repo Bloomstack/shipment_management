@@ -774,7 +774,6 @@ def get_all_shipment_rate(doc_name):
 # #############################################################################
 
 
-@check_permission
 @frappe.whitelist()
 def show_shipment_estimates(doc_name):
 	"""
@@ -819,9 +818,8 @@ def show_shipment_estimates(doc_name):
 	# TODO - Remove YOUR_PACKAGING and use real PackagingType from doc, investigate error:
 	# Service is not allowed. (Code = 868)
 
-	rate = get_fedex_packages_rate(international=source_doc.international_shipment,
+	rates = get_fedex_packages_rate(international=source_doc.international_shipment,
 									DropoffType=source_doc.drop_off_type,
-									ServiceType=service_type,
 									PackagingType='YOUR_PACKAGING',
 									ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
 									ShipperPostalCode=source_doc.shipper_address_postal_code,
@@ -832,8 +830,9 @@ def show_shipment_estimates(doc_name):
 									EdtRequestType='NONE',
 									PaymentType=source_doc.payment_type,
 									package_list=rate_box_list)
-
-	frappe.msgprint("<b>%s</b> : %s (%s)<br>" % (service_type, rate["Amount"], rate["Currency"]))
+	
+	for rate in rates: 
+		frappe.msgprint("<b>%s</b> : %s (%s)<br>" % (rate["label"], rate["fee"], "USD"))
 
 
 # #############################################################################
