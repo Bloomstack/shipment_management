@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import frappe
 from provider_fedex import get_fedex_packages_rate
-from country_code_config import COUNTRY_STATE_CODES
+from utils import get_state_code, get_country_code
 
 VALID_PACKAGING_TYPES = (
 	"FEDEX_10KG_BOX",
@@ -14,28 +14,6 @@ VALID_PACKAGING_TYPES = (
 	"YOUR_PACKAGING"
 )
 
-SERVICE_TYPES = (
-	("FEDEX_2_DAY", "FedEx 2 Day"),
-	("FEDEX_EXPRESS_SAVER", "FedEx Express Saver"),
-	("FEDEX_GROUND", "FedEx Ground"),
-	("FIRST_OVERNIGHT", "FedEx First Class Overnight"),
-	("PRIORITY_OVERNIGHT", "FedEx Priority Overnight"),
-	("STANDARD_OVERNIGHT", "FedEx Standard Overnight")
-)
-
-SERVICE_TYPES_INTERNATIONAL = (
-	("INTERNATIONAL_ECONOMY", "FedEx Int. Economy"),
-	("INTERNATIONAL_FIRST", "FedEx Int. First Class"),
-	("INTERNATIONAL_PRIORITY", "FedEx Int. Priority")
-)
-
-def normalize_state(country, state):
-	if COUNTRY_STATE_CODES.get('country'):
-		for name, abbr in COUNTRY_STATE_CODES[country].iteritems():
-			if name.upper() == state.upper():
-				return abbr.upper()
-
-	return state
 
 def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING"):
 	"""Simple wrapper over fedex rating service.
@@ -60,40 +38,22 @@ def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING
 		if not package.get("physical_packaging"):
 			package["physical_packaging"] = "BOX"
 
-	from_country = frappe.get_value("Country", from_address.get("country"), "code")
-	to_country = frappe.get_value("Country", to_address.get("country"), "code")
-
 	args = dict(
 		DropoffType='REGULAR_PICKUP',
 		PackagingType=packaging_type,
 		EdtRequestType='NONE',
 		PaymentType='SENDER',
-		ShipperStateOrProvinceCode=normalize_state(to_address.get("country"), to_address.get("state")),
-		ShipperPostalCode=to_address.get("pincode"),
-		ShipperCountryCode=to_country,
-		RecipientStateOrProvinceCode=normalize_state(from_address.get("country"), from_address.get("state")),
-		RecipientPostalCode=from_address.get("pincode"),
-		RecipientCountryCode=from_country,
+		ShipperStateOrProvinceCode=get_state_code(from_address),
+		ShipperPostalCode=from_address.get("pincode"),
+		ShipperCountryCode=get_country_code(from_address.get("country")),
+		RecipientStateOrProvinceCode=get_state_code(to_address),
+		RecipientPostalCode=to_address.get("pincode"),
+		RecipientCountryCode=get_country_code(to_address.get("country")),
 		package_list=packages,
 		ignoreErrors=True
 	)
 
-	rates = []
-	if from_country == to_country:
-		services = SERVICE_TYPES
-	else:
-		services = SERVICE_TYPES_INTERNATIONAL
-
-	for serviceType in services:
-		try:
-			args["ServiceType"] = serviceType[0]
-			rate = get_fedex_packages_rate(**args)
-			if rate:
-				rates.append({ "fee": rate.get("Amount"), "label": serviceType[1], "name": serviceType[0] })
-			
-		except Exception as ex:
-			print(ex)
-
+	rates = get_fedex_packages_rate(**args)
 	return sorted(rates, key=lambda rate: rate["fee"])
 
 
@@ -124,4 +84,4 @@ def test_rates_api():
 	]
 
 	result = get_rates(from_address, to_address, packages)
-	print(result)
+	print result

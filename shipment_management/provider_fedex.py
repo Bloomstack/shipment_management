@@ -198,7 +198,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 			# For international multiple piece shipments,
 			# commodity information must be passed in the Master and on each child transaction.
-            # If this shipment contains more than four commodities line items,
+			# If this shipment contains more than four commodities line items,
 			# the four highest valued should be included in the first 4 occurances for this request.
 
 			commodity = shipment.create_wsdl_object_of_type('Commodity')
@@ -462,9 +462,9 @@ def create_fedex_shipment(source_doc):
 					  <p style="padding: 15px; align: center; color: #36414c; background-color: #F9FBB6; height: 80px; width: 450px;">
 					  TotalNetChargeWithDutiesAndTaxes: <br>
 					  <b>%s (%s)</b> </p>
-					  """ % (rate["Amount"], rate["Currency"]))
+					  """ % (rate["label"], rate["fee"]))
 
-		frappe.msgprint("Rate: %s (%s)" % (rate["Amount"], rate["Currency"]), "Updated!")
+		frappe.msgprint("Rate: %s (%s)" % (rate["label"], rate["fee"]), "Updated!")
 	except Exception as error:
 		frappe.msgprint(error)
 		frappe.db.set(source_doc, 'shipment_rate', "N/A")
@@ -693,6 +693,7 @@ def get_fedex_packages_rate(international=False,
 
 		rate.add_package(package1)
 
+
 	try:
 		rate.send_request()
 	except Exception as e:
@@ -701,7 +702,6 @@ def get_fedex_packages_rate(international=False,
 
 	response_json = subject_to_json(rate.response)
 	data = json.loads(response_json)
-	#print(str(data))
 
 	write_to_log("Rate service response:" + str(data))
 
@@ -713,12 +713,23 @@ def get_fedex_packages_rate(international=False,
 
 		frappe.throw(_("WARNING: Service is not allowed. Please verify address data! <br> % s" % debug_info))
 
+	rates = []
+	
 	try:
-		return data['RateReplyDetails'][0]['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']
+		for service in data["RateReplyDetails"]:
+			rates.append({'fee' : 
+				service['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']['Amount'],
+						'label' : service['ServiceType'].replace("_", " "),
+						'name' : service['ServiceType']})
 	except KeyError:
 		if not ignoreErrors:
 			frappe.throw(data)
 		return None
+	
+	if len(rates) == 1:
+		return rates[0]
+	else:
+		return rates
 
 
 @check_permission
@@ -763,7 +774,6 @@ def get_all_shipment_rate(doc_name):
 # #############################################################################
 
 
-@check_permission
 @frappe.whitelist()
 def show_shipment_estimates(doc_name):
 	"""
@@ -805,30 +815,24 @@ def show_shipment_estimates(doc_name):
 							  'group_package_count': i+1,
 							  'insured_amount': box_insurance})
 
-	if source_doc.international_shipment:
-		type_list = ["INTERNATIONAL_ECONOMY", "INTERNATIONAL_PRIORITY"]
-	else:
-		type_list = ["STANDARD_OVERNIGHT", "PRIORITY_OVERNIGHT", "FEDEX_EXPRESS_SAVER", "FEDEX_GROUND", "FEDEX_2_DAY"]
+	# TODO - Remove YOUR_PACKAGING and use real PackagingType from doc, investigate error:
+	# Service is not allowed. (Code = 868)
 
-	for service_type in type_list:
-		# TODO - Remove YOUR_PACKAGING and use real PackagingType from doc, investigate error:
-		# Service is not allowed. (Code = 868)
-
-		rate = get_fedex_packages_rate(international=source_doc.international_shipment,
-									   DropoffType=source_doc.drop_off_type,
-									   ServiceType=service_type,
-									   PackagingType='YOUR_PACKAGING',
-									   ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
-									   ShipperPostalCode=source_doc.shipper_address_postal_code,
-									   ShipperCountryCode=source_doc.shipper_address_country_code,
-									   RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_province_code,
-									   RecipientPostalCode=source_doc.recipient_address_postal_code,
-									   RecipientCountryCode=source_doc.recipient_address_country_code,
-									   EdtRequestType='NONE',
-									   PaymentType=source_doc.payment_type,
-									   package_list=rate_box_list)
-
-		frappe.msgprint("<b>%s</b> : %s (%s)<br>" % (service_type, rate["Amount"], rate["Currency"]))
+	rates = get_fedex_packages_rate(international=source_doc.international_shipment,
+									DropoffType=source_doc.drop_off_type,
+									PackagingType='YOUR_PACKAGING',
+									ShipperStateOrProvinceCode=source_doc.shipper_address_state_or_province_code,
+									ShipperPostalCode=source_doc.shipper_address_postal_code,
+									ShipperCountryCode=source_doc.shipper_address_country_code,
+									RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_province_code,
+									RecipientPostalCode=source_doc.recipient_address_postal_code,
+									RecipientCountryCode=source_doc.recipient_address_country_code,
+									EdtRequestType='NONE',
+									PaymentType=source_doc.payment_type,
+									package_list=rate_box_list)
+	
+	for rate in rates: 
+		frappe.msgprint("<b>%s</b> : %s (%s)<br>" % (rate["label"], rate["fee"], "USD"))
 
 
 # #############################################################################
