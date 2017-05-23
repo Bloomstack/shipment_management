@@ -27,19 +27,21 @@ def find_packages(items):
 		if product and len(product) > 0:
 			product = product[0]
 			package_rule_items = frappe.get_all("Shipping Package Rule Item", fields=["*"], filters={"parent": product.get("name")})
-			parent_rule = frappe.get_doc("Shipping Package Rule", product.get("name"))
+			parent_rule = None
 			rule = None
 			package_def = None
 			if package_rule_items and len(package_rule_items) > 0:
+				parent_rule = frappe.get_doc("Shipping Package Rule", product.get("name"))
 				for rule_item in package_rule_items:
 					if rule_item.get("qty") <= item.get("qty", 1):
 						rule = rule_item
 						package_def = frappe.get_doc("Shipping Package", rule.get("package"))
 
+			weight = product.get("net_weight", 1)
+			if weight < 1:
+				weight = 1
+
 			if rule:
-				weight = product.get("net_weight", 1)
-				if weight < 1:
-					weight = 1
 
 				insurance_amount = parent_rule.get("insurance_amount", 0)
 				if parent_rule.get("insurace_multiply"):
@@ -59,5 +61,11 @@ def find_packages(items):
 					"group_package_count": item.get("qty", 1),
 					"insured_amount": insurance_amount
 				})
-
+			else:
+				packages.append({
+					"weight_value": cint(weight * item.get("qty", 1)),
+					"weight_units": "LB",
+					"physical_packaging": "BOX",
+					"group_package_count": item.get("qty", 1)
+				})
 	return packages
