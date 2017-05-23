@@ -9,6 +9,7 @@ import datetime
 
 import frappe
 from frappe.utils.password import get_decrypted_password
+from frappe.utils import cint
 from frappe import _
 from frappe.utils.file_manager import *
 
@@ -687,6 +688,15 @@ def get_fedex_packages_rate(international=False,
 		package1.PhysicalPackaging = package["physical_packaging"]
 		package1.GroupPackageCount = package["group_package_count"]
 
+		if package.get("dimensions"):
+			package_dim = rate.create_wsdl_object_of_type("Dimensions")
+			package_dim.Length = cint(package["dimensions"]["length"])
+			package_dim.Width = cint(package["dimensions"]["width"])
+			package_dim.Height = cint(package["dimensions"]["height"])
+			package_dim.Units = package["dimensions"]["units"]
+
+			package1.Dimensions = package_dim
+
 		package_insure = rate.create_wsdl_object_of_type('Money')
 		package_insure.Currency = "USD"
 		package_insure.Amount = package["insured_amount"]
@@ -699,6 +709,10 @@ def get_fedex_packages_rate(international=False,
 	except Exception as e:
 		if 'RequestedPackageLineItem object cannot be null or empty' in str(e):
 			raise Exception("WARNING: Please create packages with shipment")
+		elif not ignoreErrors:
+			frappe.throw(e)
+
+		return None
 
 	response_json = subject_to_json(rate.response)
 	data = json.loads(response_json)
@@ -714,10 +728,10 @@ def get_fedex_packages_rate(international=False,
 		frappe.throw(_("WARNING: Service is not allowed. Please verify address data! <br> % s" % debug_info))
 
 	rates = []
-	
+
 	try:
 		for service in data["RateReplyDetails"]:
-			rates.append({'fee' : 
+			rates.append({'fee' :
 				service['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']['Amount'],
 						'label' : service['ServiceType'].replace("_", " "),
 						'name' : service['ServiceType']})
@@ -725,7 +739,7 @@ def get_fedex_packages_rate(international=False,
 		if not ignoreErrors:
 			frappe.throw(data)
 		return None
-	
+
 	if len(rates) == 1:
 		return rates[0]
 	else:
@@ -830,8 +844,8 @@ def show_shipment_estimates(doc_name):
 									EdtRequestType='NONE',
 									PaymentType=source_doc.payment_type,
 									package_list=rate_box_list)
-	
-	for rate in rates: 
+
+	for rate in rates:
 		frappe.msgprint("<b>%s</b> : %s (%s)<br>" % (rate["label"], rate["fee"], "USD"))
 
 

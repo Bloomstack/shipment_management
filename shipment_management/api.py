@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import frappe
 from provider_fedex import get_fedex_packages_rate
 from utils import get_state_code, get_country_code
+from shipment_management.doctype.shipping_package_rule.shipping_package_rule import find_packages
 
 VALID_PACKAGING_TYPES = (
 	"FEDEX_10KG_BOX",
@@ -14,16 +15,17 @@ VALID_PACKAGING_TYPES = (
 	"YOUR_PACKAGING"
 )
 
-
-def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING"):
+def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 	"""Simple wrapper over fedex rating service.
 	It takes the standard address field values for the from_ and to_ addresses
-	to keep a consistent address api. Packaging is a list of objects with only
-	one requirement "weight_value" though for the fexed api there are other fields
-	to include"""
+	to keep a consistent address api. Packaging is a list of items with only
+	two foe;d requirements "item_code" and "qty". """
+
+	packages = find_packages(items)
 
 	# to try and keep some form of standardization we'll minimally  require
 	# a weight_value. Any other values will be passed as is to the rates service.
+	surcharge = 0
 	for package in packages:
 		if package.get("weight_value", None) is None or \
 		   package.get("weight_units", None) is None:
@@ -37,6 +39,8 @@ def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING
 
 		if not package.get("physical_packaging"):
 			package["physical_packaging"] = "BOX"
+
+		surcharge = surcharge + package.get("surcharge", 0)
 
 	args = dict(
 		DropoffType='REGULAR_PICKUP',
@@ -54,34 +58,9 @@ def get_rates(from_address, to_address, packages, packaging_type="YOUR_PACKAGING
 	)
 
 	rates = get_fedex_packages_rate(**args)
-	return sorted(rates, key=lambda rate: rate["fee"])
+	sorted_rates = []
+	for rate in sorted(rates, key=lambda rate: rate["fee"]):
+		rate["fee"] = rate["fee"] + surcharge
+		sorted_rates.append(rate)
 
-
-def test_rates_api():
-	from_address = dict(
-		state="FLORIDA",
-		pincode="32803",
-		country="United States"
-	)
-
-	to_address = dict(
-		state="FLORIDA",
-		pincode="32801",
-		country="United States"
-	)
-
-	packages = [
-		{"weight_value": 100,
-		 "weight_units": "LB"},
-		#"physical_packaging":"BOX"},
-		#"group_package_count": 1,
-		#"insured_amount":1000},
-		{"weight_value": 2,
-		"weight_units":"LB"}
-		#"physical_packaging":"BOX"}
-		#"group_package_count":2,
-		#"insured_amount":100}
-	]
-
-	result = get_rates(from_address, to_address, packages)
-	print result
+	return sorted_rates
