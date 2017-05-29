@@ -126,7 +126,6 @@ CONFIG_OBJ = get_fedex_config()
 # #############################################################################
 # #############################################################################
 
-@check_permission
 @frappe.whitelist()
 def estimate_fedex_delivery_time(OriginPostalCode=None,
 								 OriginCountryCode=None,
@@ -304,6 +303,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 
 def create_fedex_shipment(source_doc):
+	from utils import get_state_code
 
 	GENERATE_IMAGE_TYPE = 'PNG'
 
@@ -320,6 +320,18 @@ def create_fedex_shipment(source_doc):
 
 	shipment.RequestedShipment.PackagingType = source_doc.packaging_type
 
+	shipper_address = { "pincode" : source_doc.shipper_address_postal_code, 
+						"state" : source_doc.shipper_address_state_or_province_code,
+						"city" : source_doc.shipper_address_city,
+						"country" : source_doc.shipper_address_country_code
+						}
+
+	recipient_address = { "pincode" : source_doc.recipient_address_postal_code, 
+						"state" : source_doc.recipient_address_state_or_province_code,
+						"city" : source_doc.recipient_address_city,
+						"country" : source_doc.recipient_address_country_code
+						}
+
 	# Shipper contact info.
 	shipment.RequestedShipment.Shipper.Contact.PersonName = source_doc.shipper_contact_person_name
 	shipment.RequestedShipment.Shipper.Contact.CompanyName = source_doc.shipper_company_name
@@ -328,7 +340,7 @@ def create_fedex_shipment(source_doc):
 	# Shipper address.
 	shipment.RequestedShipment.Shipper.Address.StreetLines = [source_doc.shipper_address_street_lines]
 	shipment.RequestedShipment.Shipper.Address.City = source_doc.shipper_address_city
-	shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = source_doc.shipper_address_state_or_province_code
+	shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = get_state_code(shipper_address)
 	shipment.RequestedShipment.Shipper.Address.PostalCode = source_doc.shipper_address_postal_code
 	shipment.RequestedShipment.Shipper.Address.CountryCode = source_doc.shipper_address_country_code
 
@@ -345,7 +357,7 @@ def create_fedex_shipment(source_doc):
 	# Recipient addressStateOrProvinceCode
 	shipment.RequestedShipment.Recipient.Address.StreetLines = [source_doc.recipient_address_street_lines]
 	shipment.RequestedShipment.Recipient.Address.City = source_doc.recipient_address_city
-	shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = source_doc.recipient_address_state_or_province_code
+	shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = get_state_code(recipient_address)
 	shipment.RequestedShipment.Recipient.Address.PostalCode = source_doc.recipient_address_postal_code
 	shipment.RequestedShipment.Recipient.Address.CountryCode = source_doc.recipient_address_country_code
 
@@ -656,20 +668,31 @@ def get_fedex_packages_rate(international=False,
 
 	"""
 
+	from utils import get_country_code, get_state_code
+
 	if international:
 		rate = FedexInternationalRateServiceRequest(CONFIG_OBJ)
 	else:
 		rate = FedexRateServiceRequest(CONFIG_OBJ)
 
+	shipper_address = { "pincode" : ShipperPostalCode, 
+						"state" : ShipperStateOrProvinceCode, 
+						"country" : ShipperCountryCode
+						}
+
+	recipient_address = { "pincode" : RecipientPostalCode, 
+						"state" : RecipientStateOrProvinceCode, 
+						"country" : RecipientCountryCode}
+
 	rate.RequestedShipment.DropoffType = DropoffType
 	rate.RequestedShipment.ServiceType = ServiceType
 	rate.RequestedShipment.PackagingType = PackagingType
 
-	rate.RequestedShipment.Shipper.Address.StateOrProvinceCode = ShipperStateOrProvinceCode
+	rate.RequestedShipment.Shipper.Address.StateOrProvinceCode = get_state_code(shipper_address)
 	rate.RequestedShipment.Shipper.Address.PostalCode = ShipperPostalCode
 	rate.RequestedShipment.Shipper.Address.CountryCode = ShipperCountryCode
 
-	rate.RequestedShipment.Recipient.Address.StateOrProvinceCode = RecipientStateOrProvinceCode
+	rate.RequestedShipment.Recipient.Address.StateOrProvinceCode = get_state_code(recipient_address)
 	rate.RequestedShipment.Recipient.Address.PostalCode = RecipientPostalCode
 	rate.RequestedShipment.Recipient.Address.CountryCode = RecipientCountryCode
 
@@ -746,7 +769,6 @@ def get_fedex_packages_rate(international=False,
 		return rates
 
 
-@check_permission
 @frappe.whitelist()
 def get_all_shipment_rate(doc_name):
 	source_doc = frappe.get_doc("DTI Shipment Note", doc_name)
