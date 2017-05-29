@@ -5,6 +5,7 @@
 
 give_estimates = function(doc) {
 		return frappe.call({
+            freeze: 1,
 			method:'shipment_management.provider_fedex.show_shipment_estimates',
 			args: { doc_name: doc.doc.name}
 			})};
@@ -51,7 +52,6 @@ frappe.ui.form.on('DTI Shipment Note', {
             cur_frm.reload_doc();}
 
     });
-
 
 // --------------------------------------------------------------
 

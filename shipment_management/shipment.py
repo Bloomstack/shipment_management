@@ -56,7 +56,6 @@ class ShipmentNoteOperationalStatus(object):
 
 
 ##############################################################################
-@check_permission
 @frappe.whitelist()
 def get_sales_order(delivery_note_name):
 	against_sales_order = frappe.db.sql('''SELECT against_sales_order from `tabDelivery Note Item` WHERE parent="%s"''' % delivery_note_name, as_dict=True)
@@ -67,7 +66,6 @@ def get_sales_order(delivery_note_name):
 ##############################################################################
 
 
-@check_permission
 @frappe.whitelist()
 def get_carriers_list():
 	return [SupportedProviderList.Fedex]
@@ -208,6 +206,8 @@ def get_recipient(delivery_note_name):
 		if shipping_address[0].country:
 			recipient.address.Country = shipping_address[0].country
 			recipient.address.CountryCode = get_country_code(recipient.address.Country)
+		
+		if shipping_address[0].state:
 			recipient.address.StateOrProvinceCode = get_state_code({"country" : recipient.address.Country,
 																		   "state" : shipping_address[0].state})
 
@@ -236,7 +236,6 @@ def get_recipient_details(delivery_note_name):
 			"contact_email": ", ".join(recipient.contact.Email_List)}
 
 
-@check_permission
 @frappe.whitelist()
 def get_shipper_details(delivery_note_name):
 	shipper = get_shipper(delivery_note_name)
@@ -253,7 +252,6 @@ def get_shipper_details(delivery_note_name):
 ##############################################################################
 
 
-@check_permission
 @frappe.whitelist()
 def get_delivery_items(delivery_note_name):
 	return frappe.db.sql('''SELECT * from `tabDelivery Note Item` WHERE parent="%s"''' % delivery_note_name,
@@ -271,7 +269,6 @@ def write_to_log(message):
 	frappe.logger().info('[SHIPMENT APP] :: ' + message)
 
 
-@check_permission
 @frappe.whitelist()
 def shipment_status_update_controller():
 	"""
@@ -339,7 +336,6 @@ def shipment_status_update_controller():
 ##############################################################################
 ##############################################################################
 
-@check_permission
 @frappe.whitelist()
 def make_new_shipment_note_from_delivery_note(source_name, target_doc=None):
 	doclist = get_mapped_doc("Delivery Note", source_name, {
