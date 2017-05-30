@@ -175,14 +175,30 @@ def get_recipient(delivery_note_name):
 				  as_dict=True)[0].customer_name
 
 	recipient.contact.CompanyName = \
-	frappe.db.sql('''SELECT * from tabCustomer WHERE name="%s"''' % recipient.contact.PersonName, as_dict=True)[0].name
+	frappe.db.sql('''SELECT name from tabCustomer WHERE name="%s"''' % recipient.contact.PersonName, as_dict=True)[0].name
 
-	shipping_address = frappe.db.sql(
-		'''SELECT * from tabAddress WHERE customer_name="%s" AND is_shipping_address=1''' % recipient.contact.PersonName,
+	delivery_address = frappe.db.get_value("Delivery Note", delivery_note_name, "shipping_address_name")
+
+	if delivery_address:
+		shipping_address = frappe.db.sql(
+		'''SELECT * from tabAddress WHERE name = "%s"''' % delivery_address,
 		as_dict=True)
-	primary_contact = frappe.db.sql(
-		'''SELECT * from tabContact WHERE customer="%s" and is_primary_contact=1''' % recipient.contact.PersonName,
-		as_dict=True)
+	else:
+		shipping_address = frappe.db.sql(
+			'''SELECT * from tabAddress WHERE customer_name="%s" AND is_shipping_address=1''' % recipient.contact.PersonName,
+			as_dict=True)
+
+	contact_person =  frappe.db.get_value("Delivery Note", delivery_note_name, "contact_person")
+
+	if contact_person:
+		primary_contact = frappe.db.sql(
+			'''SELECT * from tabContact WHERE name="%s"''' % contact_person,
+			as_dict=True)
+	else:
+		primary_contact = frappe.db.sql(
+			'''SELECT * from tabContact WHERE customer="%s" and is_primary_contact=1''' % recipient.contact.PersonName,
+			as_dict=True)
+		
 
 	if shipping_address:
 		if shipping_address[0].phone:
