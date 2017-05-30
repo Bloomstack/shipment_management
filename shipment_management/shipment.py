@@ -216,6 +216,7 @@ def get_recipient(delivery_note_name):
 			recipient.contact.PersonName = "{} {}".format(primary_contact[0].first_name, primary_contact[0].last_name)
 			recipient.contact.PhoneNumber = primary_contact[0].phone
 
+	if shipping_address:
 		if primary_contact[0].email_id and (primary_contact[0].email_id != shipping_address[0].email_id):
 			recipient.contact.Email_List.append(primary_contact[0].email_id)
 
