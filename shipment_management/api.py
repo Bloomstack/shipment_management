@@ -29,7 +29,8 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		"weight_value": 0,
 		"weight_units": "LB",
 		"physical_packaging": "BOX",
-		"group_package_count": 0
+		"group_package_count": 0,
+		"insured_amount": 300
 	}
 
 	for itm in items:
