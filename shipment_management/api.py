@@ -34,11 +34,13 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 	}
 
 	for itm in items:
-		item = frappe.get_all("Item", fields=["name", "net_weight"], filters={ "item_code": itm.get("sku") })
-
+		item = frappe.get_all("Item", fields=["name", "net_weight"], filters={ "item_code": itm.get("item_code") })
 		if item and len(item) > 0:
 			item = item[0]
-			package["weight_value"] = package["weight_value"] + cint(item.get("net_weight") * 2 * itm.get("qty"))
+			weight = item.get("net_weight", 0)
+			if weight < 1:
+				weight = 1
+			package["weight_value"] = package["weight_value"] + cint(weight * 2 * itm.get("qty", 1))
 			package["group_package_count"] = package["group_package_count"] + itm.get("qty")
 
 	packages.append(package)
@@ -76,6 +78,8 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		package_list=packages,
 		ignoreErrors=True
 	)
+
+	print(args)
 
 	rates = get_fedex_packages_rate(**args)
 	sorted_rates = []
