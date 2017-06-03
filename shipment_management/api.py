@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import frappe
+from frappe.utils import cint
 from provider_fedex import get_fedex_packages_rate
 from utils import get_state_code, get_country_code
 from shipment_management.doctype.shipping_package_rule.shipping_package_rule import find_packages
@@ -21,7 +22,25 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 	to keep a consistent address api. Packaging is a list of items with only
 	two foe;d requirements "item_code" and "qty". """
 
-	packages = find_packages(items)
+	# quick hack to package all items into one box for quick shipping quotations
+	#packages = find_packages(items)
+	packages = []
+	package = {
+		"weight_value": 0,
+		"weight_units": "LB",
+		"physical_packaging": "BOX",
+		"group_package_count": 0
+	}
+
+	for itm in items:
+		item = frappe.get_all("Item", fields=["name", "net_weight"], filters={ "item_code": itm.get("sku") })
+
+		if item and len(item) > 0:
+			item = item[0]
+			package["weight_value"] = package["weight_value"] + cint(item.get("net_weight") * 2 * itm.get("qty"))
+			package["group_package_count"] = package["group_package_count"] + itm.get("qty")
+
+	packages.append(package)
 
 	# to try and keep some form of standardization we'll minimally  require
 	# a weight_value. Any other values will be passed as is to the rates service.
