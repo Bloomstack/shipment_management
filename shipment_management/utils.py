@@ -1,5 +1,7 @@
 import frappe
 import requests
+import json
+from collections import defaultdict
 from frappe import _
 
 def get_state_code(address):
@@ -27,3 +29,51 @@ def get_state_code(address):
 
 def get_country_code(country):
 	return frappe.get_value("Country", country, "code")
+
+
+
+@frappe.whitelist()
+def create_shipment_note(items, item_dict, doc):
+	from shipment import get_recipient_details, get_shipper_details, get_delivery_items
+
+	items = json.loads(items)
+	item_dict = json.loads(item_dict)
+	doc = json.loads(doc)
+
+	box_items = defaultdict(list)
+	
+	for item_idx, item_code in item_dict.items():
+		box_items[items[item_idx]].append(item_code + ":1")
+
+	shipment_doc = frappe.new_doc("DTI Shipment Note")
+	shipment_doc.delivery_note = doc.get("name")
+	for box, items in box_items.items():
+		shipment_doc.append("box_list" , {"physical_packaging" : "BOX",
+			"items_in_box": "\n".join(items)})
+
+	for item in get_delivery_items(doc.get("name")):
+		if frappe.db.get_value("Item", item.get("item_code"), "is_stock_item"):
+			item['weight_value'] = frappe.get_value("Item", item.get("item_code"), "net_weight")
+			shipment_doc.append("delivery_items", item)
+
+	for field, fielddata in get_recipient_details(doc.get("name")).items():
+		setattr(shipment_doc, field, fielddata)
+
+	for field, fielddata in get_shipper_details(doc.get("name")).items():
+		setattr(shipment_doc, field, fielddata)	
+		
+	shipment_doc.save()
+	shipment_doc.submit()
+	
+	return shipment_doc.name
+
+
+
+@frappe.whitelist()
+def get_stock_items(items):
+	items = json.loads(items)
+	stock_items = []
+	for item in items:
+		if frappe.db.get_value("Item", {"item_code" : item.get("item_code")}, "is_stock_item"):
+			stock_items.append(item)
+	return stock_items
