@@ -5,6 +5,9 @@ from collections import defaultdict
 from frappe import _
 
 def get_state_code(address):
+	if len(address.get("state")) == 2:
+		return address.get("state")
+
 	URL = "https://maps.googleapis.com/maps/api/geocode/json"
 	params = { "address" : " ".join((address.get("pincode", ""),
 		address.get("city",
@@ -51,19 +54,30 @@ def create_shipment_note(items, item_dict, doc):
 		shipment_doc.append("box_list" , {"physical_packaging" : "BOX",
 			"items_in_box": "\n".join(items)})
 
-	for item in get_delivery_items(doc.get("name")):
-		if frappe.db.get_value("Item", item.get("item_code"), "is_stock_item"):
-			item['weight_value'] = frappe.get_value("Item", item.get("item_code"), "net_weight")
-			shipment_doc.append("delivery_items", item)
-
 	for field, fielddata in get_recipient_details(doc.get("name")).items():
 		setattr(shipment_doc, field, fielddata)
 
 	for field, fielddata in get_shipper_details(doc.get("name")).items():
 		setattr(shipment_doc, field, fielddata)	
-		
+
+	if shipment_doc.recipient_address_country_code.lower() != "us":
+		shipment_doc.international_shipment = 1	
+
+	for item in get_delivery_items(doc.get("name")):
+		if frappe.db.get_value("Item", item.get("item_code"), "is_stock_item"):
+			item['weight_value'] = frappe.get_value("Item", item.get("item_code"), "net_weight")
+			if shipment_doc.international_shipment:		
+				item['insurance'] = 400
+				item['custom_value'] = item.get("rate")
+			shipment_doc.append("delivery_items", item)
+			
+
+	
 	shipment_doc.save()
 	shipment_doc.submit()
+
+	frappe.db.set_value("Delivery Note", doc.get("name"), "status", "Shipped")
+	frappe.db.commit()
 	
 	return shipment_doc.name
 

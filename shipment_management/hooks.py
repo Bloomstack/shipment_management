@@ -17,6 +17,7 @@ app_license = "MIT"
 # include js, css files in header of desk.html
 # app_include_css = "/assets/shipment_management/css/shipment_management.css"
 app_include_js = "/assets/shipment_management/js/custom_script.js"
+doctype_list_js = {"Delivery Note" : "public/js/custom_list.js"}
 
 # include js, css files in header of web template
 # web_include_css = "/assets/shipment_management/css/style.css"

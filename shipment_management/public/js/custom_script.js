@@ -1,6 +1,6 @@
 frappe.ui.form.on("Delivery Note", {
     refresh: function (frm) {
-        if (cur_frm.doc.status == "Submitted") {
+        if (cur_frm.doc.status == "Completed") {
             cur_frm.add_custom_button(__('Shipment'),
 
                 function () {
@@ -60,7 +60,7 @@ function create_dialog(frm) {
                     doc: frm.doc
                 },
                 freeze : 1, 
-                callback: function(r){
+                callback: function(r){                    
                     frappe.set_route("Form", "DTI Shipment Note", r.message)
                 }
             })
