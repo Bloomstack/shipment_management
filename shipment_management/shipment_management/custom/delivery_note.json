@@ -1,4 +1,5 @@
 {
+ "custom_fields" : [],
  "doctype": "Delivery Note", 
  "property_setters": [
   {
