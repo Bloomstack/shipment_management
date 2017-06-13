@@ -17,6 +17,7 @@ function onClick()
                     },
                callback: function (message) {
                    document.getElementById("img").style.display = 'none';
+                   document.getElementById("area").innerHTML = message.message;
                     }
                 })
 }
@@ -27,9 +28,7 @@ function onClick()
         display: none;
     }
 </style>
-
-<img src="/assets/shipment_management/images/fedex_icon.gif" alt="FedEx" align="right">
-
+<div class="container">
 <h2>Welcome to Fedex Status Checking Page!</h2>
 <h3>Enter a combination of up to 30 FedEx tracking numbers:</h3>
 
@@ -41,5 +40,6 @@ function onClick()
 
 <h4 id="area"></h4>
 
+</div>
 
 
