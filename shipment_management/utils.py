@@ -61,7 +61,10 @@ def create_shipment_note(items, item_dict, doc):
 		setattr(shipment_doc, field, fielddata)	
 
 	if shipment_doc.recipient_address_country_code.lower() != "us":
-		shipment_doc.international_shipment = 1	
+		shipment_doc.international_shipment = 1
+		shipment_doc.service_type_international = doc.get("fedex_shipping_method").replace(" ", "_")
+	else:
+		shipment_doc.service_type_domestic = doc.get("fedex_shipping_method").replace(" ", "_")
 
 	for item in get_delivery_items(doc.get("name")):
 		if frappe.db.get_value("Item", item.get("item_code"), "is_stock_item"):
