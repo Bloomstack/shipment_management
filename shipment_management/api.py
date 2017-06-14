@@ -86,5 +86,8 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 	for rate in sorted(rates, key=lambda rate: rate["fee"]):
 		rate["fee"] = rate["fee"] + surcharge
 		sorted_rates.append(rate)
+	
+	sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
+	
 
 	return sorted_rates
