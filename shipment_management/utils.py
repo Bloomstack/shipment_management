@@ -69,8 +69,11 @@ def create_shipment_note(items, item_dict, doc):
 	for item in get_delivery_items(doc.get("name")):
 		if frappe.db.get_value("Item", item.get("item_code"), "is_stock_item"):
 			item['weight_value'] = frappe.get_value("Item", item.get("item_code"), "net_weight")
-			if shipment_doc.international_shipment:		
-				item['insurance'] = 400
+			if shipment_doc.international_shipment:	
+				if item['rate'] < 400:
+					item['insurance'] = item['rate']
+				else:	
+					item['insurance'] = 400
 				item['custom_value'] = item.get("rate")
 			shipment_doc.append("delivery_items", item)
 			
