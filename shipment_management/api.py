@@ -79,8 +79,6 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		ignoreErrors=True
 	)
 
-	print(args)
-
 	rates = get_fedex_packages_rate(**args)
 	sorted_rates = []
 	for rate in sorted(rates, key=lambda rate: rate["fee"]):

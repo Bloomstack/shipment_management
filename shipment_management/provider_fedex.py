@@ -617,7 +617,8 @@ def get_fedex_packages_rate(international=False,
 							EdtRequestType=None,
 							PaymentType=None,
 							package_list=None,
-							ignoreErrors=False):
+							ignoreErrors=False,
+							single_rate=False):
 
 	"""
 	:param international:
@@ -763,7 +764,7 @@ def get_fedex_packages_rate(international=False,
 			frappe.throw(data)
 		return None
 
-	if len(rates) == 1:
+	if single_rate:
 		return rates[0]
 	else:
 		return rates
@@ -804,7 +805,8 @@ def get_all_shipment_rate(doc_name):
 								   RecipientCountryCode=source_doc.recipient_address_country_code,
 								   EdtRequestType='NONE',
 								   PaymentType=source_doc.payment_type,
-								   package_list=rate_box_list)
+								   package_list=rate_box_list,
+								   single_rate=True)
 
 # #############################################################################
 # #############################################################################
