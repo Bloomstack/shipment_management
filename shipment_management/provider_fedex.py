@@ -420,7 +420,6 @@ def create_fedex_shipment(source_doc):
 
 	master_tracking_number = label.TrackingIds[0].TrackingNumber
 	master_tracking_id_type = label.TrackingIds[0].TrackingIdType
-	master_tracking_form_id = label.TrackingIds[0].FormId
 
 	frappe.db.set(source_doc, 'tracking_number', master_tracking_number)
 	frappe.db.set(source_doc, 'master_tracking_id_type', master_tracking_id_type)
@@ -444,8 +443,6 @@ def create_fedex_shipment(source_doc):
 
 		shipment.RequestedShipment.MasterTrackingId.TrackingNumber = master_tracking_number
 		shipment.RequestedShipment.MasterTrackingId.TrackingIdType = master_tracking_id_type
-		shipment.RequestedShipment.MasterTrackingId.FormId = master_tracking_form_id
-
 		label = send_request_to_fedex(box, shipment, box_sequence_number)
 
 		save_label(label, master_tracking_number, GENERATE_IMAGE_TYPE.lower(), source_doc, box, box_sequence_number)

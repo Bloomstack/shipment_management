@@ -66,6 +66,8 @@ def create_shipment_note(items, item_dict, doc):
 	else:
 		shipment_doc.service_type_domestic = doc.get("fedex_shipping_method").replace(" ", "_")
 
+	shipment_doc.packaging_type = "YOUR_PACKAGING"
+
 	for item in get_delivery_items(doc.get("name")):
 		if frappe.db.get_value("Item", item.get("item_code"), "is_stock_item"):
 			item['weight_value'] = frappe.get_value("Item", item.get("item_code"), "net_weight")
