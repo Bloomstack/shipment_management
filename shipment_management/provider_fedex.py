@@ -518,7 +518,6 @@ def save_label(label, master_tracking_number, image_type, source_doc, box, box_s
 
 def send_request_to_fedex(box, shipment, box_sequence_number):
 	try:
-		box.save()
 		shipment.send_request()
 		return shipment.response.CompletedShipmentDetail.CompletedPackageDetails[0]
 
