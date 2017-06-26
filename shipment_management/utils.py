@@ -84,6 +84,7 @@ def create_shipment_note(items, item_dict, doc):
 			
 	
 	shipment_doc.save()
+	shipment_doc.submit()
 
 	frappe.db.set_value("Delivery Note", doc.get("name"), "status", "Shipped")
 	frappe.db.commit()
