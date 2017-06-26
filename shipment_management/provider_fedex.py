@@ -256,7 +256,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 					<b>DESCRIPTION:</b> <br>
 					{description}<br>
 					<b>COUNTRY OF MANUFACTURE </b>  =  {country_manufacture}<br>
-					<b>WIGHT  </b>                  =  {wight} <br>
+					<b>WEIGHT  </b>                 =  {weight} <br>
 					<b>QUANTITY     </b>            =  {quantity} <br>
 					<b>QUANTITY UNITS   </b>        =  {quantity_unites} <br>
 					<b>UNIT PRICE CURRENCY    </b>  =  {unit_price_currency} <br>
@@ -268,7 +268,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 							   number_of_pieces=commodity.NumberOfPieces,
 							   description=commodity.Description,
 							   country_manufacture=commodity.CountryOfManufacture,
-							   wight="%s %s" % (commodity.Weight.Value, commodity.Weight.Units),
+							   weight="%s %s" % (commodity.Weight.Value, commodity.Weight.Units),
 							   quantity=commodity.Quantity,
 							   quantity_unites=commodity.QuantityUnits,
 							   unit_price_currency=commodity.UnitPrice.Currency,

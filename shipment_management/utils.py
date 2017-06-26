@@ -42,6 +42,7 @@ def create_shipment_note(items, item_dict, doc):
 	items = json.loads(items)
 	item_dict = json.loads(item_dict)
 	doc = json.loads(doc)
+	box_list = []
 
 	box_items = defaultdict(list)
 	
@@ -51,8 +52,10 @@ def create_shipment_note(items, item_dict, doc):
 	shipment_doc = frappe.new_doc("DTI Shipment Note")
 	shipment_doc.delivery_note = doc.get("name")
 	for box, items in box_items.items():
-		shipment_doc.append("box_list" , {"physical_packaging" : "BOX",
+		box_list.append({"physical_packaging" : "BOX",
 			"items_in_box": "\n".join(items)})
+
+	shipment_doc.extend("box_list", list(reversed(box_list)))
 
 	for field, fielddata in get_recipient_details(doc.get("name")).items():
 		setattr(shipment_doc, field, fielddata)
@@ -79,10 +82,8 @@ def create_shipment_note(items, item_dict, doc):
 				item['custom_value'] = item.get("rate")
 			shipment_doc.append("delivery_items", item)
 			
-
 	
 	shipment_doc.save()
-	shipment_doc.submit()
 
 	frappe.db.set_value("Delivery Note", doc.get("name"), "status", "Shipped")
 	frappe.db.commit()
