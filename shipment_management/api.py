@@ -53,8 +53,9 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		   package.get("weight_units", None) is None:
 			raise frappe.exceptions.ValidationError("Missing weight_value data")
 
-		if not package.get("group_package_count"):
-			package["group_package_count"] = 1
+		#if not package.get("group_package_count"):
+		# keep count on 1 as we don't care about package groups
+		package["group_package_count"] = 1
 
 		if not package.get("insured_amount"):
 			package["insured_amount"] = 0
@@ -84,8 +85,7 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 	for rate in sorted(rates, key=lambda rate: rate["fee"]):
 		rate["fee"] = rate["fee"] + surcharge
 		sorted_rates.append(rate)
-	
+
 	sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
-	
 
 	return sorted_rates
