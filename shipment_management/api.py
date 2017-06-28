@@ -31,7 +31,7 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		"weight_units": "LB",
 		"physical_packaging": "BOX",
 		"group_package_count": 0,
-		"insured_amount": 100
+		"insured_amount": 0
 	}
 
 	for itm in items:
@@ -42,8 +42,10 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 			package["weight_value"] = package["weight_value"] + (weight * itm.get("qty", 1))
 			package["group_package_count"] = package["group_package_count"] + itm.get("qty")
 
-			if itm["item_code"].find("CIEM") > -1:
-				package["insured_amount"] = package["insured_amount"] + (300 * itm.get("qty", 1))
+			if itm["item_code"].find("CIEM") > -1 or itm["item_code"].find("UIEM") > -1:
+				package["insured_amount"] = package["insured_amount"] + (400 * itm.get("qty", 1))
+			else:
+				package["insured_amount"] = package["insured_amount"] + (100 * itm.get("qty", 1))
 
 	package["weight_value"] = ceil(package["weight_value"])
 	if package["weight_value"] < 1:
@@ -92,7 +94,7 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 	sorted_rates = []
 	for rate in sorted(rates, key=lambda rate: rate["fee"]):
 		rate["fee"] = rate["fee"] + surcharge
-		
+
 		if upcharge_doc.upcharge_type == "Percentage":
 			rate["fee"] = rate["fee"] + (rate["fee"] * (upcharge_doc.upcharge/100))
 		elif upcharge_doc.upcharge_type == "Actual":
