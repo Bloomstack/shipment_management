@@ -1,9 +1,10 @@
 from __future__ import unicode_literals
 
 import frappe
-from frappe.utils import cint
+from frappe.utils import cint, flt
 from provider_fedex import get_fedex_packages_rate
 from utils import get_state_code, get_country_code
+from math import ceil
 from shipment_management.doctype.shipping_package_rule.shipping_package_rule import find_packages
 
 VALID_PACKAGING_TYPES = (
@@ -30,18 +31,23 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		"weight_units": "LB",
 		"physical_packaging": "BOX",
 		"group_package_count": 0,
-		"insured_amount": 300
+		"insured_amount": 100
 	}
 
 	for itm in items:
 		item = frappe.get_all("Item", fields=["name", "net_weight"], filters={ "item_code": itm.get("item_code") })
 		if item and len(item) > 0:
 			item = item[0]
-			weight = item.get("net_weight", 0)
-			if weight < 1:
-				weight = 1
-			package["weight_value"] = package["weight_value"] + cint(weight * 2 * itm.get("qty", 1))
+			weight = flt(item.get("net_weight", 0))
+			package["weight_value"] = package["weight_value"] + (weight * itm.get("qty", 1))
 			package["group_package_count"] = package["group_package_count"] + itm.get("qty")
+
+			if itm["item_code"].find("CIEM") > -1:
+				package["insured_amount"] = package["insured_amount"] + (300 * itm.get("qty", 1))
+
+	package["weight_value"] = ceil(package["weight_value"])
+	if package["weight_value"] < 1:
+		package["weight_value"] = 1
 
 	packages.append(package)
 
