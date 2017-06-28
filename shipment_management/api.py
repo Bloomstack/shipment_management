@@ -86,10 +86,18 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		ignoreErrors=True
 	)
 
+	upcharge_doc = frappe.get_doc("Shipment Rate Settings", "Shipment Rate Settings")
+
 	rates = get_fedex_packages_rate(**args)
 	sorted_rates = []
 	for rate in sorted(rates, key=lambda rate: rate["fee"]):
 		rate["fee"] = rate["fee"] + surcharge
+		
+		if upcharge_doc.upcharge_type == "Percentage":
+			rate["fee"] = rate["fee"] + (rate["fee"] * (upcharge_doc.upcharge/100))
+		elif upcharge_doc.upcharge_type == "Actual":
+			rate["fee"] = rate["fee"] + upcharge_doc.upcharge
+
 		sorted_rates.append(rate)
 
 	sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
