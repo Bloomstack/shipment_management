@@ -612,6 +612,7 @@ def get_fedex_packages_rate(international=False,
 							RecipientPostalCode=None,
 							RecipientCountryCode=None,
 							EdtRequestType=None,
+							IsResidential=False,
 							PaymentType=None,
 							package_list=None,
 							ignoreErrors=False,
@@ -693,6 +694,7 @@ def get_fedex_packages_rate(international=False,
 	rate.RequestedShipment.Recipient.Address.StateOrProvinceCode = get_state_code(recipient_address)
 	rate.RequestedShipment.Recipient.Address.PostalCode = RecipientPostalCode
 	rate.RequestedShipment.Recipient.Address.CountryCode = RecipientCountryCode
+	rate.RequestedShipment.Recipient.Address.Residential = IsResidential
 
 	rate.RequestedShipment.EdtRequestType = EdtRequestType
 	rate.RequestedShipment.ShippingChargesPayment.PaymentType = PaymentType
@@ -805,6 +807,7 @@ def get_all_shipment_rate(doc_name):
 								   RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_province_code,
 								   RecipientPostalCode=source_doc.recipient_address_postal_code,
 								   RecipientCountryCode=source_doc.recipient_address_country_code,
+								   IsResidential=False,
 								   EdtRequestType='NONE',
 								   PaymentType=source_doc.payment_type,
 								   package_list=rate_box_list,

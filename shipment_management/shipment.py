@@ -90,6 +90,7 @@ class Address(object):
 		self.PostalCode = None
 		self.Country = None
 		self.CountryCode = None
+		self.Residential = None
 
 
 class RequestedShipment(object):
@@ -225,7 +226,11 @@ def get_recipient(delivery_note_name):
 		
 		if shipping_address[0].state:
 			recipient.address.StateOrProvinceCode = get_state_code({"country" : recipient.address.Country,
-																		   "state" : shipping_address[0].state})
+																		   "state" : shipping_address[0].state})			
+		if shipping_address[0].address_type == "Office":
+			recipient.address.Residential = False
+		elif shipping_address[0].address_type == "Residential":
+			recipient.address.Residential = True
 
 	if primary_contact:
 		if not recipient.contact.PhoneNumber:
@@ -242,6 +247,7 @@ def get_recipient(delivery_note_name):
 @frappe.whitelist()
 def get_recipient_details(delivery_note_name):
 	recipient = get_recipient(delivery_note_name)
+
 	return {"recipient_contact_person_name": recipient.contact.PersonName or "",
 			"recipient_company_name": recipient.contact.CompanyName or "",
 			"recipient_contact_phone_number": recipient.contact.PhoneNumber or "",
@@ -250,6 +256,7 @@ def get_recipient_details(delivery_note_name):
 			"recipient_address_state_or_province_code": recipient.address.StateOrProvinceCode or "",
 			"recipient_address_country_code": recipient.address.CountryCode or "",
 			"recipient_address_postal_code": recipient.address.PostalCode or "",
+			"recipient_address_residential" : recipient.address.Residential or "",
 			"contact_email": ", ".join(recipient.contact.Email_List)}
 
 
