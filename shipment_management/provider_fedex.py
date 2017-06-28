@@ -176,7 +176,8 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 	# ------------------------
 
 	package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
-	package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'SERVICE_DEFAULT'
+	package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'DIRECT'
+	
 
 	package.SequenceNumber = sequence_number
 
@@ -720,6 +721,11 @@ def get_fedex_packages_rate(international=False,
 		package_insure = rate.create_wsdl_object_of_type('Money')
 		package_insure.Currency = "USD"
 		package_insure.Amount = package["insured_amount"]
+
+		# Additional Surcharges
+		package1.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
+		package1.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'DIRECT'
+
 
 		rate.add_package(package1)
 
