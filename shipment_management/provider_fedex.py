@@ -724,6 +724,8 @@ def get_fedex_packages_rate(international=False,
 		package_insure.Currency = "USD"
 		package_insure.Amount = package["insured_amount"]
 
+		package1.InsuredValue = package_insure
+
 		# Additional Surcharges
 		package1.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
 		package1.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'DIRECT'
