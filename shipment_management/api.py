@@ -73,6 +73,12 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 
 		surcharge = surcharge + package.get("surcharge", 0)
 
+
+		if to_address.get("address_type") == "Office":
+			to_address["residential"] = False
+		elif to_address.get("address_type") == "Residential":
+			to_address["residential"] = True
+
 	args = dict(
 		DropoffType='REGULAR_PICKUP',
 		PackagingType=packaging_type,
@@ -83,6 +89,7 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		ShipperCountryCode=get_country_code(from_address.get("country")),
 		RecipientStateOrProvinceCode=to_address.get("state"),
 		RecipientPostalCode=to_address.get("pincode"),
+		IsResidential = to_address.get("residential"),
 		RecipientCountryCode=get_country_code(to_address.get("country")),
 		package_list=packages,
 		ignoreErrors=True
