@@ -1646,7 +1646,7 @@
    "label": "Service Type Domestic", 
    "length": 0, 
    "no_copy": 0, 
-   "options": "STANDARD_OVERNIGHT\nPRIORITY_OVERNIGHT\nFEDEX_GROUND\nFEDEX_EXPRESS_SAVER\nFEDEX_2_DAY\nSAME_DAY", 
+   "options": "STANDARD_OVERNIGHT\nPRIORITY_OVERNIGHT\nFEDEX_GROUND\nGROUND_HOME_DELIVERY\nFEDEX_EXPRESS_SAVER\nFEDEX_2_DAY\nSAME_DAY", 
    "permlevel": 0, 
    "precision": "", 
    "print_hide": 0, 
@@ -2187,7 +2187,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2017-06-12 06:45:56.926065", 
+ "modified": "2017-06-30 05:03:27.559437", 
  "modified_by": "Administrator", 
  "module": "Shipment Management", 
  "name": "DTI Shipment Note", 
@@ -2195,7 +2195,7 @@
  "owner": "Administrator", 
  "permissions": [
   {
-   "amend": 0, 
+   "amend": 1, 
    "apply_user_permissions": 0, 
    "cancel": 1, 
    "create": 1, 
