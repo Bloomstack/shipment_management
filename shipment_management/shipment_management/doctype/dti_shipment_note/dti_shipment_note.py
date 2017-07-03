@@ -18,6 +18,21 @@ class DTIShipmentNote(Document):
 			if not box.tracking_number:
 				frappe.throw(_("Please enter Tracking Number"))
 
+	def on_submit(self):
+		self.set_tracking_ids()
+
+	def set_tracking_ids(self):
+		tracking_ids = ",".join([box.tracking_number.replace("-", "") for box in self.box_list])
+		for so in set([item.against_sales_order for item in self.delivery_items]):
+			existing_tracking_ids = frappe.db.get_value("Sales Order", so, "tracking_ids")
+			if existing_tracking_ids:
+				updated_tracking_ids = existing_tracking_ids + "," + tracking_ids
+			else:
+				updated_tracking_ids = tracking_ids
+
+			if not tracking_ids in existing_tracking_ids:
+				frappe.db.set_value("Sales Order", so, "tracking_ids", updated_tracking_ids)
+
 	# def on_submit(self):
 
 	# 	from shipment_management.config.app_config import SupportedProviderList
