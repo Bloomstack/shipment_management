@@ -16,7 +16,7 @@ class DTIShipmentNote(Document):
 	def before_submit(self):
 		for box in self.box_list:
 			if not box.tracking_number:
-				frappe.throw(_("Please enter Tracking Number"))
+				frappe.throw(_("Please enter Tracking Number for Box" + box.idx))
 
 	def on_submit(self):
 		self.set_tracking_ids()
@@ -26,12 +26,12 @@ class DTIShipmentNote(Document):
 		for so in set([item.against_sales_order for item in self.delivery_items]):
 			existing_tracking_ids = frappe.db.get_value("Sales Order", so, "tracking_ids")
 			if existing_tracking_ids:
-				updated_tracking_ids = existing_tracking_ids + "," + tracking_ids
+				if not tracking_ids in existing_tracking_ids:
+					updated_tracking_ids = existing_tracking_ids + "," + tracking_ids
 			else:
 				updated_tracking_ids = tracking_ids
 
-			if not tracking_ids in existing_tracking_ids:
-				frappe.db.set_value("Sales Order", so, "tracking_ids", updated_tracking_ids)
+			frappe.db.set_value("Sales Order", so, "tracking_ids", updated_tracking_ids)
 
 	# def on_submit(self):
 
