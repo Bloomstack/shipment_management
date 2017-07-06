@@ -345,10 +345,10 @@ def create_fedex_shipment(source_doc):
 	shipment.RequestedShipment.Shipper.Address.PostalCode = source_doc.shipper_address_postal_code
 	shipment.RequestedShipment.Shipper.Address.CountryCode = source_doc.shipper_address_country_code
 
-	if source_doc.shipper_address_residential:
-		shipment.RequestedShipment.Shipper.Address.Residential = True
+	if source_doc.recipient_address_residential:
+		shipment.RequestedShipment.Recipient.Address.Residential = True
 	else:
-		shipment.RequestedShipment.Shipper.Address.Residential = False
+		shipment.RequestedShipment.Recipient.Address.Residential = False
 
 	# Recipient contact info.
 	shipment.RequestedShipment.Recipient.Contact.PersonName = source_doc.recipient_contact_person_name
@@ -361,11 +361,6 @@ def create_fedex_shipment(source_doc):
 	shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = get_state_code(recipient_address)
 	shipment.RequestedShipment.Recipient.Address.PostalCode = source_doc.recipient_address_postal_code
 	shipment.RequestedShipment.Recipient.Address.CountryCode = source_doc.recipient_address_country_code
-
-	if source_doc.recipient_address_residential:
-		shipment.RequestedShipment.Recipient.Address.Residential = True
-	else:
-		shipment.RequestedShipment.Recipient.Address.Residential = False
 
 	shipment.RequestedShipment.EdtRequestType = 'NONE'
 
@@ -798,6 +793,7 @@ def get_all_shipment_rate(doc_name):
 		service_type = source_doc.service_type_international
 	else:
 		service_type = source_doc.service_type_domestic
+	
 
 	return get_fedex_packages_rate(international=source_doc.international_shipment,
 								   DropoffType=source_doc.drop_off_type,
@@ -809,7 +805,7 @@ def get_all_shipment_rate(doc_name):
 								   RecipientStateOrProvinceCode=source_doc.recipient_address_state_or_province_code,
 								   RecipientPostalCode=source_doc.recipient_address_postal_code,
 								   RecipientCountryCode=source_doc.recipient_address_country_code,
-								   IsResidential=False,
+								   IsResidential=source_doc.recipient_address_residential,
 								   EdtRequestType='NONE',
 								   PaymentType=source_doc.payment_type,
 								   package_list=rate_box_list,
