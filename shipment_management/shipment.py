@@ -227,10 +227,7 @@ def get_recipient(delivery_note_name):
 		if shipping_address[0].state:
 			recipient.address.StateOrProvinceCode = get_state_code({"country" : recipient.address.Country,
 																		   "state" : shipping_address[0].state})			
-		if shipping_address[0].address_type == "Office":
-			recipient.address.Residential = False
-		elif shipping_address[0].address_type == "Residential":
-			recipient.address.Residential = True
+			recipient.address.Residential = shipping_address[0].is_residential
 
 	if primary_contact:
 		if not recipient.contact.PhoneNumber:
