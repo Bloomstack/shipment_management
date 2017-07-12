@@ -1,6 +1,6 @@
 frappe.ui.form.on("Quotation", {
     refresh: function (frm) {
-        if (frm.doc.docstatus != 1) {
+        if (frm.doc.docstatus == 0) {
             frm.add_custom_button(__('Get Fedex Rates'),
                 function () {
                     frappe.call({
