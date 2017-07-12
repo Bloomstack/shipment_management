@@ -5,6 +5,7 @@ from frappe.utils import cint, flt
 from provider_fedex import get_fedex_packages_rate
 from utils import get_state_code, get_country_code
 from math import ceil
+import json
 from shipment_management.doctype.shipping_package_rule.shipping_package_rule import find_packages
 
 VALID_PACKAGING_TYPES = (
@@ -16,6 +17,14 @@ VALID_PACKAGING_TYPES = (
 	"FEDEX_TUBE",
 	"YOUR_PACKAGING"
 )
+
+@frappe.whitelist()
+def get_rates_for_doc(doc):
+	doc = json.loads(doc)
+	to_address = frappe.get_doc("Address", doc.get("shipping_address_name"))
+	from_address = frappe.get_doc("Address", {"is_your_company_address" : 1})
+	return get_rates(from_address, to_address, doc.get("items"))
+	
 
 def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 	"""Simple wrapper over fedex rating service.

@@ -17,7 +17,9 @@ app_license = "MIT"
 # include js, css files in header of desk.html
 # app_include_css = "/assets/shipment_management/css/shipment_management.css"
 app_include_js = "/assets/shipment_management/js/custom_script.js"
-doctype_list_js = {"Delivery Note" : "public/js/custom_list.js"}
+doctype_list_js = {"Delivery Note": "public/js/custom_list.js",
+                   "Quotation": "public/js/quotation.js",
+                   "Sales Order": "public/js/sales_order.js"}
 
 # include js, css files in header of web template
 # web_include_css = "/assets/shipment_management/css/style.css"
@@ -83,7 +85,7 @@ after_install = "shipment_management.shipment.after_install"
 # ---------------
 
 scheduler_events = {
-"all": ["shipment_management.shipment.shipment_status_update_controller"]}
+    "all": ["shipment_management.shipment.shipment_status_update_controller"]}
 
 # Testing
 # -------
@@ -98,5 +100,5 @@ scheduler_events = {
 # }
 
 shipping_rate_api = [
-    { "name": "FedEx", "module": "shipment_management.api.get_rates" }
+    {"name": "FedEx", "module": "shipment_management.api.get_rates"}
 ]
