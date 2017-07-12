@@ -8,6 +8,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils.file_manager import *
+from frappe.utils import cstr
 
 
 class DTIShipmentNote(Document):
@@ -16,7 +17,7 @@ class DTIShipmentNote(Document):
 	def before_submit(self):
 		for box in self.box_list:
 			if not box.tracking_number:
-				frappe.throw(_("Please enter Tracking Number for Box" + box.idx))
+				frappe.throw(_("Please enter Tracking Number for Box" + cstr(box.idx)))
 
 	def on_submit(self):
 		self.set_tracking_ids()
