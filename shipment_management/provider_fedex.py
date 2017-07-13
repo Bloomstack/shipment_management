@@ -177,6 +177,11 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 	package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
 	package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'DIRECT'
+
+	customer_reference = shipment.create_wsdl_object_of_type('CustomerReference')
+	customer_reference.CustomerReferenceType="CUSTOMER_REFERENCE"
+	customer_reference.Value = box.reference_note
+	package.CustomerReferences.append(customer_reference)
 	
 
 	package.SequenceNumber = sequence_number
