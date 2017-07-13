@@ -67,6 +67,6 @@ function get_fedex_rates(frm) {
                             "Select Service")
                     }
                 })
-            });
+            }).addClass("btn btn-primary");;
     }
 }
