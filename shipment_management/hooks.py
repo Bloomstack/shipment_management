@@ -18,6 +18,7 @@ app_license = "MIT"
 # app_include_css = "/assets/shipment_management/css/shipment_management.css"
 doctype_js = {
     "Quotation": "public/js/get_rates.js",
+    "Sales Invoice": "public/js/get_rates.js",
     "Sales Order": ["public/js/get_rates.js", "public/js/sales_order.js"],
     "Delivery Note": "public/js/custom_script.js"
 }

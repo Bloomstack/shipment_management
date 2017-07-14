@@ -18,6 +18,16 @@ frappe.ui.form.on("Sales Order", {
     }
 });
 
+frappe.ui.form.on("Sales Invoice", {
+    refresh: function (frm) {
+        add_fedex_rates_button(frm)
+    },
+
+    get_fedex_rates: function (frm) {
+        get_fedex_rates(frm)
+    }
+});
+
 
 function add_fedex_rates_button(frm) {
     if (frm.doc.docstatus == 0) {
