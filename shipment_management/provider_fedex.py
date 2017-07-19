@@ -174,14 +174,15 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 	package.InsuredValue = package1_insure
 
 	# ------------------------
+	if source_doc.signature_option:
+		package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
+		package.SpecialServicesRequested.SignatureOptionDetail.OptionType = source_doc.signature_option
 
-	package.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
-	package.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'DIRECT'
-
-	customer_reference = shipment.create_wsdl_object_of_type('CustomerReference')
-	customer_reference.CustomerReferenceType="CUSTOMER_REFERENCE"
-	customer_reference.Value = box.reference_note
-	package.CustomerReferences.append(customer_reference)
+	if box.reference_note:
+		customer_reference = shipment.create_wsdl_object_of_type('CustomerReference')
+		customer_reference.CustomerReferenceType="CUSTOMER_REFERENCE"
+		customer_reference.Value = box.reference_note
+		package.CustomerReferences.append(customer_reference)	
 	
 
 	package.SequenceNumber = sequence_number
@@ -311,7 +312,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 def create_fedex_shipment(source_doc):
 	from utils import get_state_code
 
-	GENERATE_IMAGE_TYPE = 'PNG'
+	GENERATE_IMAGE_TYPE = source_doc.file_format
 
 	if source_doc.international_shipment:
 		shipment = FedexProcessInternationalShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
@@ -616,7 +617,8 @@ def get_fedex_packages_rate(international=False,
 							PaymentType=None,
 							package_list=None,
 							ignoreErrors=False,
-							single_rate=False):
+							single_rate=False,
+							signature_option=None):
 
 	"""
 	:param international:
@@ -711,14 +713,22 @@ def get_fedex_packages_rate(international=False,
 		package1.PhysicalPackaging = package["physical_packaging"]
 		package1.GroupPackageCount = package["group_package_count"]
 
-		if package.get("dimensions"):
+
+		if package.get("packaging_type"):
+			box_doc = frappe.get_doc("Shipping Package", package.get("packaging_type"))
+			rate.RequestedShipment.PackagingType = box_doc.box_code		
+			
 			package_dim = rate.create_wsdl_object_of_type("Dimensions")
-			package_dim.Length = cint(package["dimensions"]["length"])
-			package_dim.Width = cint(package["dimensions"]["width"])
-			package_dim.Height = cint(package["dimensions"]["height"])
-			package_dim.Units = package["dimensions"]["units"]
+			package_dim.Length = cint(box_doc.length)
+			package_dim.Width = cint(box_doc.width)
+			package_dim.Height = cint(box_doc.height)
+			package_dim.Units = "IN"
 
 			package1.Dimensions = package_dim
+			package1_weight.Value += box_doc.weight
+			package1_weight.Units = package["weight_units"]
+			package1.Weight = package1_weight
+			
 
 		package_insure = rate.create_wsdl_object_of_type('Money')
 		package_insure.Currency = "USD"
@@ -726,9 +736,10 @@ def get_fedex_packages_rate(international=False,
 
 		package1.InsuredValue = package_insure
 
-		# Additional Surcharges
-		package1.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
-		package1.SpecialServicesRequested.SignatureOptionDetail.OptionType = 'DIRECT'
+		if signature_option:
+			# Additional Surcharges
+			package1.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
+			package1.SpecialServicesRequested.SignatureOptionDetail.OptionType = signature_option
 
 
 		rate.add_package(package1)
@@ -814,6 +825,7 @@ def get_all_shipment_rate(doc_name):
 								   EdtRequestType='NONE',
 								   PaymentType=source_doc.payment_type,
 								   package_list=rate_box_list,
+								   signature_option=source_doc.signature_option,
 								   single_rate=True)
 
 # #############################################################################
@@ -858,6 +870,7 @@ def show_shipment_estimates(doc_name):
 		rate_box_list.append({'weight_value': box_weight_value,
 							  'weight_units': box_weight_units,
 							  'physical_packaging': box.physical_packaging,
+							  'packaging_type' : box.packaging_type,
 							  'group_package_count': i+1,
 							  'insured_amount': box_insurance})
 
@@ -874,6 +887,7 @@ def show_shipment_estimates(doc_name):
 									RecipientPostalCode=source_doc.recipient_address_postal_code,
 									RecipientCountryCode=source_doc.recipient_address_country_code,
 									EdtRequestType='NONE',
+									signature_option=source_doc.signature_option,
 									PaymentType=source_doc.payment_type,
 									package_list=rate_box_list)
 
