@@ -88,7 +88,6 @@ def create_shipment_note(items, item_dict, doc):
 	# Temporarily Disabled
 	# shipment_doc.submit()
 
-	frappe.db.set_value("Delivery Note", doc.get("name"), "status", "Shipped")
 	frappe.db.commit()
 	
 	return shipment_doc.name

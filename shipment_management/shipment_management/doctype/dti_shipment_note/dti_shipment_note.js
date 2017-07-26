@@ -17,7 +17,9 @@ give_estimates = function (doc) {
 
 cur_frm.cscript.estimate = function () {
     cur_frm.save();
-    give_estimates(cur_frm)
+    setTimeout(function(){
+        give_estimates(cur_frm)
+    }, 1500)
 }
 
 // --------------------------------------------------------------

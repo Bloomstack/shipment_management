@@ -12,7 +12,6 @@ from frappe.utils import cstr
 
 
 class DTIShipmentNote(Document):
-	# Temporarily Disabled	
 
 	def set_tracking_ids(self):
 		tracking_ids = ",".join([box.tracking_number.replace("-", "") for box in self.box_list])
@@ -26,7 +25,7 @@ class DTIShipmentNote(Document):
 
 			frappe.db.set_value("Sales Order", so, "tracking_ids", updated_tracking_ids)
 
-	def validate(self):
+	def on_submit(self):
 
 		from shipment_management.config.app_config import SupportedProviderList
 		from shipment_management.shipment import ShipmentNoteOperationalStatus
