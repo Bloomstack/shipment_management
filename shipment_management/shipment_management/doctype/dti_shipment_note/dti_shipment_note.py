@@ -12,15 +12,6 @@ from frappe.utils import cstr
 
 
 class DTIShipmentNote(Document):
-	# Temporarily Disabled	
-
-	def before_submit(self):
-		for box in self.box_list:
-			if not box.tracking_number:
-				frappe.throw(_("Please enter Tracking Number for Box" + cstr(box.idx)))
-
-	def on_submit(self):
-		self.set_tracking_ids()
 
 	def set_tracking_ids(self):
 		tracking_ids = ",".join([box.tracking_number.replace("-", "") for box in self.box_list])
@@ -34,43 +25,46 @@ class DTIShipmentNote(Document):
 
 			frappe.db.set_value("Sales Order", so, "tracking_ids", updated_tracking_ids)
 
-	# def on_submit(self):
+	def on_submit(self):
 
-	# 	from shipment_management.config.app_config import SupportedProviderList
-	# 	from shipment_management.shipment import ShipmentNoteOperationalStatus
+		from shipment_management.config.app_config import SupportedProviderList
+		from shipment_management.shipment import ShipmentNoteOperationalStatus
 
-	# 	if self.shipment_provider != SupportedProviderList.Fedex:
-	# 		frappe.throw(_("Please specify shipment provider!"))
+		if self.shipment_provider != SupportedProviderList.Fedex:
+			frappe.throw(_("Please specify shipment provider!"))
 
-	# 	if self.shipment_provider == SupportedProviderList.Fedex:
-	# 		from shipment_management.provider_fedex import create_fedex_shipment
-	# 		create_fedex_shipment(self)
+		if self.shipment_provider == SupportedProviderList.Fedex:
+			from shipment_management.provider_fedex import create_fedex_shipment
+			create_fedex_shipment(self)
 
-	# 		frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Created)
-	# 		frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
+			frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Created)
+			frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
 
-	# def on_cancel(self):
+		self.set_tracking_ids()
+		
 
-	# 	from shipment_management.config.app_config import SupportedProviderList
-	# 	from shipment_management.shipment import ShipmentNoteOperationalStatus
+	def on_cancel(self):
 
-	# 	if self.shipment_provider == SupportedProviderList.Fedex:
+		from shipment_management.config.app_config import SupportedProviderList
+		from shipment_management.shipment import ShipmentNoteOperationalStatus
 
-	# 		try:
-	# 			from shipment_management.provider_fedex import delete_fedex_shipment
-	# 			delete_fedex_shipment(self)
-	# 			frappe.msgprint(_("Shipment {} has been canceled!".format(self.name)))
+		if self.shipment_provider == SupportedProviderList.Fedex:
 
-	# 			frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Cancelled)
-	# 			frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.Cancelled)
+			try:
+				from shipment_management.provider_fedex import delete_fedex_shipment
+				delete_fedex_shipment(self)
+				frappe.msgprint(_("Shipment {} has been canceled!".format(self.name)))
 
-	# 			from shipment_management.email_controller import get_content_cancel, send_email
+				frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Cancelled)
+				frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.Cancelled)
 
-	# 			message = get_content_cancel(self)
+				from shipment_management.email_controller import get_content_cancel, send_email
 
-	# 			send_email(message=message,
-	# 					   subject="Shipment to %s [%s] - Cancelled" % (self.recipient_company_name, self.name),
-	# 					   recipient_list=self.contact_email.split(","))
+				message = get_content_cancel(self)
 
-	# 		except Exception, error:
-	# 			frappe.throw(_(error))
+				send_email(message=message,
+						   subject="Shipment to %s [%s] - Cancelled" % (self.recipient_company_name, self.name),
+						   recipient_list=self.contact_email.split(","))
+
+			except Exception, error:
+				frappe.throw(_(error))
