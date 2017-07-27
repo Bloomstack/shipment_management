@@ -182,8 +182,22 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 		customer_reference = shipment.create_wsdl_object_of_type('CustomerReference')
 		customer_reference.CustomerReferenceType="CUSTOMER_REFERENCE"
 		customer_reference.Value = box.reference_note
-		package.CustomerReferences.append(customer_reference)	
-	
+		package.CustomerReferences.append(customer_reference)
+
+	if box.packaging_type:
+		box_doc = frappe.get_doc("Shipping Package", box.packaging_type)
+		shipment.RequestedShipment.PackagingType = box_doc.box_code
+		
+		package_dim = shipment.create_wsdl_object_of_type("Dimensions")
+		package_dim.Length = cint(box_doc.length)
+		package_dim.Width = cint(box_doc.width)
+		package_dim.Height = cint(box_doc.height)
+		package_dim.Units = "IN"
+
+		package.Dimensions = package_dim
+		package_weight.Value += box_doc.weight
+		package.Weight = package_weight
+
 
 	package.SequenceNumber = sequence_number
 
@@ -289,6 +303,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 			frappe.db.set(box, 'commodity_information', unicode(commodity_message))
 
 		frappe.db.set(box, 'total_box_custom_value', total_box_custom_value)
+	
 
 	# -----------------------------
 
@@ -404,7 +419,7 @@ def create_fedex_shipment(source_doc):
 								   shipment=shipment,
 								   box=master_box,
 								   source_doc=source_doc)
-
+	   
 	shipment.RequestedShipment.RequestedPackageLineItems = [package]
 
 	if source_doc.international_shipment:
@@ -478,7 +493,7 @@ def create_fedex_shipment(source_doc):
 
 		frappe.msgprint("Rate: %s (%s)" % (rate["label"], rate["fee"]), "Updated!")
 	except Exception as error:
-		frappe.msgprint(error)
+		frappe.throw(error.messagae)
 		frappe.db.set(source_doc, 'shipment_rate', "N/A")
 
 	# ############################################################################
@@ -559,6 +574,10 @@ def get_total_box_value(box, source_doc, attrib):
 	for item in items:
 		quantity_in_box = items[item]
 		box_total += getattr(get_item_by_item_code(source_doc=source_doc, item_code=item), attrib) * quantity_in_box
+
+
+	if attrib == "weight_value":
+		box_total += frappe.get_value("Shipping Package", box.packaging_type, "weight")	
 	return box_total
 
 
@@ -744,7 +763,6 @@ def get_fedex_packages_rate(international=False,
 
 		rate.add_package(package1)
 
-
 	try:
 		rate.send_request()
 	except Exception as e:
@@ -802,6 +820,7 @@ def get_all_shipment_rate(doc_name):
 		rate_box_list.append({'weight_value': box_weight_value,
 							  'weight_units': box_weight_units,
 							  'physical_packaging': box.physical_packaging,
+							  'packaging_type': box.packaging_type,
 							  'group_package_count': i+1,
 							  'insured_amount': box_insurance})
 
