@@ -84,15 +84,9 @@ def create_shipment_note(items, item_dict, doc):
 			
 	
 	shipment_doc.save()
-	
-	# Temporarily Disabled
-	# shipment_doc.submit()
-
 	frappe.db.commit()
 	
 	return shipment_doc.name
-
-
 
 @frappe.whitelist()
 def get_stock_items(items):
@@ -102,3 +96,7 @@ def get_stock_items(items):
 		if frappe.db.get_value("Item", {"item_code" : item.get("item_code")}, "is_stock_item"):
 			stock_items.append(item)
 	return stock_items
+
+@frappe.whitelist()
+def get_packages_in_order(doctype, txt, searchfield, start, page_len, filters):
+	return frappe.db.sql("select `name`, `box_code` from `tabShipping Package` ORDER BY `order` ASC")
