@@ -26,6 +26,11 @@ cur_frm.cscript.estimate = function () {
 
 frappe.ui.form.on('DTI Shipment Note', {
     refresh: function (frm) {
+        frm.set_query("packaging_type", "box_list", function(){
+            return{
+                query : "shipment_management.utils.get_packages_in_order"
+            }
+        })
         cur_frm.refresh_fields();
         $("[data-fieldname='international_shipment']").css({
             'text-transform': 'uppercase',

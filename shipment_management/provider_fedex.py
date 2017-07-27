@@ -188,13 +188,14 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 		box_doc = frappe.get_doc("Shipping Package", box.packaging_type)
 		shipment.RequestedShipment.PackagingType = box_doc.box_code
 		
-		package_dim = shipment.create_wsdl_object_of_type("Dimensions")
-		package_dim.Length = cint(box_doc.length)
-		package_dim.Width = cint(box_doc.width)
-		package_dim.Height = cint(box_doc.height)
-		package_dim.Units = "IN"
-
-		package.Dimensions = package_dim
+		if box_doc.box_code == "YOUR_PACKAGING":
+			package_dim = shipment.create_wsdl_object_of_type("Dimensions")
+			package_dim.Length = cint(box_doc.length)
+			package_dim.Width = cint(box_doc.width)
+			package_dim.Height = cint(box_doc.height)
+			package_dim.Units = "IN"
+			package.Dimensions = package_dim
+		
 		package_weight.Value += box_doc.weight
 		package.Weight = package_weight
 
@@ -736,14 +737,15 @@ def get_fedex_packages_rate(international=False,
 		if package.get("packaging_type"):
 			box_doc = frappe.get_doc("Shipping Package", package.get("packaging_type"))
 			rate.RequestedShipment.PackagingType = box_doc.box_code		
-			
-			package_dim = rate.create_wsdl_object_of_type("Dimensions")
-			package_dim.Length = cint(box_doc.length)
-			package_dim.Width = cint(box_doc.width)
-			package_dim.Height = cint(box_doc.height)
-			package_dim.Units = "IN"
 
-			package1.Dimensions = package_dim
+			if box_doc.box_code == "YOUR_PACKAGING":			
+				package_dim = rate.create_wsdl_object_of_type("Dimensions")
+				package_dim.Length = cint(box_doc.length)
+				package_dim.Width = cint(box_doc.width)
+				package_dim.Height = cint(box_doc.height)
+				package_dim.Units = "IN"
+				package1.Dimensions = package_dim
+			
 			package1_weight.Value += box_doc.weight
 			package1_weight.Units = package["weight_units"]
 			package1.Weight = package1_weight
