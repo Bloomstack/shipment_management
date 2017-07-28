@@ -160,7 +160,6 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 	package_weight.Value = get_total_box_value(box=box, source_doc=source_doc, attrib='weight_value')
 	package_weight.Units = get_shipment_weight_units(source_doc)
 	package = shipment.create_wsdl_object_of_type('RequestedPackageLineItem')
-	package.PhysicalPackaging = box.physical_packaging
 	package.Weight = package_weight
 
 	# ------------------------
@@ -187,6 +186,8 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 	if box.packaging_type:
 		box_doc = frappe.get_doc("Shipping Package", box.packaging_type)
 		shipment.RequestedShipment.PackagingType = box_doc.box_code
+
+		package.PhysicalPackaging = box_doc.physical_packaging	
 		
 		if box_doc.box_code == "YOUR_PACKAGING":
 			package_dim = shipment.create_wsdl_object_of_type("Dimensions")
@@ -494,7 +495,7 @@ def create_fedex_shipment(source_doc):
 
 		frappe.msgprint("Rate: %s (%s)" % (rate["label"], rate["fee"]), "Updated!")
 	except Exception as error:
-		frappe.throw(error.messagae)
+		frappe.throw(str(error))
 		frappe.db.set(source_doc, 'shipment_rate', "N/A")
 
 	# ############################################################################
@@ -730,13 +731,14 @@ def get_fedex_packages_rate(international=False,
 		package1 = rate.create_wsdl_object_of_type('RequestedPackageLineItem')
 		package1.Weight = package1_weight
 
-		package1.PhysicalPackaging = package["physical_packaging"]
 		package1.GroupPackageCount = package["group_package_count"]
 
 
 		if package.get("packaging_type"):
 			box_doc = frappe.get_doc("Shipping Package", package.get("packaging_type"))
 			rate.RequestedShipment.PackagingType = box_doc.box_code		
+
+			package1.PhysicalPackaging = box_doc.physical_packaging
 
 			if box_doc.box_code == "YOUR_PACKAGING":			
 				package_dim = rate.create_wsdl_object_of_type("Dimensions")
@@ -745,11 +747,6 @@ def get_fedex_packages_rate(international=False,
 				package_dim.Height = cint(box_doc.height)
 				package_dim.Units = "IN"
 				package1.Dimensions = package_dim
-			
-			package1_weight.Value += box_doc.weight
-			package1_weight.Units = package["weight_units"]
-			package1.Weight = package1_weight
-			
 
 		package_insure = rate.create_wsdl_object_of_type('Money')
 		package_insure.Currency = "USD"
@@ -771,7 +768,7 @@ def get_fedex_packages_rate(international=False,
 		if 'RequestedPackageLineItem object cannot be null or empty' in str(e):
 			raise Exception("WARNING: Please create packages with shipment")
 		elif not ignoreErrors:
-			frappe.throw(e)
+			frappe.throw(str(e))
 
 		return None
 
@@ -829,8 +826,7 @@ def get_all_shipment_rate(doc_name):
 	if source_doc.international_shipment:
 		service_type = source_doc.service_type_international
 	else:
-		service_type = source_doc.service_type_domestic
-	
+		service_type = source_doc.service_type_domestic	
 
 	return get_fedex_packages_rate(international=source_doc.international_shipment,
 								   DropoffType=source_doc.drop_off_type,
@@ -908,6 +904,7 @@ def show_shipment_estimates(doc_name):
 									RecipientPostalCode=source_doc.recipient_address_postal_code,
 									RecipientCountryCode=source_doc.recipient_address_country_code,
 									EdtRequestType='NONE',
+									IsResidential=source_doc.recipient_address_residential,
 									signature_option=source_doc.signature_option,
 									PaymentType=source_doc.payment_type,
 									package_list=rate_box_list)
