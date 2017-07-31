@@ -114,6 +114,6 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 
 			sorted_rates.append(rate)
 
-	sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
+			sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
 
 	return sorted_rates
