@@ -196,10 +196,6 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 			package_dim.Height = cint(box_doc.height)
 			package_dim.Units = "IN"
 			package.Dimensions = package_dim
-		
-		package_weight.Value += box_doc.weight
-		package.Weight = package_weight
-
 
 	package.SequenceNumber = sequence_number
 
