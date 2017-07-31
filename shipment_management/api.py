@@ -24,7 +24,7 @@ def get_rates_for_doc(doc):
 	to_address = frappe.get_doc("Address", doc.get("shipping_address_name"))
 	from_address = frappe.get_doc("Address", {"is_your_company_address" : 1})
 	return get_rates(from_address, to_address, doc.get("items"))
-	
+
 
 def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 	"""Simple wrapper over fedex rating service.
@@ -103,15 +103,16 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 
 	rates = get_fedex_packages_rate(**args)
 	sorted_rates = []
-	for rate in sorted(rates, key=lambda rate: rate["fee"]):
-		rate["fee"] = rate["fee"] + surcharge
+	if rates:
+		for rate in sorted(rates, key=lambda rate: rate["fee"]):
+			rate["fee"] = rate["fee"] + surcharge
 
-		if upcharge_doc.upcharge_type == "Percentage":
-			rate["fee"] = rate["fee"] + (rate["fee"] * (upcharge_doc.upcharge/100))
-		elif upcharge_doc.upcharge_type == "Actual":
-			rate["fee"] = rate["fee"] + upcharge_doc.upcharge
+			if upcharge_doc.upcharge_type == "Percentage":
+				rate["fee"] = rate["fee"] + (rate["fee"] * (upcharge_doc.upcharge/100))
+			elif upcharge_doc.upcharge_type == "Actual":
+				rate["fee"] = rate["fee"] + upcharge_doc.upcharge
 
-		sorted_rates.append(rate)
+			sorted_rates.append(rate)
 
 	sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
 
