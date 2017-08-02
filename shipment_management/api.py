@@ -115,5 +115,9 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 			sorted_rates.append(rate)
 
 		sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
+		customer = frappe.get_value("Address", to_address.get("shipping_address"), "customer")
+		if frappe.get_value("Customer", customer, 'has_shipping_account'):
+			sorted_rates.append({u'fee': 0, u'name': u'SHIP USING MY ACCOUNT', u'label': u'SHIP USING MY ACCOUNT'})
+			
 
 	return sorted_rates
