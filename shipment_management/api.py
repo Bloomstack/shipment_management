@@ -96,7 +96,8 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		IsResidential = to_address.get("is_residential"),
 		RecipientCountryCode=get_country_code(to_address.get("country")),
 		package_list=packages,
-		ignoreErrors=True
+		ignoreErrors=True,
+		signature_option="DIRECT"
 	)
 
 	upcharge_doc = frappe.get_doc("Shipment Rate Settings", "Shipment Rate Settings")
@@ -111,6 +112,8 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 				rate["fee"] = rate["fee"] + (rate["fee"] * (upcharge_doc.upcharge/100))
 			elif upcharge_doc.upcharge_type == "Actual":
 				rate["fee"] = rate["fee"] + upcharge_doc.upcharge
+
+			rate['fee'] = round(rate['fee'], 2)
 
 			sorted_rates.append(rate)
 
