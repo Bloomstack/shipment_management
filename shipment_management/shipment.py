@@ -171,12 +171,12 @@ def get_shipper(delivery_note_name):
 def get_recipient(delivery_note_name):
 	recipient = RequestedShipment()
 
-	recipient.contact.PersonName = \
-	frappe.db.sql('''SELECT customer_name from `tabDelivery Note` WHERE name="%s"''' % delivery_note_name,
-				  as_dict=True)[0].customer_name
+	customer = \
+	frappe.db.sql('''SELECT customer from `tabDelivery Note` WHERE name="%s"''' % delivery_note_name,
+				  as_dict=True)[0].customer
 
 	recipient.contact.CompanyName = \
-	frappe.db.sql('''SELECT name from tabCustomer WHERE name="%s"''' % recipient.contact.PersonName, as_dict=True)[0].name
+	frappe.db.sql('''SELECT name from tabCustomer WHERE name="%s"''' % customer, as_dict=True)[0].name
 
 	delivery_address = frappe.db.get_value("Delivery Note", delivery_note_name, "shipping_address_name")
 

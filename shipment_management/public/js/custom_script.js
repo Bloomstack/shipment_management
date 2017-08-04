@@ -1,7 +1,7 @@
 frappe.ui.form.on("Delivery Note", {
     refresh: function (frm) {
         if (cur_frm.doc.status == "Completed" 
-                && cur_frm.doc.fedex_shipping_method != "FLORIDA_HQ_PICK_UP"
+                && cur_frm.doc.fedex_shipping_method != "PICK UP"
                 && cur_frm.doc.fedex_shipping_method != "SHIP USING MY ACCOUNT") {
             cur_frm.add_custom_button(__('Shipment'),
                 function () {
