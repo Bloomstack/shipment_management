@@ -14,6 +14,7 @@ from frappe.utils import cstr
 class DTIShipmentNote(Document):
 
 	def set_tracking_ids(self):
+		updated_tracking_ids = ""
 		tracking_ids = ",".join([box.tracking_number.replace("-", "") for box in self.box_list])
 		for so in set([item.against_sales_order for item in self.delivery_items]):
 			existing_tracking_ids = frappe.db.get_value("Sales Order", so, "tracking_ids")
@@ -28,7 +29,7 @@ class DTIShipmentNote(Document):
 	def on_submit(self):
 
 		# from shipment_management.config.app_config import SupportedProviderList
-		# from shipment_management.shipment import ShipmentNoteOperationalStatus
+		from shipment_management.shipment import ShipmentNoteOperationalStatus
 
 		# if self.shipment_provider != SupportedProviderList.Fedex:
 		# 	frappe.throw(_("Please specify shipment provider!"))
@@ -37,15 +38,17 @@ class DTIShipmentNote(Document):
 		# 	from shipment_management.provider_fedex import create_fedex_shipment
 		# 	create_fedex_shipment(self)
 
-		# 	frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Created)
-		# 	frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
 
-		
 		for box in self.box_list:
 			if not box.tracking_number:
 				frappe.throw("Please enter Tracking No for BOX " + str(box.idx)) 
 
 		self.set_tracking_ids()
+
+		frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Created)
+		frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
+		frappe.db.set(self, 'tracking_number', self.box_list[0].tracking_number)
+
 
 	
 	# def on_cancel(self):
