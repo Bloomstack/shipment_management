@@ -941,7 +941,7 @@ def get_fedex_shipment_status(track_value):
 
 	try:
 		track.send_request()
-		return track.response[4][0].TrackDetails[0].Events[0].EventType
+		return track.response[4][0].TrackDetails[0].Events[0].EventDescription
 	except AttributeError:
 			return None
 	except FedexError as error:

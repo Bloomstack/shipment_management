@@ -99,4 +99,4 @@ def get_stock_items(items):
 
 @frappe.whitelist()
 def get_packages_in_order(doctype, txt, searchfield, start, page_len, filters):
-	return frappe.db.sql("select `name`, `box_code` from `tabShipping Package` ORDER BY `order` ASC")
+	return frappe.db.sql("select `name`, `box_code` from `tabShipping Package` where name like '%{0}%' ORDER BY `order` ASC".format(txt))
