@@ -90,7 +90,7 @@ after_install = "shipment_management.shipment.after_install"
 # ---------------
 
 scheduler_events = {
-    "all": ["shipment_management.shipment.shipment_status_update_controller"]}
+    "hourly": ["shipment_management.shipment.shipment_status_update_controller"]}
 
 # Testing
 # -------

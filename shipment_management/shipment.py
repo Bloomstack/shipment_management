@@ -296,8 +296,8 @@ def shipment_status_update_controller():
 	Shipment Management Status Controller Job
 	"""
 
-	all_ships = frappe.get_all("DTI Shipment Note", filters = [["shipment_note_status", "in", "{0} , {1}".format(ShipmentNoteOperationalStatus.Created,
-		ShipmentNoteOperationalStatus.InProgress)]], fields = "*")
+	all_ships = frappe.get_all("DTI Shipment Note", filters = [["shipment_note_status", "in", "{0} , {1}, {2}".format(ShipmentNoteOperationalStatus.Created,
+		ShipmentNoteOperationalStatus.InProgress, "NEW")]], fields = "*")
 	
 	completed = [i.status_code for i in StatusMapFedexAndShipmentNote.Completed]
 	failed = [i.status_code for i in StatusMapFedexAndShipmentNote.Failed]
@@ -328,7 +328,7 @@ def shipment_status_update_controller():
 																						current_status,
 																						latest_status))
 
-			if latest_status == 'PU':
+			if latest_status.lower() == 'picked up':
 
 				frappe.db.set(shipment_note, 'shipment_note_status', ShipmentNoteOperationalStatus.InProgress)
 
