@@ -83,6 +83,7 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		surcharge = surcharge + package.get("surcharge", 0)
 
 
+	RecipientCountryCode = get_country_code(to_address.get("country"))
 	args = dict(
 		DropoffType='REGULAR_PICKUP',
 		PackagingType=packaging_type,
@@ -91,10 +92,10 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		ShipperStateOrProvinceCode=from_address.get("state"),
 		ShipperPostalCode=from_address.get("pincode"),
 		ShipperCountryCode=get_country_code(from_address.get("country")),
-		RecipientStateOrProvinceCode=to_address.get("state"),
+		RecipientStateOrProvinceCode=to_address.get("state") if RecipientCountryCode in ("US", "CA") else None,
 		RecipientPostalCode=to_address.get("pincode"),
 		IsResidential = to_address.get("is_residential"),
-		RecipientCountryCode=get_country_code(to_address.get("country")),
+		RecipientCountryCode=RecipientCountryCode,
 		package_list=packages,
 		ignoreErrors=True,
 		signature_option="DIRECT"
@@ -121,6 +122,6 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		customer = frappe.get_value("Address", to_address.get("shipping_address"), "customer")
 		if frappe.get_value("Customer", customer, 'has_shipping_account'):
 			sorted_rates.append({u'fee': 0, u'name': u'SHIP USING MY ACCOUNT', u'label': u'SHIP USING MY ACCOUNT'})
-			
+
 
 	return sorted_rates
