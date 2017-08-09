@@ -187,8 +187,8 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 		box_doc = frappe.get_doc("Shipping Package", box.packaging_type)
 		shipment.RequestedShipment.PackagingType = box_doc.box_code
 
-		package.PhysicalPackaging = box_doc.physical_packaging	
-		
+		package.PhysicalPackaging = box_doc.physical_packaging
+
 		if box_doc.box_code == "YOUR_PACKAGING":
 			package_dim = shipment.create_wsdl_object_of_type("Dimensions")
 			package_dim.Length = cint(box_doc.length)
@@ -301,7 +301,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 			frappe.db.set(box, 'commodity_information', unicode(commodity_message))
 
 		frappe.db.set(box, 'total_box_custom_value', total_box_custom_value)
-	
+
 
 	# -----------------------------
 
@@ -340,13 +340,13 @@ def create_fedex_shipment(source_doc):
 
 	shipment.RequestedShipment.PackagingType = source_doc.packaging_type
 
-	shipper_address = { "pincode" : source_doc.shipper_address_postal_code, 
+	shipper_address = { "pincode" : source_doc.shipper_address_postal_code,
 						"state" : source_doc.shipper_address_state_or_province_code,
 						"city" : source_doc.shipper_address_city,
 						"country" : source_doc.shipper_address_country_code
 						}
 
-	recipient_address = { "pincode" : source_doc.recipient_address_postal_code, 
+	recipient_address = { "pincode" : source_doc.recipient_address_postal_code,
 						"state" : source_doc.recipient_address_state_or_province_code,
 						"city" : source_doc.recipient_address_city,
 						"country" : source_doc.recipient_address_country_code
@@ -417,7 +417,7 @@ def create_fedex_shipment(source_doc):
 								   shipment=shipment,
 								   box=master_box,
 								   source_doc=source_doc)
-	   
+
 	shipment.RequestedShipment.RequestedPackageLineItems = [package]
 
 	if source_doc.international_shipment:
@@ -575,7 +575,7 @@ def get_total_box_value(box, source_doc, attrib):
 
 
 	if attrib == "weight_value":
-		box_total += frappe.get_value("Shipping Package", box.packaging_type, "weight")	
+		box_total += frappe.get_value("Shipping Package", box.packaging_type, "weight")
 	return box_total
 
 
@@ -693,14 +693,16 @@ def get_fedex_packages_rate(international=False,
 	else:
 		rate = FedexRateServiceRequest(CONFIG_OBJ)
 
-	shipper_address = { "pincode" : ShipperPostalCode, 
-						"state" : ShipperStateOrProvinceCode, 
+	shipper_address = { "pincode" : ShipperPostalCode,
+						"state" : ShipperStateOrProvinceCode,
 						"country" : ShipperCountryCode
 						}
 
-	recipient_address = { "pincode" : RecipientPostalCode, 
-						"state" : RecipientStateOrProvinceCode, 
+	recipient_address = { "pincode" : RecipientPostalCode,
 						"country" : RecipientCountryCode}
+
+	if RecipientStateOrProvinceCode:
+		recipient_address["state"] = RecipientStateOrProvinceCode
 
 	rate.RequestedShipment.DropoffType = DropoffType
 	rate.RequestedShipment.ServiceType = ServiceType
@@ -710,7 +712,8 @@ def get_fedex_packages_rate(international=False,
 	rate.RequestedShipment.Shipper.Address.PostalCode = ShipperPostalCode
 	rate.RequestedShipment.Shipper.Address.CountryCode = ShipperCountryCode
 
-	rate.RequestedShipment.Recipient.Address.StateOrProvinceCode = get_state_code(recipient_address)
+	if RecipientStateOrProvinceCode:
+		rate.RequestedShipment.Recipient.Address.StateOrProvinceCode = get_state_code(recipient_address)
 	rate.RequestedShipment.Recipient.Address.PostalCode = RecipientPostalCode
 	rate.RequestedShipment.Recipient.Address.CountryCode = RecipientCountryCode
 	rate.RequestedShipment.Recipient.Address.Residential = IsResidential
@@ -729,14 +732,13 @@ def get_fedex_packages_rate(international=False,
 
 		package1.GroupPackageCount = package["group_package_count"]
 
-
 		if package.get("packaging_type"):
 			box_doc = frappe.get_doc("Shipping Package", package.get("packaging_type"))
-			rate.RequestedShipment.PackagingType = box_doc.box_code		
+			rate.RequestedShipment.PackagingType = box_doc.box_code
 
 			package1.PhysicalPackaging = box_doc.physical_packaging
 
-			if box_doc.box_code == "YOUR_PACKAGING":			
+			if box_doc.box_code == "YOUR_PACKAGING":
 				package_dim = rate.create_wsdl_object_of_type("Dimensions")
 				package_dim.Length = cint(box_doc.length)
 				package_dim.Width = cint(box_doc.width)
@@ -761,6 +763,7 @@ def get_fedex_packages_rate(international=False,
 	try:
 		rate.send_request()
 	except Exception as e:
+		print(e)
 		if 'RequestedPackageLineItem object cannot be null or empty' in str(e):
 			raise Exception("WARNING: Please create packages with shipment")
 		elif not ignoreErrors:
@@ -822,7 +825,7 @@ def get_all_shipment_rate(doc_name):
 	if source_doc.international_shipment:
 		service_type = source_doc.service_type_international
 	else:
-		service_type = source_doc.service_type_domestic	
+		service_type = source_doc.service_type_domestic
 
 	return get_fedex_packages_rate(international=source_doc.international_shipment,
 								   DropoffType=source_doc.drop_off_type,
