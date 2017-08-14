@@ -1,6 +1,6 @@
 frappe.ui.form.on("Delivery Note", {
     refresh: function (frm) {
-        if (cur_frm.doc.status == "Completed") {
+        if (cur_frm.doc.status == "Completed" && cur_frm.fedex_shipping_method != "PICK_UP") {
             cur_frm.add_custom_button(__('Shipment'),
                 function () {
                     frappe.call({
@@ -55,11 +55,19 @@ function create_dialog(frm) {
                 method: "shipment_management.utils.create_shipment_note",
                 args: {
                     items: data,
-                    item_dict : item_dict,
+                    item_dict: item_dict,
                     doc: frm.doc
                 },
-                freeze : 1, 
-                callback: function(r){                    
+                freeze: 1,
+                callback: function (r) {
+                    sales_orders = []
+                    for (var i = 0; i < frm.doc.items.length; i++) {
+                        sales_orders.push(frm.doc.items[i].against_sales_order)
+                    }
+                    sales_orders = Array.from(new Set(sales_orders));
+                    for (var i = 0; i < sales_orders.length; i++) {
+                        window.open('/desk#Form/Sales%20Order/' + sales_orders[i], '_blank');
+                    }
                     frappe.set_route("Form", "DTI Shipment Note", r.message)
                 }
             })
