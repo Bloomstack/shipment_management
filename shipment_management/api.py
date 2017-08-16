@@ -19,9 +19,17 @@ VALID_PACKAGING_TYPES = (
 )
 
 @frappe.whitelist()
-def get_rates_for_doc(doc):
+def get_rates_for_doc(doc, address=None, address_obj=None):
 	doc = json.loads(doc)
-	to_address = frappe.get_doc("Address", doc.get("shipping_address_name"))
+	from erpnext.utilities.doctype.address.address import get_address_display
+	if not address_obj:
+		to_address = frappe.get_doc("Address", address or doc.get("shipping_address_name"))
+		frappe.local.response["address"] = get_address_display(to_address.as_dict())
+	else:
+		to_address = json.loads(address_obj)
+		frappe.local.response["address"] = get_address_display(to_address)
+
+
 	from_address = frappe.get_doc("Address", {"is_your_company_address" : 1})
 	return get_rates(from_address, to_address, doc.get("items"))
 
