@@ -199,7 +199,7 @@ def get_recipient(delivery_note_name):
 		primary_contact = frappe.db.sql(
 			'''SELECT * from tabContact WHERE customer="%s" and is_primary_contact=1''' % recipient.contact.PersonName,
 			as_dict=True)
-
+		
 
 	if shipping_address:
 		if shipping_address[0].phone:
@@ -207,9 +207,6 @@ def get_recipient(delivery_note_name):
 
 		if shipping_address[0].email_id:
 			recipient.contact.Email_List.append(shipping_address[0].email_id)
-
-		if shipping_address[0].building:
-			recipient.address.StreetLines.append(shipping_address[0].building)
 
 		if shipping_address[0].address_line1:
 			recipient.address.StreetLines.append(shipping_address[0].address_line1)
@@ -226,10 +223,10 @@ def get_recipient(delivery_note_name):
 		if shipping_address[0].country:
 			recipient.address.Country = shipping_address[0].country
 			recipient.address.CountryCode = get_country_code(recipient.address.Country)
-
+		
 		if shipping_address[0].state:
 			recipient.address.StateOrProvinceCode = get_state_code({"country" : recipient.address.Country,
-																		   "state" : shipping_address[0].state})
+																		   "state" : shipping_address[0].state})			
 			recipient.address.Residential = shipping_address[0].is_residential
 
 	if primary_contact:
@@ -301,7 +298,7 @@ def shipment_status_update_controller():
 
 	all_ships = frappe.get_all("DTI Shipment Note", filters = [["shipment_note_status", "in", "{0} , {1}, {2}".format(ShipmentNoteOperationalStatus.Created,
 		ShipmentNoteOperationalStatus.InProgress, "NEW")]], fields = "*")
-
+	
 	completed = [i.status_code for i in StatusMapFedexAndShipmentNote.Completed]
 	failed = [i.status_code for i in StatusMapFedexAndShipmentNote.Failed]
 
