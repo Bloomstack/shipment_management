@@ -100,7 +100,7 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		ShipperStateOrProvinceCode=from_address.get("state"),
 		ShipperPostalCode=from_address.get("pincode"),
 		ShipperCountryCode=get_country_code(from_address.get("country")),
-		RecipientStateOrProvinceCode=to_address.get("state") if RecipientCountryCode in ("US", "CA") else None,
+		RecipientStateOrProvinceCode=to_address.get("state") if RecipientCountryCode.lower() in ("us", "ca") else None,
 		RecipientPostalCode=to_address.get("pincode"),
 		IsResidential = to_address.get("is_residential"),
 		RecipientCountryCode=RecipientCountryCode,
@@ -132,4 +132,12 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 			sorted_rates.append({u'fee': 0, u'name': u'SHIP USING MY ACCOUNT', u'label': u'SHIP USING MY ACCOUNT'})
 
 
-	return sorted_rates
+		final_sorted_rates = sorted_rates
+
+		# Disallow FEDEX GROUND for Canada
+		if RecipientCountryCode.lower() == "ca":
+			for rate in sorted_rates:
+				if rate['label'] == "FEDEX GROUND":
+					final_sorted_rates.remove(rate)	
+
+	return final_sorted_rates
