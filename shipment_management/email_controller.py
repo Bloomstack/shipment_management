@@ -1,21 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import frappe
-from frappe import _
 from frappe.model.document import get_doc
-
-
-def get_sender_email():
-	email = frappe.db.sql('''SELECT * from `tabEmail Account` WHERE default_outgoing=1''', as_dict=True)
-	if email:
-		return email[0].email_id
-	else:
-		frappe.throw(_("Default outgoing email is absent!"))
 
 
 def send_email(message, subject, recipient_list):
 	frappe.sendmail(recipients=set(recipient_list),
-					sender=get_sender_email(),
 					subject=subject,
 					message=message)
 
