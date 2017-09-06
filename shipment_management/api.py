@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import frappe
 from provider_fedex import get_fedex_packages_rate
+from frappe.utils import flt
 from utils import get_country_code
 from math import ceil
 import json
