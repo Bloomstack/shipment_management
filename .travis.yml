@@ -38,7 +38,7 @@ before_script:
   - echo "USE mysql;\nGRANT ALL PRIVILEGES ON \`test_frappe\`.* TO 'test_frappe'@'localhost';\n" | mysql -u root -ptravis
 
   - cd ~/frappe-bench
-  - bench get-app erpnext
+  - bench get-app https://github.com/DigiThinkIT/erpnext --branch customv8
   - bench get-app shipment_management $TRAVIS_BUILD_DIR
   - bench use test_site
   - bench reinstall --yes
