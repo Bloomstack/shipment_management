@@ -50,5 +50,5 @@ before_script:
 
 script:
   - set -e
-  - bench run-tests --app shipment_management
+  - bench run-tests
   - sleep 5

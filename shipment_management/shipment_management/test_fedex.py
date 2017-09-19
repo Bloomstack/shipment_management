@@ -442,6 +442,7 @@ class TestCaseDomestic(TestShipmentBase):
 
 ## Disabled International Shipment Tests
 
+
 # class TestCaseInternational(TestShipmentBase):
 # 	def test_all_in_one_box(self):
 # 		self.get_saved_shipment_note(international_shipment=True,
