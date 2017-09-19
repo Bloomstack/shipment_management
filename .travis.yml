@@ -1,5 +1,6 @@
 language: python
 dist: trusty
+cache: pip
 
 addons:
   apt:
@@ -49,5 +50,5 @@ before_script:
 
 script:
   - set -e
-  - bench run-tests
+  - bench run-tests --app shipment_management
   - sleep 5
