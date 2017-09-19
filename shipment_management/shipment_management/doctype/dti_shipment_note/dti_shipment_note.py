@@ -28,8 +28,8 @@ class DTIShipmentNote(Document):
 
 	def on_submit(self):
 
-		# from shipment_management.config.app_config import SupportedProviderList
 		from shipment_management.shipment import ShipmentNoteOperationalStatus
+		# from shipment_management.config.app_config import SupportedProviderList
 
 		# if self.shipment_provider != SupportedProviderList.Fedex:
 		# 	frappe.throw(_("Please specify shipment provider!"))
