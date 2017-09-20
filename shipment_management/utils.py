@@ -10,12 +10,15 @@ def get_state_code(address):
 
 	URL = "https://maps.googleapis.com/maps/api/geocode/json"
 	params = {
-		"key": "AIzaSyDOxgWG8cnbzAhUoAZaXAseGUWt_5f0PFs",
 		"address" : " ".join((address.get("pincode", ""),
 		address.get("city",
 			address.get("state", "")),
 				address.get("country", "")))
 	}
+
+	google_api_key = frappe.db.get_single_value("Shipment Manager Settings", "google_api_key")
+	if google_api_key:
+		params["key"] = google_api_key
 
 	r = requests.get(URL, params)
 
