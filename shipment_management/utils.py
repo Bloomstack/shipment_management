@@ -9,22 +9,28 @@ def get_state_code(address):
 		return address.get("state")
 
 	URL = "https://maps.googleapis.com/maps/api/geocode/json"
-	params = { "address" : " ".join((address.get("pincode", ""),
+	params = {
+		"address" : " ".join((address.get("pincode", ""),
 		address.get("city",
 			address.get("state", "")),
 				address.get("country", "")))
-					}
+	}
+
+	google_api_key = frappe.db.get_single_value("Shipment Manager Settings", "google_api_key")
+	if google_api_key:
+		params["key"] = google_api_key
 
 	r = requests.get(URL, params)
+
 	if r.status_code != 200:
 		frappe.throw(_("Error connecting to Google Maps API"))
-	
+
 	address_data = r.json().get("results")
 	if address_data:
 		address_data = address_data[0].get("address_components")
 	for address_component in address_data:
 		if address_component.get("long_name").lower() == address.get("state").lower():
-			# To make sure that state code is either 2 or 3 letters only. 
+			# To make sure that state code is either 2 or 3 letters only.
 			# Google API sometimes sends bad data
 			if address_component.get("short_name"):
 				if len(address_component.get("short_name")) <= 3:
@@ -45,7 +51,7 @@ def create_shipment_note(items, item_dict, doc):
 	box_list = []
 
 	box_items = defaultdict(list)
-	
+
 	for item_idx, item_code in item_dict.items():
 		box_items[items[item_idx]].append(item_code + ":1")
 
@@ -61,7 +67,7 @@ def create_shipment_note(items, item_dict, doc):
 		setattr(shipment_doc, field, fielddata)
 
 	for field, fielddata in get_shipper_details(doc.get("name")).items():
-		setattr(shipment_doc, field, fielddata)	
+		setattr(shipment_doc, field, fielddata)
 
 	if shipment_doc.recipient_address_country_code.lower() != "us":
 		shipment_doc.international_shipment = 1
@@ -74,18 +80,18 @@ def create_shipment_note(items, item_dict, doc):
 	for item in get_delivery_items(doc.get("name")):
 		if frappe.db.get_value("Item", item.get("item_code"), "is_stock_item"):
 			item['weight_value'] = frappe.get_value("Item", item.get("item_code"), "net_weight")
-			if shipment_doc.international_shipment:	
+			if shipment_doc.international_shipment:
 				if item['rate'] < 400:
 					item['insurance'] = item['rate']
-				else:	
+				else:
 					item['insurance'] = 400
 				item['custom_value'] = item.get("rate")
 			shipment_doc.append("delivery_items", item)
-			
-	
+
+
 	shipment_doc.save()
 	frappe.db.commit()
-	
+
 	return shipment_doc.name
 
 @frappe.whitelist()

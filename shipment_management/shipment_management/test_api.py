@@ -23,104 +23,108 @@ class TestCaseFedexAPI(unittest.TestCase):
 	def tests_get_package_rate_for_one_package_domestic(self):
 
 		response = get_fedex_packages_rate(international=False,
-										   DropoffType='REGULAR_PICKUP',
-										   ServiceType='FEDEX_GROUND',
-										   PackagingType='YOUR_PACKAGING',
-										   ShipperStateOrProvinceCode='SC',
-										   ShipperPostalCode='29631',
-										   ShipperCountryCode='US',
-										   RecipientStateOrProvinceCode='NC',
-										   RecipientPostalCode='27577',
-										   RecipientCountryCode='US',
-										   EdtRequestType='NONE',
-										   PaymentType='SENDER',
-										   package_list=[{'weight_value': 1.0,
-												   'weight_units': "LB",
-												   'physical_packaging': 'BOX',
-												   'group_package_count': 1,
-												   'insured_amount': 100}])
+										DropoffType='REGULAR_PICKUP',
+										ServiceType='FEDEX_GROUND',
+										PackagingType='YOUR_PACKAGING',
+										ShipperStateOrProvinceCode='SC',
+										ShipperPostalCode='29631',
+										ShipperCountryCode='US',
+										RecipientStateOrProvinceCode='NC',
+										RecipientPostalCode='27577',
+										RecipientCountryCode='US',
+										EdtRequestType='NONE',
+										PaymentType='SENDER',
+										single_rate=True,
+										package_list=[{'weight_value': 1.0,
+												'weight_units': "LB",
+												'physical_packaging': 'BOX',
+												'group_package_count': 1,
+												'insured_amount': 100}])
 
-		self.assertEqual(response['Currency'], "USD")
-		self.assertEqual(response['Amount'], 10.79)
+		self.assertEqual(response['fee'], 10.79)
+		self.assertEqual(response['name'], "FEDEX_GROUND")
 
 	def tests_get_package_rate_for_two_packages_domestic(self):
 
 		response = get_fedex_packages_rate(international=False,
-										   DropoffType='REGULAR_PICKUP',
-										   ServiceType='FEDEX_GROUND',
-										   PackagingType='YOUR_PACKAGING',
-										   ShipperStateOrProvinceCode='SC',
-										   ShipperPostalCode='29631',
-										   ShipperCountryCode='US',
-										   RecipientStateOrProvinceCode='NC',
-										   RecipientPostalCode='27577',
-										   RecipientCountryCode='US',
-										   EdtRequestType='NONE',
-										   PaymentType='SENDER',
-										   package_list=[{'weight_value': 1.0,
-												   'weight_units': "LB",
-												   'physical_packaging': 'BOX',
-												   'group_package_count': 1,
-												   'insured_amount': 200},
+										DropoffType='REGULAR_PICKUP',
+										ServiceType='FEDEX_GROUND',
+										PackagingType='YOUR_PACKAGING',
+										ShipperStateOrProvinceCode='SC',
+										ShipperPostalCode='29631',
+										ShipperCountryCode='US',
+										RecipientStateOrProvinceCode='NC',
+										RecipientPostalCode='27577',
+										RecipientCountryCode='US',
+										EdtRequestType='NONE',
+										PaymentType='SENDER',
+										single_rate=True,
+										package_list=[{'weight_value': 1.0,
+												'weight_units': "LB",
+												'physical_packaging': 'BOX',
+												'group_package_count': 1,
+												'insured_amount': 200},
 												  {'weight_value': 1.0,
-												   'weight_units': "LB",
-												   'physical_packaging': 'BOX',
-												   'group_package_count': 1,
-												   'insured_amount': 100}])
+												'weight_units': "LB",
+												'physical_packaging': 'BOX',
+												'group_package_count': 1,
+												'insured_amount': 100}])
 
-		self.assertEqual(response['Currency'], "USD")
-		self.assertEqual(response['Amount'], 21.58)
+		self.assertEqual(response['fee'], 24.58)
+		self.assertEqual(response['name'], "FEDEX_GROUND")
 
 	def tests_get_package_rate_for_one_package_international(self):
 
 		response = get_fedex_packages_rate(international=True,
-										   DropoffType='REGULAR_PICKUP',
-										   ServiceType='INTERNATIONAL_ECONOMY',
-										   PackagingType='YOUR_PACKAGING',
-										   ShipperStateOrProvinceCode='SC',
-										   ShipperPostalCode='29631',
-										   ShipperCountryCode='US',
-										   RecipientStateOrProvinceCode='',
-										   RecipientPostalCode='02140',
-										   RecipientCountryCode='UA',
-										   EdtRequestType='NONE',
-										   PaymentType='SENDER',
-										   package_list=[{'weight_value': 1.0,
-												   'weight_units': "LB",
-												   'physical_packaging': 'BOX',
-												   'group_package_count': 1,
-												   'insured_amount': 100}])
+										DropoffType='REGULAR_PICKUP',
+										ServiceType='INTERNATIONAL_ECONOMY',
+										PackagingType='YOUR_PACKAGING',
+										ShipperStateOrProvinceCode='SC',
+										ShipperPostalCode='29631',
+										ShipperCountryCode='US',
+										RecipientStateOrProvinceCode='',
+										RecipientPostalCode='02140',
+										RecipientCountryCode='UA',
+										EdtRequestType='NONE',
+										PaymentType='SENDER',
+										single_rate=True,
+										package_list=[{'weight_value': 1.0,
+												'weight_units': "LB",
+												'physical_packaging': 'BOX',
+												'group_package_count': 1,
+												'insured_amount': 100}])
 
-		self.assertEqual(response['Currency'], "USD")
-		self.assertEqual(response['Amount'], 97.99)
+		self.assertEqual(response['fee'], 102.4)
+		self.assertEqual(response['name'], "INTERNATIONAL_ECONOMY")
 
 	def tests_get_package_rate_for_two_packages_international(self):
 
 		response = get_fedex_packages_rate(international=True,
-										   DropoffType='REGULAR_PICKUP',
-										   ServiceType='INTERNATIONAL_ECONOMY',
-										   PackagingType='YOUR_PACKAGING',
-										   ShipperStateOrProvinceCode='SC',
-										   ShipperPostalCode='29631',
-										   ShipperCountryCode='US',
-										   RecipientStateOrProvinceCode='',
-										   RecipientPostalCode='02140',
-										   RecipientCountryCode='UA',
-										   EdtRequestType='NONE',
-										   PaymentType='SENDER',
-										   package_list=[{'weight_value': 1.0,
-												   'weight_units': "LB",
-												   'physical_packaging': 'BOX',
-												   'group_package_count': 1,
-												   'insured_amount': 200},
+										DropoffType='REGULAR_PICKUP',
+										ServiceType='INTERNATIONAL_ECONOMY',
+										PackagingType='YOUR_PACKAGING',
+										ShipperStateOrProvinceCode='SC',
+										ShipperPostalCode='29631',
+										ShipperCountryCode='US',
+										RecipientStateOrProvinceCode='',
+										RecipientPostalCode='02140',
+										RecipientCountryCode='UA',
+										EdtRequestType='NONE',
+										PaymentType='SENDER',
+										single_rate=True,
+										package_list=[{'weight_value': 1.0,
+												'weight_units': "LB",
+												'physical_packaging': 'BOX',
+												'group_package_count': 1,
+												'insured_amount': 200},
 												  {'weight_value': 1.0,
-												   'weight_units': "LB",
-												   'physical_packaging': 'BOX',
-												   'group_package_count': 1,
-												   'insured_amount': 100}])
+												'weight_units': "LB",
+												'physical_packaging': 'BOX',
+												'group_package_count': 1,
+												'insured_amount': 100}])
 
-		self.assertEqual(response['Currency'], "USD")
-		self.assertEqual(response['Amount'], 126.31)
+		self.assertEqual(response['fee'], 133.99)
+		self.assertEqual(response['name'], "INTERNATIONAL_ECONOMY")
 
 	def tests_estimate_delivery_time(self):
 		response = estimate_fedex_delivery_time(OriginPostalCode='M5V 3A4',

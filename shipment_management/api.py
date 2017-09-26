@@ -1,12 +1,11 @@
 from __future__ import unicode_literals
 
 import frappe
-from frappe.utils import cint, flt
 from provider_fedex import get_fedex_packages_rate
-from utils import get_state_code, get_country_code
+from frappe.utils import flt
+from utils import get_country_code
 from math import ceil
 import json
-from shipment_management.doctype.shipping_package_rule.shipping_package_rule import find_packages
 
 VALID_PACKAGING_TYPES = (
 	"FEDEX_10KG_BOX",
@@ -21,7 +20,7 @@ VALID_PACKAGING_TYPES = (
 @frappe.whitelist()
 def get_rates_for_doc(doc, address=None, address_obj=None):
 	doc = json.loads(doc)
-	from erpnext.utilities.doctype.address.address import get_address_display
+	from frappe.contacts.doctype.address.address import get_address_display
 	if not address_obj:
 		to_address = frappe.get_doc("Address", address or doc.get("shipping_address_name"))
 		frappe.local.response["address"] = get_address_display(to_address.as_dict())
@@ -111,7 +110,11 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 
 	upcharge_doc = frappe.get_doc("Shipment Rate Settings", "Shipment Rate Settings")
 
-	rates = get_fedex_packages_rate(**args)
+	if to_address:
+		rates = get_fedex_packages_rate(**args)
+	else:
+		rates = []
+
 	sorted_rates = []
 	if rates:
 		for rate in sorted(rates, key=lambda rate: rate["fee"]):
@@ -126,7 +129,7 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 
 			sorted_rates.append(rate)
 
-		sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
+		#sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
 		customer = frappe.get_value("Address", to_address.get("shipping_address"), "customer")
 		if frappe.get_value("Customer", customer, 'has_shipping_account'):
 			sorted_rates.append({u'fee': 0, u'name': u'SHIP USING MY ACCOUNT', u'label': u'SHIP USING MY ACCOUNT'})
@@ -138,6 +141,6 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		if RecipientCountryCode.lower() == "ca":
 			for rate in sorted_rates:
 				if rate['label'] == "FEDEX GROUND":
-					final_sorted_rates.remove(rate)	
+					final_sorted_rates.remove(rate)
 
 	return final_sorted_rates
