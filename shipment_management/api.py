@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import frappe
 from provider_fedex import get_fedex_packages_rate
 from frappe.utils import flt
+from awesome_cart.compat.customer import get_current_customer
 from utils import get_country_code
 from math import ceil
 import json
@@ -130,7 +131,7 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 			sorted_rates.append(rate)
 
 		#sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
-		customer = frappe.get_value("Address", to_address.get("shipping_address"), "customer")
+		customer = get_current_customer().name
 		if frappe.get_value("Customer", customer, 'has_shipping_account'):
 			sorted_rates.append({u'fee': 0, u'name': u'SHIP USING MY ACCOUNT', u'label': u'SHIP USING MY ACCOUNT'})
 
