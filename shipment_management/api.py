@@ -135,7 +135,6 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		if frappe.get_value("Customer", customer, 'has_shipping_account'):
 			sorted_rates.append({u'fee': 0, u'name': u'SHIP USING MY ACCOUNT', u'label': u'SHIP USING MY ACCOUNT'})
 
-
 		final_sorted_rates = sorted_rates
 
 		# Disallow FEDEX GROUND for Canada
@@ -144,4 +143,6 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 				if rate['label'] == "FEDEX GROUND":
 					final_sorted_rates.remove(rate)
 
-	return final_sorted_rates
+		return final_sorted_rates
+	else:
+		frappe.throw("Could not get rates, please check your Shipping Address", title="Error")
