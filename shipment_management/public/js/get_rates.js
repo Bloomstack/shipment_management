@@ -61,6 +61,9 @@ function get_fedex_rates(frm) {
                     "fee": value.fee
                 }
             })
+
+            service_dict["PICK UP - $0"] = {"label" : "PICK UP", "fee" : 0}
+            options_string += "PICK UP - " + "$0" + "\n"
             frappe.prompt({
                     "label": "Service Types",
                     "fieldtype": "Select",
