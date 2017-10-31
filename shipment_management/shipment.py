@@ -8,9 +8,6 @@ import frappe
 from frappe import _
 from frappe.model.document import get_doc
 from frappe.model.mapper import get_mapped_doc
-
-from comment_controller import CommentController
-
 from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NAME, SupportedProviderList, \
 	StatusMapFedexAndShipmentNote
 
@@ -311,12 +308,6 @@ def shipment_status_update_controller():
 			continue
 
 		if latest_status != ship.fedex_status:
-
-			CommentController.add_comment(doc_type="DTI Shipment Note",
-										  source_name= ship.name,
-										  comment_type=CommentController.Comment,
-										  comment_message="Status updated to [%s]" % latest_status)
-
 			shipment_note = get_doc("DTI Shipment Note", ship.name)
 
 			current_status = shipment_note.tracking_number
