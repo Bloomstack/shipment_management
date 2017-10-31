@@ -8,9 +8,6 @@ import frappe
 from frappe import _
 from frappe.model.document import get_doc
 from frappe.model.mapper import get_mapped_doc
-
-from comment_controller import CommentController
-
 from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NAME, SupportedProviderList, \
 	StatusMapFedexAndShipmentNote
 
