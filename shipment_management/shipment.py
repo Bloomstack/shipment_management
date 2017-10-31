@@ -311,12 +311,6 @@ def shipment_status_update_controller():
 			continue
 
 		if latest_status != ship.fedex_status:
-
-			CommentController.add_comment(doc_type="DTI Shipment Note",
-										  source_name= ship.name,
-										  comment_type=CommentController.Comment,
-										  comment_message="Status updated to [%s]" % latest_status)
-
 			shipment_note = get_doc("DTI Shipment Note", ship.name)
 
 			current_status = shipment_note.tracking_number
