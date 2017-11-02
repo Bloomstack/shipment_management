@@ -5,6 +5,9 @@ from collections import defaultdict
 from frappe import _
 
 def get_state_code(address):
+	if not address.get("state"):
+		return
+
 	if len(address.get("state")) == 2:
 		return address.get("state")
 
