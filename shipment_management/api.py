@@ -8,6 +8,8 @@ from utils import get_country_code
 from math import ceil
 import json
 
+from dti_devtools.debug import pretty_json
+
 VALID_PACKAGING_TYPES = (
 	"FEDEX_10KG_BOX",
 	"FEDEX_25KG_BOX",
@@ -92,6 +94,7 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 
 
 	RecipientCountryCode = get_country_code(to_address.get("country"))
+	rate_exceptions = []
 	args = dict(
 		DropoffType='REGULAR_PICKUP',
 		PackagingType=packaging_type,
@@ -106,7 +109,8 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		RecipientCountryCode=RecipientCountryCode,
 		package_list=packages,
 		ignoreErrors=True,
-		signature_option="DIRECT"
+		signature_option="DIRECT",
+		exceptions = rate_exceptions
 	)
 
 	upcharge_doc = frappe.get_doc("Shipment Rate Settings", "Shipment Rate Settings")
@@ -145,4 +149,12 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 
 		return final_sorted_rates
 	else:
-		frappe.throw("Could not get rates, please check your Shipping Address", title="Error")
+		msg = "Could not get rates, please check your Shipping Address"
+		if len(rate_exceptions) > 0:
+
+			for ex in rate_exceptions:
+				if ex["type"] == "request":
+					msg = str(ex["exception"])
+					break
+
+		frappe.throw(msg, title="Error")
