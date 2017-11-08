@@ -635,7 +635,8 @@ def get_fedex_packages_rate(international=False,
 							package_list=None,
 							ignoreErrors=False,
 							single_rate=False,
-							signature_option=None):
+							signature_option=None,
+							exceptions=None):
 
 	"""
 	:param international:
@@ -764,6 +765,10 @@ def get_fedex_packages_rate(international=False,
 		rate.send_request()
 	except Exception as e:
 		print(e)
+
+		if exceptions != None:
+			exceptions.append({"type": "request", "exception": e})
+
 		if 'RequestedPackageLineItem object cannot be null or empty' in str(e):
 			raise Exception("WARNING: Please create packages with shipment")
 		elif not ignoreErrors:
@@ -792,7 +797,12 @@ def get_fedex_packages_rate(international=False,
 				service['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']['Amount'],
 						'label' : service['ServiceType'].replace("_", " "),
 						'name' : service['ServiceType']})
-	except KeyError:
+	except KeyError as e:
+
+		if exceptions != None:
+			exceptions.append({"type": "keyerror", "exception": e})
+
+
 		if not ignoreErrors:
 			frappe.throw(data)
 		return None
