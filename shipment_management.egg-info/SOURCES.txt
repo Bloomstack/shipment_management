@@ -6,7 +6,6 @@ setup.py
 shipment_management/__init__.py
 shipment_management/comment_controller.py
 shipment_management/country_code_config.py
-shipment_management/email_controller.py
 shipment_management/hooks.py
 shipment_management/modules.txt
 shipment_management/patches.txt
@@ -26,7 +25,6 @@ shipment_management/public/images/shipment_icon.png
 shipment_management/public/js/custom_script.js
 shipment_management/shipment_management/__init__.py
 shipment_management/shipment_management/test_api.py
-shipment_management/shipment_management/test_email.py
 shipment_management/shipment_management/test_fedex.py
 shipment_management/shipment_management/doctype/__init__.py
 shipment_management/shipment_management/doctype/dti_fedex_configuration/__init__.py
@@ -48,10 +46,6 @@ shipment_management/temp_fedex/__init__.py
 shipment_management/temp_fedex/rate_service.py
 shipment_management/temp_fedex/ship_service.py
 shipment_management/templates/__init__.py
-shipment_management/templates/email/cancel.html
-shipment_management/templates/email/completed.html
-shipment_management/templates/email/fail.html
-shipment_management/templates/email/picked_up.html
 shipment_management/templates/generators/__init__.py
 shipment_management/templates/pages/__init__.py
 shipment_management/templates/pages/labels.html

@@ -13,7 +13,6 @@ from config.app_config import FedexTestServerConfiguration, PRIMARY_FEDEX_DOC_NA
 
 from utils import get_state_code, get_country_code
 
-from email_controller import send_email, get_content_picked_up, get_content_fail, get_content_completed
 
 def check_permission(fn):
 	def innerfn(*args, **kwargs):
@@ -319,31 +318,19 @@ def shipment_status_update_controller():
 																						latest_status))
 
 			if latest_status.lower() == 'picked up':
-
-				frappe.db.set(shipment_note, 'shipment_note_status', ShipmentNoteOperationalStatus.InProgress)
-
-				send_email(message=get_content_picked_up(shipment_note),
-						   subject="Shipment to %s [%s] - Picked UP" % (shipment_note.recipient_company_name,
-																		shipment_note.name),
-						   recipient_list=shipment_note.contact_email.split(","))
+				update_fedex_status(shipment_note, ShipmentNoteOperationalStatus.InProgress)
 
 			elif latest_status in completed:
-
-				frappe.db.set(shipment_note, 'shipment_note_status', ShipmentNoteOperationalStatus.Completed)
-
-				send_email(message=get_content_completed(shipment_note),
-						   subject="Shipment to %s [%s] - Completed" % (shipment_note.recipient_company_name,
-																		shipment_note.name),
-						   recipient_list=shipment_note.contact_email.split(","))
+				update_fedex_status(shipment_note, ShipmentNoteOperationalStatus.Completed)
 
 			elif latest_status in failed:
-				frappe.db.set(shipment_note, 'shipment_note_status', ShipmentNoteOperationalStatus.Failed)
+				update_fedex_status(shipment_note, ShipmentNoteOperationalStatus.Failed)
 
-				send_email(message=get_content_fail(shipment_note),
-						   subject="Shipment to %s [%s] - Failed" % (shipment_note.recipient_company_name,
-																	 shipment_note.name),
-						   recipient_list=shipment_note.contact_email.split(","))
-
+	def update_fedex_status(doc, status):
+		doc.shipment_note_status = status
+		doc.flags.ignore_validate_update_after_submit = True
+		doc.save()
+		frappe.db.commit()
 
 ##############################################################################
 ##############################################################################

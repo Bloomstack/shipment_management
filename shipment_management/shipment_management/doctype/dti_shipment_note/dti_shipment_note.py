@@ -16,6 +16,7 @@ class DTIShipmentNote(Document):
 	def set_tracking_ids(self):
 		updated_tracking_ids = ""
 		tracking_ids = ",".join([box.tracking_number.replace("-", "") for box in self.box_list])
+
 		for so in set([item.against_sales_order for item in self.delivery_items]):
 			existing_tracking_ids = frappe.db.get_value("Sales Order", so, "tracking_ids")
 			if existing_tracking_ids:
@@ -27,7 +28,6 @@ class DTIShipmentNote(Document):
 			frappe.db.set_value("Sales Order", so, "tracking_ids", updated_tracking_ids)
 
 	def on_submit(self):
-
 		from shipment_management.shipment import ShipmentNoteOperationalStatus
 		# from shipment_management.config.app_config import SupportedProviderList
 
@@ -38,7 +38,6 @@ class DTIShipmentNote(Document):
 		# 	from shipment_management.provider_fedex import create_fedex_shipment
 		# 	create_fedex_shipment(self)
 
-
 		for box in self.box_list:
 			if not box.tracking_number:
 				frappe.throw("Please enter Tracking No for BOX " + str(box.idx)) 
@@ -48,11 +47,8 @@ class DTIShipmentNote(Document):
 		frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Created)
 		frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
 		frappe.db.set(self, 'tracking_number', self.box_list[0].tracking_number)
-
-
 	
 	# def on_cancel(self):
-
 		# from shipment_management.config.app_config import SupportedProviderList
 		# from shipment_management.shipment import ShipmentNoteOperationalStatus
 
@@ -65,14 +61,5 @@ class DTIShipmentNote(Document):
 
 		# 		frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Cancelled)
 		# 		frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.Cancelled)
-
-		# 		from shipment_management.email_controller import get_content_cancel, send_email
-
-		# 		message = get_content_cancel(self)
-
-		# 		send_email(message=message,
-		# 				   subject="Shipment to %s [%s] - Cancelled" % (self.recipient_company_name, self.name),
-		# 				   recipient_list=self.contact_email.split(","))
-
 		# 	except Exception, error:
 		# 		frappe.throw(_(error))
