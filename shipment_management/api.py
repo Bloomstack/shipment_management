@@ -53,16 +53,15 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		"insured_amount": 0
 	}
 
+	item_values = frappe.get_all("Item", fields=["insured_declared_value", "name", "net_weight"])
+	item_values = {elem.pop("name"): elem for elem in item_values}
+
 	for item in items:
-		item_qty = item.get("qty", 1)
-		item_values = frappe.db.get_values("Item", item.get("item_code"),
-						["insured_declared_value", "net_weight"], as_dict=True)
+		package["group_package_count"] += item.get("qty")
 
-		package["group_package_count"] += item_qty
-
-		if item_values:
-			package["weight_value"] += (item_values[0].get("net_weight", 0) * item_qty)
-			package["insured_amount"] += (item_values[0].get("insured_declared_value", 0) * item_qty)
+		if item.get("item_code") in item_values:
+			package["weight_value"] += (item_values[item.get("item_code")]["net_weight"] * item.get("qty"))
+			package["insured_amount"] += (item_values[item.get("item_code")]["insured_declared_value"] * item.get("qty"))
 
 	if package["weight_value"] < 0:
 		package["weight_value"] = 1
