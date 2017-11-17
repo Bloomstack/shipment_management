@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import frappe
 from provider_fedex import get_fedex_packages_rate
-from frappe.utils import flt
 from awesome_cart.compat.customer import get_current_customer
 from utils import get_country_code
 from math import ceil
@@ -38,12 +37,13 @@ def get_rates_for_doc(doc, address=None, address_obj=None):
 
 def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 	"""Simple wrapper over fedex rating service.
+
 	It takes the standard address field values for the from_ and to_ addresses
-	to keep a consistent address api. Packaging is a list of items with only
-	two foe;d requirements "item_code" and "qty". """
+	to keep a consistent address api.
+	"""
 
 	# quick hack to package all items into one box for quick shipping quotations
-	#packages = find_packages(items)
+	# packages = find_packages(items)
 	packages = []
 	package = {
 		"weight_value": 0,
@@ -53,22 +53,20 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		"insured_amount": 0
 	}
 
-	for itm in items:
-		item = frappe.get_all("Item", fields=["name", "net_weight"], filters={ "item_code": itm.get("item_code") })
-		if item and len(item) > 0:
-			item = item[0]
-			weight = flt(item.get("net_weight", 0))
-			package["weight_value"] = package["weight_value"] + (weight * itm.get("qty", 1))
-			package["group_package_count"] = package["group_package_count"] + itm.get("qty")
+	item_values = frappe.get_all("Item", fields=["insured_declared_value", "name", "net_weight"])
+	item_values = {elem.pop("name"): elem for elem in item_values}
 
-			if itm["item_code"].find("CIEM") > -1 or itm["item_code"].find("UIEM") > -1:
-				package["insured_amount"] = package["insured_amount"] + (400 * itm.get("qty", 1))
-			else:
-				package["insured_amount"] = package["insured_amount"] + (100 * itm.get("qty", 1))
+	for item in items:
+		package["group_package_count"] += item.get("qty")
 
-	package["weight_value"] = ceil(package["weight_value"])
-	if package["weight_value"] < 1:
+		if item.get("item_code") in item_values:
+			package["weight_value"] += (item_values[item.get("item_code")]["net_weight"] * item.get("qty"))
+			package["insured_amount"] += (item_values[item.get("item_code")]["insured_declared_value"] * item.get("qty"))
+
+	if package["weight_value"] < 0:
 		package["weight_value"] = 1
+	else:
+		package["weight_value"] = ceil(package["weight_value"])
 
 	packages.append(package)
 
