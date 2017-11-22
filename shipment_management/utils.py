@@ -11,29 +11,37 @@ def get_state_code(address):
 	if not address.get("state"):
 		return
 
+	valid_state = True
+
 	try:
 		state = pycountry.subdivisions.lookup(address.get("state"))
 	except LookupError:
-		if len(address.get("state")) == 2:
-			country = pycountry.countries.lookup(address.get("country"))
-
-			if country:
-				state_iso = "{}-{}".format(str(country.alpha_2), address.get("state"))
-
-				try:
-					state = pycountry.subdivisions.lookup(state_iso)
-				except LookupError:
-					error_message = """{} is not a valid state!
-									Check for typos or enter the
-									2-letter ISO code for your state."""
-
-					frappe.throw(_(error_message.format(address.get("state"))))
-					return
-				else:
-					return state.code.split('-')[1]
+		valid_state = False
 	else:
+		# pycountry returns state code as {country}-{state} (e.g., US-FL)
 		return state.code.split('-')[1]
 
+	if not valid_state and len(address.get("state")) == 2:
+		try:
+			country = pycountry.countries.lookup(address.get("country"))
+		except LookupError:
+			pass
+		else:
+			state_iso = "{}-{}".format(str(country.alpha_2), address.get("state"))
+
+			try:
+				state = pycountry.subdivisions.lookup(state_iso)
+			except LookupError:
+				pass
+			else:
+				return state.code.split('-')[1]
+
+	if not valid_state:
+		error_message = """{} is not a valid state!
+						Check for typos or enter the
+						2-letter ISO code for your state."""
+
+		frappe.throw(_(error_message.format(address.get("state"))))
 
 def get_country_code(country):
 	return frappe.get_value("Country", country, "code")
