@@ -63,7 +63,7 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 			package["weight_value"] += (item_values[item.get("item_code")]["net_weight"] * item.get("qty"))
 			package["insured_amount"] += (item_values[item.get("item_code")]["insured_declared_value"] * item.get("qty"))
 
-	if package["weight_value"] < 0:
+	if package["weight_value"] <= 0:
 		package["weight_value"] = 1
 	else:
 		package["weight_value"] = ceil(package["weight_value"])
