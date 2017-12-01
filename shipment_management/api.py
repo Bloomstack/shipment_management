@@ -132,11 +132,6 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 
 			sorted_rates.append(rate)
 
-		#sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
-		customer = get_current_customer().name
-		if frappe.get_value("Customer", customer, 'has_shipping_account'):
-			sorted_rates.append({u'fee': 0, u'name': u'SHIP USING MY ACCOUNT', u'label': u'SHIP USING MY ACCOUNT'})
-
 		final_sorted_rates = sorted_rates
 
 		# Disallow FEDEX GROUND for Canada
