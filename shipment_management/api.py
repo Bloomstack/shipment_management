@@ -32,10 +32,10 @@ def get_rates_for_doc(doc, address=None, address_obj=None):
 
 
 	from_address = frappe.get_doc("Address", {"is_your_company_address" : 1})
-	return get_rates(from_address, to_address, doc.get("items"))
+	return get_rates(from_address, to_address, doc)
 
 
-def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
+def get_rates(from_address, to_address, doc, packaging_type="YOUR_PACKAGING"):
 	"""Simple wrapper over fedex rating service.
 
 	It takes the standard address field values for the from_ and to_ addresses
@@ -56,7 +56,7 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 	item_values = frappe.get_all("Item", fields=["insured_declared_value", "name", "net_weight"])
 	item_values = {elem.pop("name"): elem for elem in item_values}
 
-	for item in items:
+	for item in doc.get("items"):
 		package["group_package_count"] += item.get("qty")
 
 		if item.get("item_code") in item_values:
@@ -108,7 +108,9 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		package_list=packages,
 		ignoreErrors=True,
 		signature_option="DIRECT",
-		exceptions = rate_exceptions
+		exceptions=rate_exceptions,
+		delivery_date=doc.get("delivery_date"),
+		saturday_delivery=doc.get("saturday_delivery")
 	)
 
 	upcharge_doc = frappe.get_doc("Shipment Rate Settings", "Shipment Rate Settings")
