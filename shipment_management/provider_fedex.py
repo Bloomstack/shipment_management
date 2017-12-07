@@ -636,7 +636,9 @@ def get_fedex_packages_rate(international=False,
 							ignoreErrors=False,
 							single_rate=False,
 							signature_option=None,
-							exceptions=None):
+							exceptions=None,
+							delivery_date=None,
+							saturday_delivery=False):
 
 	"""
 	:param international:
@@ -721,6 +723,13 @@ def get_fedex_packages_rate(international=False,
 
 	rate.RequestedShipment.EdtRequestType = EdtRequestType
 	rate.RequestedShipment.ShippingChargesPayment.PaymentType = PaymentType
+
+	if saturday_delivery:
+		if not delivery_date:
+			frappe.throw("Please specify Ship Date for Saturday Delivery")
+		delivery_datetime = frappe.utils.get_datetime(delivery_date)
+		rate.RequestedShipment.SpecialServicesRequested.SpecialServiceTypes = "SATURDAY_DELIVERY"
+		rate.RequestedShipment.ShipTimestamp = delivery_datetime.isoformat()
 
 	for package in package_list:
 		package1_weight = rate.create_wsdl_object_of_type('Weight')
@@ -811,7 +820,6 @@ def get_fedex_packages_rate(international=False,
 		return rates[0]
 	else:
 		return rates
-
 
 @frappe.whitelist()
 def get_all_shipment_rate(doc_name):
