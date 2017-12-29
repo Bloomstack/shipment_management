@@ -11,40 +11,31 @@ def get_state_code(address):
 	if not address.get("state"):
 		return
 
-	valid_state = True
+	address_state = address.get("state").upper()
 
+	# Search the given state in PyCountry's database
 	try:
-		state = pycountry.subdivisions.lookup(address.get("state"))
+		lookup_state = pycountry.subdivisions.lookup(address_state)
 	except LookupError:
-		valid_state = False
-	else:
-		# pycountry returns state code as {country}-{state} (e.g., US-FL)
-		return state.code.split('-')[1]
+		# If search fails, try again if the given state is an ISO code
+		if len(address_state) in range(1, 4):
+			country_code = get_country_code(address.get("country"))
 
-	if not valid_state and len(address.get("state")) == 2:
-		try:
-			country = pycountry.countries.lookup(address.get("country"))
-		except LookupError:
-			pass
-		else:
-			state_iso = "{}-{}".format(str(country.alpha_2), address.get("state"))
+			states = pycountry.subdivisions.get(country_code=country_code.upper())
+			states = [state.code.split('-')[1] for state in states]  # PyCountry returns state code as {country_code}-{state-code} (e.g. US-FL)
 
-			try:
-				state = pycountry.subdivisions.lookup(state_iso)
-			except LookupError:
-				pass
+			if address_state in states:
+				return address_state
 			else:
-				return state.code.split('-')[1]
+				error_message = """{} is not a valid state! Check for typos or enter the ISO code for your state."""
 
-	if not valid_state:
-		error_message = """{} is not a valid state!
-						Check for typos or enter the
-						2-letter ISO code for your state."""
+				frappe.throw(_(error_message.format(address_state)))
+	else:
+		return lookup_state.code.split('-')[1]
 
-		frappe.throw(_(error_message.format(address.get("state"))))
 
 def get_country_code(country):
-	return frappe.get_value("Country", country, "code")
+	return frappe.db.get_value("Country", country, "code")
 
 
 @frappe.whitelist()
