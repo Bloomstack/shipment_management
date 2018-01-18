@@ -3,26 +3,18 @@
 
 from __future__ import unicode_literals
 
-import json
 import binascii
 import datetime
+import json
 
 import frappe
-from frappe.utils.password import get_decrypted_password
-from frappe.utils import cint
-from frappe import _
-from frappe.utils.file_manager import *
-
-
 from config.app_config import PRIMARY_FEDEX_DOC_NAME, ExportComplianceStatement
+from frappe import _
+from frappe.utils import cint
+from frappe.utils.file_manager import *
+from frappe.utils.password import get_decrypted_password
 from shipment import check_permission, write_to_log
-
-
-# #############################################################################
-# #############################################################################
-# #############################################################################
-# #############################################################################
-# #############################################################################
+from utils import get_state_code
 
 # ########################### FEDEX IMPORT ####################################
 
@@ -60,10 +52,6 @@ FedexTrackRequest = fedex_track_service.FedexTrackRequest
 FedexConfig = fedex_config.FedexConfig
 FedexAvailabilityCommitmentRequest = availability_commitment_service.FedexAvailabilityCommitmentRequest
 
-# #############################################################################
-# #############################################################################
-# #############################################################################
-# #############################################################################
 # #############################################################################
 
 
@@ -323,8 +311,6 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 
 
 def create_fedex_shipment(source_doc):
-	from utils import get_state_code
-
 	GENERATE_IMAGE_TYPE = source_doc.file_format
 
 	if source_doc.international_shipment:
@@ -636,7 +622,9 @@ def get_fedex_packages_rate(international=False,
 							ignoreErrors=False,
 							single_rate=False,
 							signature_option=None,
-							exceptions=None):
+							exceptions=None,
+							delivery_date=None,
+							saturday_delivery=False):
 
 	"""
 	:param international:
@@ -687,8 +675,6 @@ def get_fedex_packages_rate(international=False,
 
 	"""
 
-	from utils import get_country_code, get_state_code
-
 	if international:
 		rate = FedexInternationalRateServiceRequest(CONFIG_OBJ)
 	else:
@@ -721,6 +707,13 @@ def get_fedex_packages_rate(international=False,
 
 	rate.RequestedShipment.EdtRequestType = EdtRequestType
 	rate.RequestedShipment.ShippingChargesPayment.PaymentType = PaymentType
+
+	if saturday_delivery:
+		if not delivery_date:
+			frappe.throw("Please specify Ship Date for Saturday Delivery")
+		delivery_datetime = frappe.utils.get_datetime(delivery_date)
+		rate.RequestedShipment.SpecialServicesRequested.SpecialServiceTypes = "SATURDAY_DELIVERY"
+		rate.RequestedShipment.ShipTimestamp = delivery_datetime.isoformat()
 
 	for package in package_list:
 		package1_weight = rate.create_wsdl_object_of_type('Weight')
@@ -811,7 +804,6 @@ def get_fedex_packages_rate(international=False,
 		return rates[0]
 	else:
 		return rates
-
 
 @frappe.whitelist()
 def get_all_shipment_rate(doc_name):

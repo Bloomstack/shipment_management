@@ -32,10 +32,10 @@ def get_rates_for_doc(doc, address=None, address_obj=None):
 
 
 	from_address = frappe.get_doc("Address", {"is_your_company_address" : 1})
-	return get_rates(from_address, to_address, doc.get("items"))
+	return get_rates(from_address, to_address, doc=doc)
 
 
-def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
+def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YOUR_PACKAGING"):
 	"""Simple wrapper over fedex rating service.
 
 	It takes the standard address field values for the from_ and to_ addresses
@@ -55,6 +55,9 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 
 	item_values = frappe.get_all("Item", fields=["insured_declared_value", "name", "net_weight"])
 	item_values = {elem.pop("name"): elem for elem in item_values}
+
+	if doc and not items: 
+		items = doc.get("items")
 
 	for item in items:
 		package["group_package_count"] += item.get("qty")
@@ -108,7 +111,9 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 		package_list=packages,
 		ignoreErrors=True,
 		signature_option="DIRECT",
-		exceptions = rate_exceptions
+		exceptions=rate_exceptions,
+		delivery_date=doc.get("delivery_date") if doc else "",
+		saturday_delivery=doc.get("saturday_delivery") if doc else ""
 	)
 
 	upcharge_doc = frappe.get_doc("Shipment Rate Settings", "Shipment Rate Settings")
@@ -131,11 +136,6 @@ def get_rates(from_address, to_address, items, packaging_type="YOUR_PACKAGING"):
 			rate['fee'] = round(rate['fee'], 2)
 
 			sorted_rates.append(rate)
-
-		#sorted_rates.append({u'fee': 0, u'name': u'PICK UP', u'label': u'FLORIDA HQ PICK UP'})
-		customer = get_current_customer().name
-		if frappe.get_value("Customer", customer, 'has_shipping_account'):
-			sorted_rates.append({u'fee': 0, u'name': u'SHIP USING MY ACCOUNT', u'label': u'SHIP USING MY ACCOUNT'})
 
 		final_sorted_rates = sorted_rates
 
