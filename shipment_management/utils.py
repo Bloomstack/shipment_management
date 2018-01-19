@@ -5,6 +5,7 @@ import pycountry
 
 import frappe
 from frappe import _
+from frappe.utils import cint
 
 
 def get_state_code(address):
@@ -19,14 +20,14 @@ def get_state_code(address):
 	state = address.get("state").upper().strip()
 	address_state = (country_code + "-" + state).upper()
 
-	is_int = frappe.utils.cint(state)
-	error_message = """{} is not a valid state! Check for typos or enter the ISO code for your state."""
+	error_message = """{} is not a valid state! Check for typos or enter the ISO code for your state.""".format(address.get("state"))
+	is_int = cint(state)
 
 	if is_int:
-		frappe.throw(_(error_message.format(state)))
+		frappe.throw(_(error_message))
 
-	# TODO: this only tests for US based two letter states
-	#       rework to handle other countries? maybe?
+	# TODO: this only tests for US-based two-letter states
+	#		rework to handle other countries? maybe?
 	if len(state) > 2:
 		address_state = state
 
@@ -41,10 +42,8 @@ def get_state_code(address):
 
 			if address_state in states:
 				return address.get("state")
-			else:
-				error_message = """{} is not a valid state! Check for typos or enter the ISO code for your state."""
 
-				frappe.throw(_(error_message.format(state)))
+		frappe.throw(_(error_message))
 	else:
 		return lookup_state.code.split('-')[1]
 
