@@ -11,28 +11,40 @@ def get_state_code(address):
 	if not address.get("state"):
 		return
 
-	address_state = address.get("state").upper()
+	if frappe.db.exists("Country", {"code": address.get("country")}):
+		country_code = address.get("country")
+	else:
+		country_code = get_country_code(address.get("country"))
+
+	state = address.get("state").upper().strip()
+	address_state = (country_code + "-" + state).upper()
+
+	is_int = frappe.utils.cint(state)
+	error_message = """{} is not a valid state! Check for typos or enter the ISO code for your state."""
+
+	if is_int:
+		frappe.throw(_(error_message.format(state)))
+
+	# TODO: this only tests for US based two letter states
+	#       rework to handle other countries? maybe?
+	if len(state) > 2:
+		address_state = state
 
 	# Search the given state in PyCountry's database
 	try:
 		lookup_state = pycountry.subdivisions.lookup(address_state)
 	except LookupError:
 		# If search fails, try again if the given state is an ISO code
-		if len(address_state) in range(1, 4):
-			if frappe.db.exists("Country", {"code": address.get("country")}):
-				country_code = address.get("country")
-			else:
-				country_code = get_country_code(address.get("country"))
-
+		if len(address_state) in range(3, 6):
 			states = pycountry.subdivisions.get(country_code=country_code.upper())
-			states = [state.code.split('-')[1] for state in states]  # PyCountry returns state code as {country_code}-{state-code} (e.g. US-FL)
+			states = [state.code for state in states]  # PyCountry returns state code as {country_code}-{state-code} (e.g. US-FL)
 
 			if address_state in states:
-				return address_state
+				return address.get("state")
 			else:
 				error_message = """{} is not a valid state! Check for typos or enter the ISO code for your state."""
 
-				frappe.throw(_(error_message.format(address_state)))
+				frappe.throw(_(error_message.format(state)))
 	else:
 		return lookup_state.code.split('-')[1]
 
