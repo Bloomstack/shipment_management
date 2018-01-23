@@ -17,33 +17,27 @@ def get_state_code(address):
 	else:
 		country_code = get_country_code(address.get("country"))
 
+	if country_code.upper() == "HK":  # There are no ISO codes for HK subdivisions
+		return
+
 	state = address.get("state").upper().strip()
-	address_state = (country_code + "-" + state).upper()
 
-	error_message = """{} is not a valid state! Check for typos or enter the ISO code for your state.""".format(address.get("state"))
-	is_int = cint(state)
-
-	if is_int:
-		frappe.throw(_(error_message))
-
-	# TODO: this only tests for US-based two-letter states
-	#		rework to handle other countries? maybe?
-	if len(state) > 2:
+	if len(state) > 3:
 		address_state = state
+	else:
+		address_state = country_code + "-" + state  # PyCountry returns state code as {country_code}-{state-code} (e.g. US-FL)
 
-	# Search the given state in PyCountry's database
 	try:
 		lookup_state = pycountry.subdivisions.lookup(address_state)
 	except LookupError:
 		# If search fails, try again if the given state is an ISO code
-		if len(address_state) in range(3, 6):
-			states = pycountry.subdivisions.get(country_code=country_code.upper())
-			states = [state.code for state in states]  # PyCountry returns state code as {country_code}-{state-code} (e.g. US-FL)
+		states = pycountry.subdivisions.get(country_code=country_code.upper())
+		states = [pystate.code for pystate in states]
 
-			if address_state in states:
-				return address.get("state")
+		if state in states:
+			return state
 
-		frappe.throw(_(error_message))
+		frappe.throw(_("""{} is not a valid state! Check for typos or enter the ISO code for your state.""".format(address.get("state"))))
 	else:
 		return lookup_state.code.split('-')[1]
 
