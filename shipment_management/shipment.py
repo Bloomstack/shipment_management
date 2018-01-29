@@ -299,6 +299,12 @@ def shipment_status_update_controller():
 
 	write_to_log('Ship in progress:' + " ".join([ship.tracking_number for ship in all_ships]))
 
+	def update_fedex_status(doc, status):
+		doc.shipment_note_status = status
+		doc.flags.ignore_validate_update_after_submit = True
+		doc.save()
+		frappe.db.commit()
+
 	from provider_fedex import get_fedex_shipment_status
 	for ship in all_ships:
 		latest_status = get_fedex_shipment_status(ship.tracking_number)
@@ -326,11 +332,6 @@ def shipment_status_update_controller():
 			elif latest_status in failed:
 				update_fedex_status(shipment_note, ShipmentNoteOperationalStatus.Failed)
 
-	def update_fedex_status(doc, status):
-		doc.shipment_note_status = status
-		doc.flags.ignore_validate_update_after_submit = True
-		doc.save()
-		frappe.db.commit()
 
 ##############################################################################
 ##############################################################################
