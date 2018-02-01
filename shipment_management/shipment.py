@@ -153,9 +153,7 @@ def get_shipper(delivery_note_name):
 
 def get_recipient(delivery_note_name):
 	recipient = RequestedShipment()
-
 	recipient.contact.CompanyName = frappe.db.get_value("Delivery Note", delivery_note_name, "customer")
-	delivery_address = frappe.db.get_value("Delivery Note", delivery_note_name, "shipping_address_name")
 
 	contact_person = frappe.db.get_value("Delivery Note", delivery_note_name, "contact_person")
 
@@ -171,25 +169,15 @@ def get_recipient(delivery_note_name):
 			}]
 		})
 
-	if primary_contact.name is not None:
+	if frappe.db.exists("Contact", primary_contact.name):
 		if not recipient.contact.PhoneNumber:
 			recipient.contact.PersonName = "{} {}".format(primary_contact.first_name, primary_contact.last_name)
 			recipient.contact.PhoneNumber = primary_contact.phone
 
+	delivery_address = frappe.db.get_value("Delivery Note", delivery_note_name, "shipping_address_name")
+
 	if delivery_address:
 		shipping_address = frappe.get_doc("Address", delivery_address)
-	else:
-		shipping_address = frappe.get_doc({
-			"doctype": "Address",
-			"is_shipping_address": 1,
-			"links": [{
-				"link_doctype": "Customer",
-				"link_name": recipient.contact.PersonName
-			}]
-		})
-
-	if shipping_address.name is not None:
-		recipient.contact.PhoneNumber = shipping_address.phone
 
 		recipient.contact.Email_List.append(shipping_address.email_id)
 		recipient.address.StreetLines.append(shipping_address.address_line1)
