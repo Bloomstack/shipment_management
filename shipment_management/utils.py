@@ -1,45 +1,8 @@
 import json
 from collections import defaultdict
 
-import pycountry
-
 import frappe
-from frappe import _
 
-
-def get_state_code(address):
-	if not address.get("state"):
-		return
-
-	if frappe.db.exists("Country", {"code": address.get("country")}):
-		country_code = address.get("country")
-	else:
-		country_code = get_country_code(address.get("country"))
-
-	if country_code.upper() == "HK":  # There are no ISO codes for HK subdivisions
-		return
-
-	error_message = _("""{} is not a valid state! Check for typos or enter the ISO code for your state.""".format(address.get("state")))
-	state = address.get("state").upper().strip()
-
-	# The max length for ISO state codes is 3, excluding the country code
-	if len(state) <= 3:
-		address_state = (country_code + "-" + state).upper()  # PyCountry returns state code as {country_code}-{state-code} (e.g. US-FL)
-
-		states = pycountry.subdivisions.get(country_code=country_code.upper())
-		states = [pystate.code for pystate in states]
-
-		if address_state in states:
-			return state
-
-		frappe.throw(error_message)
-	else:
-		try:
-			lookup_state = pycountry.subdivisions.lookup(state)
-		except LookupError:
-			frappe.throw(error_message)
-		else:
-			return lookup_state.code.split('-')[1]
 
 def get_country_code(country):
 	return frappe.db.get_value("Country", country, "code")
