@@ -1,4 +1,5 @@
 import json
+import unicodedata
 from collections import defaultdict
 
 import pycountry
@@ -7,8 +8,12 @@ import frappe
 from frappe import _
 
 
+class InvalidStateError(Exception):
+	pass
+
+
 def get_state_code(address):
-	if not address.get("state"):
+	if not (address.get("state") and address.get("country")):
 		return
 
 	if frappe.db.exists("Country", {"code": address.get("country")}):
@@ -16,30 +21,53 @@ def get_state_code(address):
 	else:
 		country_code = get_country_code(address.get("country"))
 
-	if country_code.upper() == "HK":  # There are no ISO codes for HK subdivisions
+	country_code = country_code.upper()
+
+	# Ignore countries without any states or subdivisions
+	countries_without_states = []
+	for country in pycountry.countries:
+		state_count = pycountry.subdivisions.get(country_code=country.alpha_2)
+
+		if len(state_count) == 0:
+			countries_without_states.append(country.alpha_2)
+
+	if country_code in countries_without_states:
 		return
 
-	error_message = _("""{} is not a valid state! Check for typos or enter the ISO code for your state.""".format(address.get("state")))
+	# Handle special characters in state names
+	# https://docs.python.org/2/library/unicodedata.html#unicodedata.normalize
+	def normalize_characters(state_name):
+		nfkd_form = unicodedata.normalize("NFKD", state_name)
+		return nfkd_form.encode("ASCII", "ignore")
+
+	error_message = _("{} is not a valid state! Check for typos or enter the ISO code for your state.")
+	error_message = error_message.format(normalize_characters(address.get("state")))
+
 	state = address.get("state").upper().strip()
 
-	# The max length for ISO state codes is 3, excluding the country code
-	if len(state) <= 3:
-		address_state = (country_code + "-" + state).upper()  # PyCountry returns state code as {country_code}-{state-code} (e.g. US-FL)
+	# Convert full ISO code formats (US-FL)
+	# to simple state codes (FL)
+	if "{}-".format(country_code) in state:
+		state = state.split("-")[1]
 
-		states = pycountry.subdivisions.get(country_code=country_code.upper())
-		states = [pystate.code for pystate in states]
+	# Form a list of state names and codes for the selected country
+	states = pycountry.subdivisions.get(country_code=country_code)
+	state_details = {pystate.name.upper(): pystate.code.split('-')[1] for pystate in states}
 
-		if address_state in states:
-			return state
+	for state_name, state_code in state_details.items():
+		normalized_state = normalize_characters(state_name)
 
-		frappe.throw(error_message)
-	else:
-		try:
-			lookup_state = pycountry.subdivisions.lookup(state)
-		except LookupError:
-			frappe.throw(error_message)
-		else:
-			return lookup_state.code.split('-')[1]
+		if normalized_state not in state_details:
+			state_details[normalized_state] = state_code
+
+	# Check if the input string (full name or state code) is in the formed list
+	if state in state_details:
+		return state_details.get(state)
+	elif state in state_details.values():
+		return state
+
+	frappe.throw(error_message, InvalidStateError)
+
 
 def get_country_code(country):
 	return frappe.db.get_value("Country", country, "code")
