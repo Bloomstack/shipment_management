@@ -56,7 +56,7 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 	item_values = frappe.get_all("Item", fields=["insured_declared_value", "name", "net_weight"])
 	item_values = {elem.pop("name"): elem for elem in item_values}
 
-	if doc and not items: 
+	if doc and not items:
 		items = doc.get("items")
 
 	for item in items:
@@ -101,13 +101,14 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 		PackagingType=packaging_type,
 		EdtRequestType='NONE',
 		PaymentType='SENDER',
-		ShipperStateOrProvinceCode=from_address.get("state"),
+		# Shipper
 		ShipperPostalCode=from_address.get("pincode"),
 		ShipperCountryCode=get_country_code(from_address.get("country")),
-		RecipientStateOrProvinceCode=to_address.get("state") if RecipientCountryCode.lower() in ("us", "ca") else None,
+		# Recipient
 		RecipientPostalCode=to_address.get("pincode"),
-		IsResidential = to_address.get("is_residential"),
+		IsResidential=to_address.get("is_residential"),
 		RecipientCountryCode=RecipientCountryCode,
+		# Delivery options
 		package_list=packages,
 		ignoreErrors=True,
 		signature_option="DIRECT",

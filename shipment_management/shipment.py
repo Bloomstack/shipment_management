@@ -10,7 +10,7 @@ from frappe import _
 from frappe.contacts.doctype.address.address import get_company_address
 from frappe.model.document import get_doc
 from frappe.model.mapper import get_mapped_doc
-from utils import get_country_code, get_state_code
+from utils import get_country_code
 
 
 def check_permission(fn):
@@ -142,11 +142,13 @@ def get_shipper(delivery_note_name):
 
 			if shipper_address:
 				shipper.address.StreetLines.append(shipper_address.address_line1)
-				shipper.address.StreetLines.append(shipper_address.address_line2)
+
+				if shipper_address.address_line2:
+					shipper.address.StreetLines.append(shipper_address.address_line2)
+
 				shipper.address.City = shipper_address.city
 				shipper.address.PostalCode = shipper_address.pincode
-				shipper.address.StateOrProvinceCode = get_state_code({"country" : shipper.address.Country,
-																	"state" : shipper_address.state})
+				shipper.address.StateOrProvinceCode = shipper_address.state
 
 	return shipper
 
@@ -179,17 +181,21 @@ def get_recipient(delivery_note_name):
 	if delivery_address:
 		shipping_address = frappe.get_doc("Address", delivery_address)
 
-		recipient.contact.Email_List.append(shipping_address.email_id)
+		if shipping_address.email_id:
+			recipient.contact.Email_List.append(shipping_address.email_id)
+
 		recipient.address.StreetLines.append(shipping_address.address_line1)
-		recipient.address.StreetLines.append(shipping_address.address_line2)
+
+		if shipping_address.address_line2:
+			recipient.address.StreetLines.append(shipping_address.address_line2)
+
 		recipient.address.City = shipping_address.city
 		recipient.address.PostalCode = shipping_address.pincode
 
 		recipient.address.Country = shipping_address.country
 		recipient.address.CountryCode = get_country_code(recipient.address.Country)
 
-		recipient.address.StateOrProvinceCode = get_state_code({"country" : recipient.address.Country,
-																"state" : shipping_address.state})
+		recipient.address.StateOrProvinceCode = shipping_address.state
 		recipient.address.Residential = shipping_address.is_residential
 
 		if primary_contact.email_id and (primary_contact.email_id != shipping_address.email_id):

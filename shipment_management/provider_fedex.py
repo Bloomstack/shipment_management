@@ -14,7 +14,6 @@ from frappe.utils import cint
 from frappe.utils.file_manager import *
 from frappe.utils.password import get_decrypted_password
 from shipment import check_permission, write_to_log
-from utils import get_state_code
 
 # ########################### FEDEX IMPORT ####################################
 
@@ -316,7 +315,6 @@ def create_fedex_shipment(source_doc):
 	if source_doc.international_shipment:
 		shipment = FedexProcessInternationalShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
 		service_type = source_doc.service_type_international
-
 	else:
 		shipment = FedexProcessShipmentRequest(CONFIG_OBJ, customer_transaction_id=CUSTOMER_TRANSACTION_ID)
 		service_type = source_doc.service_type_domestic
@@ -326,18 +324,6 @@ def create_fedex_shipment(source_doc):
 
 	shipment.RequestedShipment.PackagingType = source_doc.packaging_type
 
-	shipper_address = { "pincode" : source_doc.shipper_address_postal_code,
-						"state" : source_doc.shipper_address_state_or_province_code,
-						"city" : source_doc.shipper_address_city,
-						"country" : source_doc.shipper_address_country_code
-						}
-
-	recipient_address = { "pincode" : source_doc.recipient_address_postal_code,
-						"state" : source_doc.recipient_address_state_or_province_code,
-						"city" : source_doc.recipient_address_city,
-						"country" : source_doc.recipient_address_country_code
-						}
-
 	# Shipper contact info.
 	shipment.RequestedShipment.Shipper.Contact.PersonName = source_doc.shipper_contact_person_name
 	shipment.RequestedShipment.Shipper.Contact.CompanyName = source_doc.shipper_company_name
@@ -346,7 +332,7 @@ def create_fedex_shipment(source_doc):
 	# Shipper address.
 	shipment.RequestedShipment.Shipper.Address.StreetLines = [source_doc.shipper_address_street_lines]
 	shipment.RequestedShipment.Shipper.Address.City = source_doc.shipper_address_city
-	shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = get_state_code(shipper_address)
+	shipment.RequestedShipment.Shipper.Address.StateOrProvinceCode = source_doc.shipper_address_state_or_province_code
 	shipment.RequestedShipment.Shipper.Address.PostalCode = source_doc.shipper_address_postal_code
 	shipment.RequestedShipment.Shipper.Address.CountryCode = source_doc.shipper_address_country_code
 
@@ -363,7 +349,7 @@ def create_fedex_shipment(source_doc):
 	# Recipient addressStateOrProvinceCode
 	shipment.RequestedShipment.Recipient.Address.StreetLines = [source_doc.recipient_address_street_lines]
 	shipment.RequestedShipment.Recipient.Address.City = source_doc.recipient_address_city
-	shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = get_state_code(recipient_address)
+	shipment.RequestedShipment.Recipient.Address.StateOrProvinceCode = source_doc.recipient_address_state_or_province_code
 	shipment.RequestedShipment.Recipient.Address.PostalCode = source_doc.recipient_address_postal_code
 	shipment.RequestedShipment.Recipient.Address.CountryCode = source_doc.recipient_address_country_code
 
@@ -680,14 +666,6 @@ def get_fedex_packages_rate(international=False,
 	else:
 		rate = FedexRateServiceRequest(CONFIG_OBJ)
 
-	shipper_address = { "pincode" : ShipperPostalCode,
-						"state" : ShipperStateOrProvinceCode,
-						"country" : ShipperCountryCode
-						}
-
-	recipient_address = { "pincode" : RecipientPostalCode,
-						"country" : RecipientCountryCode}
-
 	if RecipientStateOrProvinceCode:
 		recipient_address["state"] = RecipientStateOrProvinceCode
 
@@ -695,12 +673,12 @@ def get_fedex_packages_rate(international=False,
 	rate.RequestedShipment.ServiceType = ServiceType
 	rate.RequestedShipment.PackagingType = PackagingType
 
-	rate.RequestedShipment.Shipper.Address.StateOrProvinceCode = get_state_code(shipper_address)
+	rate.RequestedShipment.Shipper.Address.StateOrProvinceCode = ShipperStateOrProvinceCode
 	rate.RequestedShipment.Shipper.Address.PostalCode = ShipperPostalCode
 	rate.RequestedShipment.Shipper.Address.CountryCode = ShipperCountryCode
 
 	if RecipientStateOrProvinceCode:
-		rate.RequestedShipment.Recipient.Address.StateOrProvinceCode = get_state_code(recipient_address)
+		rate.RequestedShipment.Recipient.Address.StateOrProvinceCode = RecipientStateOrProvinceCode
 	rate.RequestedShipment.Recipient.Address.PostalCode = RecipientPostalCode
 	rate.RequestedShipment.Recipient.Address.CountryCode = RecipientCountryCode
 	rate.RequestedShipment.Recipient.Address.Residential = IsResidential
@@ -710,7 +688,8 @@ def get_fedex_packages_rate(international=False,
 
 	if saturday_delivery:
 		if not delivery_date:
-			frappe.throw("Please specify Ship Date for Saturday Delivery")
+			frappe.throw(_("Please specify Ship Date for Saturday Delivery"))
+
 		delivery_datetime = frappe.utils.get_datetime(delivery_date)
 		rate.RequestedShipment.SpecialServicesRequested.SpecialServiceTypes = "SATURDAY_DELIVERY"
 		rate.RequestedShipment.ShipTimestamp = delivery_datetime.isoformat()
@@ -751,7 +730,6 @@ def get_fedex_packages_rate(international=False,
 			package1.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
 			package1.SpecialServicesRequested.SignatureOptionDetail.OptionType = signature_option
 
-
 		rate.add_package(package1)
 
 	try:
@@ -759,7 +737,7 @@ def get_fedex_packages_rate(international=False,
 	except Exception as e:
 		print(e)
 
-		if exceptions != None:
+		if exceptions is not None:
 			exceptions.append({"type": "request", "exception": e})
 
 		if 'RequestedPackageLineItem object cannot be null or empty' in str(e):
@@ -792,7 +770,7 @@ def get_fedex_packages_rate(international=False,
 						'name' : service['ServiceType']})
 	except KeyError as e:
 
-		if exceptions != None:
+		if exceptions is not None:
 			exceptions.append({"type": "keyerror", "exception": e})
 
 
