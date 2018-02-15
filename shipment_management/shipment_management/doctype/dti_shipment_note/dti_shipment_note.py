@@ -13,6 +13,12 @@ from frappe.utils import cstr
 
 class DTIShipmentNote(Document):
 
+	def validate(self):
+		if not self.sales_order:
+			self.sales_order = self.delivery_items[0].against_sales_order
+		if not self.sales_order_date:
+			self.sales_order_date = frappe.db.get_value("Sales Order", self.sales_order, "transaction_date")
+
 	def set_tracking_ids(self):
 		updated_tracking_ids = ""
 		tracking_ids = ",".join([box.tracking_number.replace("-", "") for box in self.box_list])
@@ -47,7 +53,7 @@ class DTIShipmentNote(Document):
 		frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Created)
 		frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
 		frappe.db.set(self, 'tracking_number', self.box_list[0].tracking_number)
-	
+
 	# def on_cancel(self):
 		# from shipment_management.config.app_config import SupportedProviderList
 		# from shipment_management.shipment import ShipmentNoteOperationalStatus
