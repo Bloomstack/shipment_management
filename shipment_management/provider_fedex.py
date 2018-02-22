@@ -666,9 +666,6 @@ def get_fedex_packages_rate(international=False,
 	else:
 		rate = FedexRateServiceRequest(CONFIG_OBJ)
 
-	if RecipientStateOrProvinceCode:
-		recipient_address["state"] = RecipientStateOrProvinceCode
-
 	rate.RequestedShipment.DropoffType = DropoffType
 	rate.RequestedShipment.ServiceType = ServiceType
 	rate.RequestedShipment.PackagingType = PackagingType
