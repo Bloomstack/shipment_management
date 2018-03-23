@@ -1,19 +1,7 @@
 frappe.ui.form.on("Delivery Note", {
     refresh: function (frm) {
-        var authorize_status = null
-
-        for (i in cur_frm.doc.items) {
-            var item = cur_frm.doc.items[i];
-
-            if (!authorize_status) {
-                authorize_status = parseInt(frappe.model.get_value("Sales Order", item.against_sales_order, "authorize_delivery"));
-            } else {
-                break;
-            }
-        }
-
-        if (authorize_status && cur_frm.doc.fedex_shipping_method != "PICK UP") {
-            cur_frm.add_custom_button(__('Shipment'),
+        if (frm.doc.fedex_shipping_method != "PICK UP") {
+            frm.add_custom_button(__('Shipment'),
                 function () {
                     frappe.call({
                         method: "shipment_management.utils.get_stock_items",
@@ -25,11 +13,8 @@ frappe.ui.form.on("Delivery Note", {
                             create_dialog(frm)
                         }
                     })
-
-
                 }, __("Make"));
         }
-
     }
 });
 
