@@ -1,8 +1,8 @@
 frappe.ui.form.on("Delivery Note", {
     refresh: function (frm) {
-        var authorize_status = null
+        var authorize_status = null;
 
-        for (i in cur_frm.doc.items) {
+        for (var i in cur_frm.doc.items) {
             var item = cur_frm.doc.items[i];
 
             if (!authorize_status) {
