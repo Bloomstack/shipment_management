@@ -173,7 +173,12 @@ def get_recipient(delivery_note_name):
 
 	if frappe.db.exists("Contact", primary_contact.name):
 		if not recipient.contact.PhoneNumber:
-			recipient.contact.PersonName = "{} {}".format(primary_contact.first_name, primary_contact.last_name)
+			person_name = primary_contact.first_name
+
+			if primary_contact.last_name:
+				person_name += " {}".format(primary_contact.last_name)
+
+			recipient.contact.PersonName = person_name
 			recipient.contact.PhoneNumber = primary_contact.phone
 
 	delivery_address = frappe.db.get_value("Delivery Note", delivery_note_name, "shipping_address_name")
