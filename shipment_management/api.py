@@ -102,10 +102,10 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 		EdtRequestType='NONE',
 		PaymentType='SENDER',
 		# Shipper
-		ShipperPostalCode=from_address.get("pincode"),
+		ShipperPostalCode=from_address.get("pincode").strip(),
 		ShipperCountryCode=get_country_code(from_address.get("country")),
 		# Recipient
-		RecipientPostalCode=to_address.get("pincode"),
+		RecipientPostalCode=to_address.get("pincode").strip(),
 		IsResidential=to_address.get("is_residential"),
 		RecipientCountryCode=RecipientCountryCode,
 		# Delivery options
