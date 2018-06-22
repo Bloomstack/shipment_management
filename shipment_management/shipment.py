@@ -251,20 +251,15 @@ def get_delivery_items(delivery_note_name):
 ##############################################################################
 ##############################################################################
 
-def write_to_log(message):
-	"""
-	/frappe-bench/logs/frappe.log
-	"""
-	frappe.logger().info('[SHIPMENT APP] :: ' + message)
-
-
 @frappe.whitelist()
 def shipment_status_update_controller():
-	"""
-	Shipment Management Status Controller Job
-	"""
-
 	from provider_fedex import get_fedex_shipment_status
+
+	def update_fedex_status(doc, status):
+		doc.fedex_status = status
+		doc.flags.ignore_validate_update_after_submit = True
+		doc.save()
+		frappe.db.commit()
 
 	filters = {
 		"fedex_status": ["not in", ["Delivered", "Shipment cancelled by sender"]],
@@ -273,15 +268,11 @@ def shipment_status_update_controller():
 
 	all_ships = frappe.get_all("DTI Shipment Note", filters=filters, fields=["name", "fedex_status", "tracking_number"])
 
-	write_to_log('Ship in progress:' + " ".join([ship.tracking_number for ship in all_ships]))
-
 	for ship in all_ships:
 		latest_status = get_fedex_shipment_status(ship.tracking_number)
 
 		if latest_status and latest_status != ship.fedex_status:
-			frappe.db.set_value("DTI Shipment Note", ship.name, 'fedex_status', latest_status)
-
-			write_to_log("[{0}] - Tracking number updated from {1} to {2}".format(ship.name, ship.tracking_number, latest_status))
+			update_fedex_status(frappe.get_doc("DTI Shipment Note", ship.name), latest_status)
 
 ##############################################################################
 ##############################################################################
