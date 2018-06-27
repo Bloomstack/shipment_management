@@ -10,6 +10,7 @@ from frappe import _
 from frappe.contacts.doctype.address.address import get_company_address
 from frappe.model.document import get_doc
 from frappe.model.mapper import get_mapped_doc
+from frappe.utils import add_months, now
 from utils import get_country_code
 
 
@@ -250,59 +251,29 @@ def get_delivery_items(delivery_note_name):
 ##############################################################################
 ##############################################################################
 
-def write_to_log(message):
-	"""
-	/frappe-bench/logs/frappe.log
-	"""
-	frappe.logger().info('[SHIPMENT APP] :: ' + message)
-
-
 @frappe.whitelist()
 def shipment_status_update_controller():
-	"""
-	Shipment Management Status Controller Job
-	"""
-	all_ships = frappe.get_all("DTI Shipment Note", filters = [["shipment_note_status", "in", "{0} , {1}, {2}".format(ShipmentNoteOperationalStatus.Created,
-		ShipmentNoteOperationalStatus.InProgress, "NEW")]], fields = ["name", "tracking_number"])
-
-	completed = [i.status_code for i in StatusMapFedexAndShipmentNote.Completed]
-	failed = [i.status_code for i in StatusMapFedexAndShipmentNote.Failed]
-
-	write_to_log('Ship in progress:' + " ".join([ship.tracking_number for ship in all_ships]))
+	from provider_fedex import get_fedex_shipment_status
 
 	def update_fedex_status(doc, status):
-		doc.shipment_note_status = status
+		doc.fedex_status = status
 		doc.flags.ignore_validate_update_after_submit = True
 		doc.save()
 		frappe.db.commit()
 
-	from provider_fedex import get_fedex_shipment_status
+	filters = {
+		"docstatus": 1,
+		"fedex_status": ["not in", ["Delivered", "Shipment cancelled by sender"]],
+		"creation": ["between", [add_months(now(), -2), now()]]
+	}
+
+	all_ships = frappe.get_all("DTI Shipment Note", filters=filters, fields=["name", "fedex_status", "tracking_number"])
+
 	for ship in all_ships:
 		latest_status = get_fedex_shipment_status(ship.tracking_number)
 
-		if not latest_status:
-			continue
-
-		if latest_status != ship.fedex_status:
-			shipment_note = get_doc("DTI Shipment Note", ship.name)
-
-			current_status = shipment_note.tracking_number
-			frappe.db.set(shipment_note, 'fedex_status', latest_status)
-
-			write_to_log("[{0}] - Tracking number [{1}] updated from {2} to {3}".format(shipment_note.name,
-																						shipment_note.tracking_number,
-																						current_status,
-																						latest_status))
-
-			if latest_status.lower() == 'picked up':
-				update_fedex_status(shipment_note, ShipmentNoteOperationalStatus.InProgress)
-
-			elif latest_status in completed:
-				update_fedex_status(shipment_note, ShipmentNoteOperationalStatus.Completed)
-
-			elif latest_status in failed:
-				update_fedex_status(shipment_note, ShipmentNoteOperationalStatus.Failed)
-
+		if latest_status and latest_status != ship.fedex_status:
+			update_fedex_status(frappe.get_doc("DTI Shipment Note", ship.name), latest_status)
 
 ##############################################################################
 ##############################################################################
