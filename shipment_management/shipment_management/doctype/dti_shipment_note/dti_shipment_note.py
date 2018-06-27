@@ -14,6 +14,9 @@ from frappe.utils import cstr
 class DTIShipmentNote(Document):
 
 	def validate(self):
+		if self.service_type_domestic == "PICK_UP" or self.service_type_international == "PICK_UP":
+			frappe.throw(_("Shipment service type cannot be PICK UP!"))
+
 		if not self.sales_order:
 			self.sales_order = self.delivery_items[0].against_sales_order
 		if not self.sales_order_date:
