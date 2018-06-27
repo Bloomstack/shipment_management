@@ -262,6 +262,7 @@ def shipment_status_update_controller():
 		frappe.db.commit()
 
 	filters = {
+		"docstatus": 1,
 		"fedex_status": ["not in", ["Delivered", "Shipment cancelled by sender"]],
 		"creation": ["between", [add_months(now(), -2), now()]]
 	}

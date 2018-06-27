@@ -2,7 +2,6 @@
 //[["DTI Shipment Note","delivery_note","=",null],
 // ["DTI Shipment Note","delivery_status","like",null]],
 // "columns":[["name","DTI Shipment Note"],
-//  ["shipment_note_status","DTI Shipment Note"],
 //  ["delivery_note","DTI Shipment Note"],
 //  ["delivery_status","DTI Shipment Note"],
 //  ["recipient_contact_person_name","DTI Shipment Note"],
