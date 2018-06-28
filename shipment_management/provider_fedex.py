@@ -13,7 +13,7 @@ from frappe import _
 from frappe.utils import cint
 from frappe.utils.file_manager import *
 from frappe.utils.password import get_decrypted_password
-from shipment import check_permission, write_to_log
+from shipment import check_permission
 
 # ########################### FEDEX IMPORT ####################################
 
@@ -747,8 +747,6 @@ def get_fedex_packages_rate(international=False,
 	response_json = subject_to_json(rate.response)
 	data = json.loads(response_json)
 
-	write_to_log("Rate service response:" + str(data))
-
 	if "Service is not allowed" in str(data['Notifications'][0]['Message']):
 		if ignoreErrors:
 			return None
@@ -923,7 +921,7 @@ def get_fedex_shipment_status(track_value):
 		track.send_request()
 		return track.response[4][0].TrackDetails[0].Events[0].EventDescription
 	except AttributeError:
-			return None
+		return None
 	except FedexError as error:
 		frappe.throw(_("Fedex error! {} {}".format(error, get_fedex_server_info())))
 

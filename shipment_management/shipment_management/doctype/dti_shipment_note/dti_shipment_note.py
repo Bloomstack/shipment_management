@@ -14,6 +14,9 @@ from frappe.utils import cstr
 class DTIShipmentNote(Document):
 
 	def validate(self):
+		if self.service_type_domestic == "PICK_UP" or self.service_type_international == "PICK_UP":
+			frappe.throw(_("Shipment service type cannot be PICK UP!"))
+
 		if not self.sales_order:
 			self.sales_order = self.delivery_items[0].against_sales_order
 		if not self.sales_order_date:
@@ -46,11 +49,10 @@ class DTIShipmentNote(Document):
 
 		for box in self.box_list:
 			if not box.tracking_number:
-				frappe.throw("Please enter Tracking No for BOX " + str(box.idx)) 
+				frappe.throw("Please enter Tracking No for BOX " + str(box.idx))
 
 		self.set_tracking_ids()
 
-		frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Created)
 		frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
 		frappe.db.set(self, 'tracking_number', self.box_list[0].tracking_number)
 
@@ -65,7 +67,6 @@ class DTIShipmentNote(Document):
 		# 		delete_fedex_shipment(self)
 		# 		frappe.msgprint(_("Shipment {} has been canceled!".format(self.name)))
 
-		# 		frappe.db.set(self, 'shipment_note_status', ShipmentNoteOperationalStatus.Cancelled)
 		# 		frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.Cancelled)
 		# 	except Exception, error:
 		# 		frappe.throw(_(error))

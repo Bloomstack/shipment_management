@@ -350,13 +350,11 @@ class TestShipmentBase(unittest.TestCase):
 
 	def submit_and_validate(self):
 		self.assertEqual(self.note.tracking_number, "0000-0000-0000-0000")
-		self.assertEqual(self.note.shipment_note_status, "NEW")
 		self.assertIsNone(self.note.label_1)
 
 		self.note.submit()
 
 		self.assertNotEqual(self.note.tracking_number, "0000-0000-0000-0000")
-		self.assertEqual(self.note.shipment_note_status, "ReadyToPickUp")
 
 	def validate_error_during_shipment_creation(self, expected_error_message):
 		print "EXPECTED ERROR:", expected_error_message
