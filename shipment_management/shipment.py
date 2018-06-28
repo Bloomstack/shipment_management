@@ -255,12 +255,6 @@ def get_delivery_items(delivery_note_name):
 def shipment_status_update_controller():
 	from provider_fedex import get_fedex_shipment_status
 
-	def update_fedex_status(doc, status):
-		doc.fedex_status = status
-		doc.flags.ignore_validate_update_after_submit = True
-		doc.save()
-		frappe.db.commit()
-
 	filters = {
 		"docstatus": 1,
 		"fedex_status": ["not in", ["Delivered", "Shipment cancelled by sender"]],
@@ -273,7 +267,8 @@ def shipment_status_update_controller():
 		latest_status = get_fedex_shipment_status(ship.tracking_number)
 
 		if latest_status and latest_status != ship.fedex_status:
-			update_fedex_status(frappe.get_doc("DTI Shipment Note", ship.name), latest_status)
+			frappe.db.set_value("DTI Shipment Note", ship.name, "fedex_status", latest_status, update_modified=False)
+			frappe.db.commit()
 
 ##############################################################################
 ##############################################################################
