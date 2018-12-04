@@ -9,8 +9,13 @@ frappe.ui.form.on("Delivery Note", {
                             items: frm.doc.items
                         },
                         callback: function (r) {
-                            frm.doc.items = r.message;
-                            create_dialog(frm)
+                            if (r.message) {
+                                frm.doc.items = r.message;
+                                create_dialog(frm);
+                            } else {
+                                frappe.throw(__(`None of the items are deliverable. Please mark an Item
+                                    to "Manage Stock" and start delivering them.`))
+                            }
                         }
                     })
                 }, __("Make"));
