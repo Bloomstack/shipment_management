@@ -1,30 +1,30 @@
 frappe.ui.form.on("Quotation", {
     refresh: function (frm) {
-        add_fedex_rates_button(frm)
+        add_fedex_rates_button(frm);
     },
 
     get_fedex_rates: function (frm) {
-        get_fedex_rates(frm)
+        _get_fedex_rates(frm);
     }
 });
 
 frappe.ui.form.on("Sales Order", {
     refresh: function (frm) {
-        add_fedex_rates_button(frm)
+        add_fedex_rates_button(frm);
     },
 
     get_fedex_rates: function (frm) {
-        get_fedex_rates(frm)
+        _get_fedex_rates(frm);
     }
 });
 
 frappe.ui.form.on("Sales Invoice", {
     refresh: function (frm) {
-        add_fedex_rates_button(frm)
+        add_fedex_rates_button(frm);
     },
 
     get_fedex_rates: function (frm) {
-        get_fedex_rates(frm)
+        _get_fedex_rates(frm);
     }
 });
 
@@ -33,12 +33,12 @@ function add_fedex_rates_button(frm) {
     if (frm.doc.docstatus == 0) {
         frm.add_custom_button(__('Get Fedex Rates'),
             function () {
-                get_fedex_rates(frm)
+                _get_fedex_rates(frm)
             });
     }
 }
 
-function get_fedex_rates(frm) {
+function _get_fedex_rates(frm) {
     $.each(frm.doc.taxes, function (index, item) {
         if (item.account_head == "Freight and Forwarding Charges - JA") {
             frappe.throw("Shipment Charge has already been added")
