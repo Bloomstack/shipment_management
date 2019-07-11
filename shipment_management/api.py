@@ -59,18 +59,29 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 	if doc and not items:
 		items = doc.get("items")
 
+	# Set the item weights, quantity and insured amounts in the package(s).
+	# For repairs, only process packages once for each warranty claim.
+	processed_claims = []
+	weight_value = group_package_count = insured_amount = 0
 	for item in items:
-		package["group_package_count"] += item.get("qty")
+		if item.get("warranty_claim") and item.get("warranty_claim") not in processed_claims:
+			repair_items = frappe.db.get_value("Warranty Claim", item.get("warranty_claim"), ["item_code", "cable", "case"])
+			repair_items = list(filter(None, repair_items))
+			group_package_count = len(repair_items)
 
-		if item.get("item_code") in item_values:
-			package["weight_value"] += (item_values[item.get("item_code")]["net_weight"] * item.get("qty"))
-			package["insured_amount"] += (item_values[item.get("item_code")]["insured_declared_value"] * item.get("qty"))
+			for repair_item in repair_items:
+				weight_value += item_values.get(repair_item, {}).get("net_weight", 0)
+				insured_amount += item_values.get(repair_item, {}).get("insured_declared_value", 0)
 
-	if package["weight_value"] <= 0:
-		package["weight_value"] = 1
-	else:
-		package["weight_value"] = ceil(package["weight_value"])
+			processed_claims.append(item.get("warranty_claim"))
+		else:
+			group_package_count += item.get("qty", 0)
+			weight_value += item_values.get(item.get("item_code"), {}).get("net_weight", 0) * item.get("qty", 0)
+			insured_amount += item_values.get(item.get("item_code"), {}).get("insured_declared_value", 0) * item.get("qty", 0)
 
+	package["weight_value"] = max(1, ceil(weight_value))
+	package["group_package_count"] = group_package_count
+	package["insured_amount"] = insured_amount
 	packages.append(package)
 
 	# to try and keep some form of standardization we'll minimally  require
@@ -92,7 +103,6 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 			package["physical_packaging"] = "BOX"
 
 		surcharge = surcharge + package.get("surcharge", 0)
-
 
 	RecipientCountryCode = get_country_code(to_address.get("country"))
 	rate_exceptions = []
