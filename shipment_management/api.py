@@ -1,23 +1,12 @@
 from __future__ import unicode_literals
 
+import json
+from math import ceil
+
 import frappe
 from provider_fedex import get_fedex_packages_rate
-from awesome_cart.compat.customer import get_current_customer
 from utils import get_country_code
-from math import ceil
-import json
 
-from dti_devtools.debug import pretty_json
-
-VALID_PACKAGING_TYPES = (
-	"FEDEX_10KG_BOX",
-	"FEDEX_25KG_BOX",
-	"FEDEX_BOX",
-	"FEDEX_ENVELOPE",
-	"FEDEX_PAK",
-	"FEDEX_TUBE",
-	"YOUR_PACKAGING"
-)
 
 @frappe.whitelist()
 def get_rates_for_doc(doc, address=None, address_obj=None):
@@ -84,15 +73,14 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 	package["insured_amount"] = insured_amount
 	packages.append(package)
 
-	# to try and keep some form of standardization we'll minimally  require
+	# to try and keep some form of standardization we'll minimally require
 	# a weight_value. Any other values will be passed as is to the rates service.
 	surcharge = 0
 	for package in packages:
-		if package.get("weight_value", None) is None or \
-		   package.get("weight_units", None) is None:
+		if package.get("weight_value") is None or package.get("weight_units") is None:
 			raise frappe.exceptions.ValidationError("Missing weight_value data")
 
-		#if not package.get("group_package_count"):
+		# if not package.get("group_package_count"):
 		# keep count on 1 as we don't care about package groups
 		package["group_package_count"] = 1
 
@@ -104,11 +92,34 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 
 		surcharge = surcharge + package.get("surcharge", 0)
 
+	# check item conditions for applying Fedex One Rate pricing
+	rate_settings = frappe.get_single("Shipment Rate Settings")
+	flat_rate = False
+	signature_option = "DIRECT"
+	packaging = packaging_type
+
+	flat_rate_items = {item.item: item.max_qty for item in rate_settings.items}
+	for item in items:
+		if item.get("item_code") not in flat_rate_items.keys():
+			continue
+
+		if item.get("qty", 0) < flat_rate_items.get(item.get("item_code"), 0):
+			flat_rate = True
+			signature_option = None
+			packaging = frappe.db.get_value("Shipment Rate Item Settings", {"item": item.get("item_code")}, "packaging")
+			packaging = frappe.db.get_value("Shipping Package", packaging, "box_code")
+		else:
+			flat_rate = False
+			signature_option = "DIRECT"
+			packaging = packaging_type
+			break
+
+	# form rate request arguments
 	RecipientCountryCode = get_country_code(to_address.get("country"))
 	rate_exceptions = []
 	args = dict(
 		DropoffType='REGULAR_PICKUP',
-		PackagingType=packaging_type,
+		PackagingType=packaging,
 		EdtRequestType='NONE',
 		PaymentType='SENDER',
 		# Shipper
@@ -121,13 +132,12 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 		# Delivery options
 		package_list=packages,
 		ignoreErrors=True,
-		signature_option="DIRECT",
+		signature_option=signature_option,
 		exceptions=rate_exceptions,
 		delivery_date=doc.get("delivery_date") if doc else "",
-		saturday_delivery=doc.get("saturday_delivery") if doc else ""
+		saturday_delivery=doc.get("saturday_delivery") if doc else "",
+		flat_rate=flat_rate
 	)
-
-	upcharge_doc = frappe.get_doc("Shipment Rate Settings", "Shipment Rate Settings")
 
 	if to_address:
 		rates = get_fedex_packages_rate(**args)
@@ -139,10 +149,10 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 		for rate in sorted(rates, key=lambda rate: rate["fee"]):
 			rate["fee"] = rate["fee"] + surcharge
 
-			if upcharge_doc.upcharge_type == "Percentage":
-				rate["fee"] = rate["fee"] + (rate["fee"] * (upcharge_doc.upcharge/100))
-			elif upcharge_doc.upcharge_type == "Actual":
-				rate["fee"] = rate["fee"] + upcharge_doc.upcharge
+			if rate_settings.upcharge_type == "Percentage":
+				rate["fee"] = rate["fee"] + (rate["fee"] * (rate_settings.upcharge/100))
+			elif rate_settings.upcharge_type == "Actual":
+				rate["fee"] = rate["fee"] + rate_settings.upcharge
 
 			rate['fee'] = round(rate['fee'], 2)
 

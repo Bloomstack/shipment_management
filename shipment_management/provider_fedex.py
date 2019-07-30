@@ -610,7 +610,8 @@ def get_fedex_packages_rate(international=False,
 							signature_option=None,
 							exceptions=None,
 							delivery_date=None,
-							saturday_delivery=False):
+							saturday_delivery=False,
+							flat_rate=False):
 
 	"""
 	:param international:
@@ -661,29 +662,41 @@ def get_fedex_packages_rate(international=False,
 
 	"""
 
+	# Initiate Fedex request
 	if international:
 		rate = FedexInternationalRateServiceRequest(CONFIG_OBJ)
 	else:
 		rate = FedexRateServiceRequest(CONFIG_OBJ)
 
+	# Set Fedex shipping details
 	rate.RequestedShipment.DropoffType = DropoffType
 	rate.RequestedShipment.ServiceType = ServiceType
 	rate.RequestedShipment.PackagingType = PackagingType
 
+	# Set shipper address details
 	rate.RequestedShipment.Shipper.Address.StateOrProvinceCode = ShipperStateOrProvinceCode
 	rate.RequestedShipment.Shipper.Address.PostalCode = ShipperPostalCode
 	rate.RequestedShipment.Shipper.Address.CountryCode = ShipperCountryCode
 
+	# Set reciever address details
 	if RecipientStateOrProvinceCode:
 		rate.RequestedShipment.Recipient.Address.StateOrProvinceCode = RecipientStateOrProvinceCode
 	rate.RequestedShipment.Recipient.Address.PostalCode = RecipientPostalCode
 	rate.RequestedShipment.Recipient.Address.CountryCode = RecipientCountryCode
 	rate.RequestedShipment.Recipient.Address.Residential = IsResidential
 
+	# Set payer details
 	rate.RequestedShipment.EdtRequestType = EdtRequestType
 	rate.RequestedShipment.ShippingChargesPayment.PaymentType = PaymentType
 
-	if saturday_delivery:
+	# Set special services, if applicable
+
+	# Fedex One Rate
+	if flat_rate:
+		rate.RequestedShipment.SpecialServicesRequested.SpecialServiceTypes = "FEDEX_ONE_RATE"
+
+	# Fedex Saturday Delivery
+	elif saturday_delivery:
 		if not delivery_date:
 			frappe.throw(_("Please specify Ship Date for Saturday Delivery"))
 
@@ -691,45 +704,50 @@ def get_fedex_packages_rate(international=False,
 		rate.RequestedShipment.SpecialServicesRequested.SpecialServiceTypes = "SATURDAY_DELIVERY"
 		rate.RequestedShipment.ShipTimestamp = delivery_datetime.isoformat()
 
+	# Create Fedex shipments for each package
 	for package in package_list:
-		package1_weight = rate.create_wsdl_object_of_type('Weight')
+		# Set package weights
+		pkg_weight = rate.create_wsdl_object_of_type('Weight')
+		pkg_weight.Value = package["weight_value"]
+		pkg_weight.Units = package["weight_units"]
 
-		package1_weight.Value = package["weight_value"]
-		package1_weight.Units = package["weight_units"]
+		# Set package content details
+		pkg_obj = rate.create_wsdl_object_of_type('RequestedPackageLineItem')
+		pkg_obj.Weight = pkg_weight
+		pkg_obj.GroupPackageCount = package["group_package_count"]
 
-		package1 = rate.create_wsdl_object_of_type('RequestedPackageLineItem')
-		package1.Weight = package1_weight
-
-		package1.GroupPackageCount = package["group_package_count"]
-
-		if package.get("packaging_type"):
+		# Set packaging details
+		if flat_rate:
+			rate.RequestedShipment.PackagingType = PackagingType
+			pkg_obj.PhysicalPackaging = frappe.db.get_value("Shipping Package", {"box_code": PackagingType}, "physical_packaging")
+		elif package.get("packaging_type"):
 			box_doc = frappe.get_doc("Shipping Package", package.get("packaging_type"))
 			rate.RequestedShipment.PackagingType = box_doc.box_code
-
-			package1.PhysicalPackaging = box_doc.physical_packaging
+			pkg_obj.PhysicalPackaging = box_doc.physical_packaging
 
 			if box_doc.box_code == "YOUR_PACKAGING":
-				package_dim = rate.create_wsdl_object_of_type("Dimensions")
-				package_dim.Length = cint(box_doc.length)
-				package_dim.Width = cint(box_doc.width)
-				package_dim.Height = cint(box_doc.height)
-				package_dim.Units = "IN"
-				package1.Dimensions = package_dim
+				pkg_dim = rate.create_wsdl_object_of_type("Dimensions")
+				pkg_dim.Length = cint(box_doc.length)
+				pkg_dim.Width = cint(box_doc.width)
+				pkg_dim.Height = cint(box_doc.height)
+				pkg_dim.Units = "IN"
+				pkg_obj.Dimensions = pkg_dim
 
-		package_insure = rate.create_wsdl_object_of_type('Money')
-		package_insure.Currency = "USD"
-		package_insure.Amount = package["insured_amount"]
+		# Set insurance amounts
+		pkg_insurance = rate.create_wsdl_object_of_type('Money')
+		pkg_insurance.Currency = "USD"
+		pkg_insurance.Amount = package["insured_amount"]
+		pkg_obj.InsuredValue = pkg_insurance
 
-		package1.InsuredValue = package_insure
-
+		# Set additional surcharges
 		if signature_option:
-			# Additional Surcharges
-			package1.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
-			package1.SpecialServicesRequested.SignatureOptionDetail.OptionType = signature_option
+			pkg_obj.SpecialServicesRequested.SpecialServiceTypes = 'SIGNATURE_OPTION'
+			pkg_obj.SpecialServicesRequested.SignatureOptionDetail.OptionType = signature_option
 
-		rate.add_package(package1)
+		rate.add_package(pkg_obj)
 
 	try:
+		# Get rates for all the packages
 		rate.send_request()
 	except Exception as e:
 		print(e)
@@ -759,19 +777,18 @@ def get_fedex_packages_rate(international=False,
 
 	try:
 		for service in data["RateReplyDetails"]:
-			rates.append({'fee' :
-				service['RatedShipmentDetails'][0]["ShipmentRateDetail"]['TotalNetChargeWithDutiesAndTaxes']['Amount'],
-						'label' : service['ServiceType'].replace("_", " "),
-						'name' : service['ServiceType']})
+			rates.append({
+				'fee': service['RatedShipmentDetails'][0]['ShipmentRateDetail']['TotalNetChargeWithDutiesAndTaxes']['Amount'],
+				'label' : service['ServiceType'].replace("_", " "),
+				'name' : service['ServiceType'],
+				'special_rates_applied': service['RatedShipmentDetails'][0]['ShipmentRateDetail'].get('SpecialRatingApplied', [])
+			})
 	except KeyError as e:
-
 		if exceptions is not None:
 			exceptions.append({"type": "keyerror", "exception": e})
-
-
 		if not ignoreErrors:
 			frappe.throw(data)
-		return None
+		return
 
 	if single_rate:
 		return rates[0]
