@@ -139,7 +139,7 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 	)
 
 	if to_address:
-		rates = get_fedex_packages_rate(**args)
+		rates = get_fedex_packages_rate(**args) or []
 
 		# since we're working on v18 of Fedex's rate service, which is incompatible with
 		# getting One Rate and non-One Rate prices in the same query, we do another query
