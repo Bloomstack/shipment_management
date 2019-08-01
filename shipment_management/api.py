@@ -94,28 +94,27 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 
 	# check item conditions for applying Fedex One Rate pricing
 	rate_settings = frappe.get_single("Shipment Rate Settings")
+	RecipientCountryCode = get_country_code(to_address.get("country"))
+
 	flat_rate = False
 	signature_option = "DIRECT"
 	packaging = packaging_type
 
-	flat_rate_items = {item.item: item.max_qty for item in rate_settings.items}
-	for item in items:
-		if item.get("item_code") not in flat_rate_items.keys():
-			continue
-
-		if item.get("qty", 0) < flat_rate_items.get(item.get("item_code"), 0):
-			flat_rate = True
-			signature_option = None
-			packaging = frappe.db.get_value("Shipment Rate Item Settings", {"item": item.get("item_code")}, "packaging")
-			packaging = frappe.db.get_value("Shipping Package", packaging, "box_code")
-		else:
-			flat_rate = False
-			signature_option = "DIRECT"
-			packaging = packaging_type
-			break
+	if RecipientCountryCode.lower() == "us":  # One Rate only applies for intra-US deliveries
+		flat_rate_items = {item.item: item.max_qty for item in rate_settings.items}
+		for item in items:
+			if item.get("qty", 0) < flat_rate_items.get(item.get("item_code"), 0):
+				flat_rate = True
+				signature_option = None
+				packaging = frappe.db.get_value("Shipment Rate Item Settings", {"item": item.get("item_code")}, "packaging")
+				packaging = frappe.db.get_value("Shipping Package", packaging, "box_code")
+			else:
+				flat_rate = False
+				signature_option = "DIRECT"
+				packaging = packaging_type
+				break
 
 	# form rate request arguments
-	RecipientCountryCode = get_country_code(to_address.get("country"))
 	rate_exceptions = []
 	args = dict(
 		DropoffType='REGULAR_PICKUP',
@@ -141,32 +140,42 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 
 	if to_address:
 		rates = get_fedex_packages_rate(**args)
+
+		# since we're working on v18 of Fedex's rate service, which is incompatible with
+		# getting One Rate and non-One Rate prices in the same query, we do another query
+		# to get the non-One Rate prices and update the existing rates
+		if flat_rate:
+			non_flat_rate_args = args.copy()
+			non_flat_rate_args.update({"flat_rate": False, "signature_option": "DIRECT", "PackagingType": packaging_type})
+			flat_rates = get_fedex_packages_rate(**non_flat_rate_args) or []
+			rates.extend(flat_rates)
 	else:
 		rates = []
 
-	sorted_rates = []
 	if rates:
+		sorted_rates = []
+		unique_labels = []
 		for rate in sorted(rates, key=lambda rate: rate["fee"]):
-			rate["fee"] = rate["fee"] + surcharge
+			# remove duplicate shipping methods
+			if rate["label"] in unique_labels:
+				continue
+
+			# disallow FEDEX GROUND for Canada
+			if RecipientCountryCode.lower() == "ca" and rate['label'] == "FEDEX GROUND":
+				continue
+
+			unique_labels.append(rate["label"])
+			rate["fee"] += surcharge
 
 			if rate_settings.upcharge_type == "Percentage":
-				rate["fee"] = rate["fee"] + (rate["fee"] * (rate_settings.upcharge/100))
+				rate["fee"] += (rate["fee"] * (rate_settings.upcharge / 100))
 			elif rate_settings.upcharge_type == "Actual":
-				rate["fee"] = rate["fee"] + rate_settings.upcharge
+				rate["fee"] += rate_settings.upcharge
 
 			rate['fee'] = round(rate['fee'], 2)
-
 			sorted_rates.append(rate)
 
-		final_sorted_rates = sorted_rates
-
-		# Disallow FEDEX GROUND for Canada
-		if RecipientCountryCode.lower() == "ca":
-			for rate in sorted_rates:
-				if rate['label'] == "FEDEX GROUND":
-					final_sorted_rates.remove(rate)
-
-		return final_sorted_rates
+		return sorted_rates
 	else:
 		msg = "Could not get rates, please check your Shipping Address"
 		if len(rate_exceptions) > 0:
