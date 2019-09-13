@@ -107,3 +107,8 @@ scheduler_events = {
 shipping_rate_api = [
     {"name": "FedEx", "module": "shipment_management.api.get_rates"}
 ]
+
+override_doctype_dashboards = {
+    "Delivery Note": "shipment_management.utils.get_dn_dashboard_data",
+    "Warranty Claim": "shipment_management.utils.get_wc_dashboard_data"
+}
