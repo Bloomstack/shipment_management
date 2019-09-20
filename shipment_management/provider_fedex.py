@@ -8,12 +8,13 @@ import datetime
 import json
 
 import frappe
-from config.app_config import PRIMARY_FEDEX_DOC_NAME, ExportComplianceStatement
 from frappe import _
 from frappe.utils import cint
 from frappe.utils.file_manager import *
 from frappe.utils.password import get_decrypted_password
-from shipment import check_permission
+
+from shipment_management.config.app_config import PRIMARY_FEDEX_DOC_NAME, ExportComplianceStatement
+from shipment_management.shipment import check_permission
 
 # ########################### FEDEX IMPORT ####################################
 
@@ -31,8 +32,8 @@ fedex_track_service = frappe.get_module("fedex.services.track_service")
 
 # TODO - Fix import after https://github.com/python-fedex-devs/python-fedex/pull/86
 
-from temp_fedex.ship_service import FedexDeleteShipmentRequest, FedexProcessInternationalShipmentRequest, FedexProcessShipmentRequest
-from temp_fedex.rate_service import FedexRateServiceRequest, FedexInternationalRateServiceRequest
+from shipment_management.temp_fedex.ship_service import FedexDeleteShipmentRequest, FedexProcessInternationalShipmentRequest, FedexProcessShipmentRequest
+from shipment_management.temp_fedex.rate_service import FedexRateServiceRequest, FedexInternationalRateServiceRequest
 
 # #############################################################################
 

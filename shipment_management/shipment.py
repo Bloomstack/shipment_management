@@ -5,14 +5,14 @@
 from __future__ import unicode_literals
 
 import frappe
-from config.app_config import PRIMARY_FEDEX_DOC_NAME, FedexTestServerConfiguration, StatusMapFedexAndShipmentNote, SupportedProviderList
 from frappe import _
 from frappe.contacts.doctype.address.address import get_company_address
 from frappe.model.document import get_doc
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import add_months, now
-from utils import get_country_code
 
+from shipment_management.config.app_config import PRIMARY_FEDEX_DOC_NAME, FedexTestServerConfiguration, StatusMapFedexAndShipmentNote, SupportedProviderList
+from shipment_management.utils import get_country_code
 
 def check_permission(fn):
 	def innerfn(*args, **kwargs):

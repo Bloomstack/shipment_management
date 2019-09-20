@@ -54,7 +54,7 @@ function _get_fedex_rates(frm) {
             var options_string = ""
             var service_dict = {}
             $.each(response.message, function (index, value) {
-                option = value.label + " - $" + value.fee + "\n"
+                let option = value.label + " - $" + value.fee + "\n"
                 options_string += option
                 service_dict[option.slice(0, -1)] = {
                     "label": value.label,

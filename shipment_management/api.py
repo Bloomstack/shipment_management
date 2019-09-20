@@ -4,8 +4,9 @@ import json
 from math import ceil
 
 import frappe
-from provider_fedex import get_fedex_packages_rate
-from utils import get_country_code
+
+from shipment_management.provider_fedex import get_fedex_packages_rate
+from shipment_management.utils import get_country_code
 
 
 @frappe.whitelist()
