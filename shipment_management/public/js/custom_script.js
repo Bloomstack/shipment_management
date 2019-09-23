@@ -24,20 +24,21 @@ frappe.ui.form.on("Delivery Note", {
 });
 
 function create_dialog(frm) {
-    args = []
-    box_string = ""
-    var count = 1;
-    for (var i = 0; i < frm.doc.items.length; i++) {
-        for (var j = 0; j < frm.doc.items[i].qty; j++) {
+    let args = [];
+    let box_string = "";
+    let count = 1;
+
+    for (let i = 0; i < frm.doc.items.length; i++) {
+        for (let j = 0; j < frm.doc.items[i].qty; j++) {
             box_string += "Box " + count + "\n";
             count++;
         }
     }
 
-    var item_count = 1;
-    item_dict = {}
-    for (var i = 0; i < frm.doc.items.length; i++) {
-        for (var j = 0; j < frm.doc.items[i].qty; j++) {
+    let item_count = 1;
+    let item_dict = {}
+    for (let i = 0; i < frm.doc.items.length; i++) {
+        for (let j = 0; j < frm.doc.items[i].qty; j++) {
             item_dict[item_count] = frm.doc.items[i].item_code
             args.push({
                 label: "Row " + frm.doc.items[i].idx + ": " + frm.doc.items[i].item_name,
@@ -62,12 +63,12 @@ function create_dialog(frm) {
                 },
                 freeze: 1,
                 callback: function (r) {
-                    sales_orders = []
-                    for (var i = 0; i < frm.doc.items.length; i++) {
+                    let sales_orders = [];
+                    for (let i = 0; i < frm.doc.items.length; i++) {
                         sales_orders.push(frm.doc.items[i].against_sales_order)
                     }
                     sales_orders = Array.from(new Set(sales_orders));
-                    for (var i = 0; i < sales_orders.length; i++) {
+                    for (let i = 0; i < sales_orders.length; i++) {
                         window.open('/desk#Form/Sales%20Order/' + sales_orders[i], '_blank');
                     }
                     frappe.set_route("Form", "DTI Shipment Note", r.message)

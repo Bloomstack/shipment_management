@@ -3,7 +3,7 @@
 
 // --------------------------------------------------------------
 
-give_estimates = function (doc) {
+const give_estimates = function (doc) {
     return frappe.call({
         freeze: 1,
         method: 'shipment_management.provider_fedex.show_shipment_estimates',
@@ -184,7 +184,7 @@ function calculatePackageValues(allItems, enteredItems) {
 
 // --------------------------------------------------------------
 
-get_recipient_info = function (doc) {
+const get_recipient_info = function (doc) {
     return frappe.call({
         method: 'shipment_management.shipment.get_recipient_details',
         args: {
@@ -194,7 +194,7 @@ get_recipient_info = function (doc) {
 };
 
 
-get_shipper_info = function (doc) {
+const get_shipper_info = function (doc) {
     return frappe.call({
         method: 'shipment_management.shipment.get_shipper_details',
         args: {
@@ -203,7 +203,7 @@ get_shipper_info = function (doc) {
     });
 };
 
-get_delivery_items = function (doc) {
+const get_delivery_items = function (doc) {
     return frappe.call({
         method: 'shipment_management.shipment.get_delivery_items',
         args: {
@@ -212,7 +212,7 @@ get_delivery_items = function (doc) {
     });
 };
 
-get_sales_order = function (doc) {
+const get_sales_order = function (doc) {
     return frappe.call({
         method: 'shipment_management.shipment.get_sales_order',
         args: {
