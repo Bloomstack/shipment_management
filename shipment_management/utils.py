@@ -73,3 +73,20 @@ def get_stock_items(items):
 @frappe.whitelist()
 def get_packages_in_order(doctype, txt, searchfield, start, page_len, filters):
 	return frappe.db.sql("select `name`, `box_code` from `tabShipping Package` where name like '%{0}%' ORDER BY `order` ASC".format(txt))
+
+
+def get_dn_dashboard_data(data):
+	for section in data.get("transactions"):
+		if section.get("label") == "Reference":
+			section.get("items").append("DTI Shipment Note")
+
+	return data
+
+
+def get_wc_dashboard_data(data):
+	if data:
+		for section in data.get("transactions"):
+			if section.get("label") == "Fulfilment":
+				section.get("items").append("DTI Shipment Note")
+
+	return data
