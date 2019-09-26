@@ -51,10 +51,11 @@ function _get_fedex_rates(frm) {
             doc: frm.doc
         },
         callback: function (response) {
-            var options_string = ""
-            var service_dict = {}
+            let options_string = ""
+            let service_dict = {}
+
             $.each(response.message, function (index, value) {
-                option = value.label + " - $" + value.fee + "\n"
+                let option = value.label + " - $" + value.fee + "\n"
                 options_string += option
                 service_dict[option.slice(0, -1)] = {
                     "label": value.label,
@@ -67,13 +68,14 @@ function _get_fedex_rates(frm) {
             frappe.prompt({
                     "label": "Service Types",
                     "fieldtype": "Select",
+                    "fieldname": "service_types",
                     "options": options_string.slice(0, -1),
                     "reqd": 1
                 },
                 function (data) {
-                    var service_data = service_dict[data.service_types]
+                    let service_data = service_dict[data.service_types]
                     if (service_data.fee != 0) {
-                        var row = frappe.model.add_child(frm.doc, "Sales Taxes and Charges", "taxes");
+                        let row = frappe.model.add_child(frm.doc, "Sales Taxes and Charges", "taxes");
                         row.charge_type = "Actual";
                         row.account_head = "Freight and Forwarding Charges - JA";
                         row.tax_amount = service_data.fee

@@ -26,14 +26,13 @@ def get_count_from_db(table_name):
 
 
 def _print_debug_message():
-	print "=" * 70
-	print "Amount of Delivery Note             = ", get_count_from_db('tabDelivery Note')
-	print "Amount of DTI Shipment Note         = ", get_count_from_db('tabDTI Shipment Note')
-	print "Amount of DTI Shipment Note Item    = ", get_count_from_db('tabDTI Shipment Note Item')
-	print "Amount of DTI Shipment Package      = ", get_count_from_db('tabDTI Shipment Package')
-	print "Amount of DTI Fedex Configuration   = ", get_count_from_db('tabDTI Fedex Configuration')
-
-	print "=" * 70
+	print("=" * 70)
+	print("Amount of Delivery Note             = ", get_count_from_db('tabDelivery Note'))
+	print("Amount of DTI Shipment Note         = ", get_count_from_db('tabDTI Shipment Note'))
+	print("Amount of DTI Shipment Note Item    = ", get_count_from_db('tabDTI Shipment Note Item'))
+	print("Amount of DTI Shipment Package      = ", get_count_from_db('tabDTI Shipment Package'))
+	print("Amount of DTI Fedex Configuration   = ", get_count_from_db('tabDTI Fedex Configuration'))
+	print("=" * 70)
 
 
 def get_boxes(shipment_note_name):
@@ -70,7 +69,7 @@ def get_delivery_note(amount_of_items):
 ###########################################################################
 
 def setUpModule():
-	print "\nBefore test execution:"
+	print("\nBefore test execution:")
 	_print_debug_message()
 
 	# -------------------------------
@@ -82,7 +81,7 @@ def setUpModule():
 
 
 def tearDownModule():
-	print "\nAfter test execution (and clean up):"
+	print("\nAfter test execution (and clean up):")
 
 	frappe.clear_cache()
 	_print_debug_message()
@@ -342,9 +341,9 @@ class TestShipmentBase(unittest.TestCase):
 							  })
 
 		self.note.save()
-		print "-" * 45
-		print "      [ %s ] " % self.note.name
-		print "-" * 45
+		print("-" * 45)
+		print("      [ %s ] " % self.note.name)
+		print("-" * 45)
 
 		self.note_list.append(self.note)
 
@@ -357,7 +356,7 @@ class TestShipmentBase(unittest.TestCase):
 		self.assertNotEqual(self.note.tracking_number, "0000-0000-0000-0000")
 
 	def validate_error_during_shipment_creation(self, expected_error_message):
-		print "EXPECTED ERROR:", expected_error_message
+		print("EXPECTED ERROR:", expected_error_message)
 		try:
 			self.submit_and_validate()
 			self.fail("Shipment was created successful with wrong data")
@@ -368,8 +367,8 @@ class TestShipmentBase(unittest.TestCase):
 	def add_to_box(self, physical_packaging="BOX", items_to_ship_in_one_box=[]):
 		text = "\n".join(r"{}:{}".format(item.item_code, int(item.qty)) for item in items_to_ship_in_one_box)
 
-		print "\nAdded to the box:"
-		print text
+		print("\nAdded to the box:")
+		print(text)
 
 		self.note.append("box_list", {"physical_packaging": physical_packaging,
 									  "packaging_type": "Fedex Small Box",

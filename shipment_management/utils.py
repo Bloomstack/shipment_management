@@ -10,7 +10,7 @@ def get_country_code(country):
 
 @frappe.whitelist()
 def create_shipment_note(items, item_dict, doc):
-	from shipment import get_recipient_details, get_shipper_details, get_delivery_items
+	from shipment_management.shipment import get_recipient_details, get_shipper_details, get_delivery_items
 
 	items = json.loads(items)
 	item_dict = json.loads(item_dict)
