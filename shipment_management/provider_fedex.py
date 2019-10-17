@@ -286,7 +286,7 @@ def create_fedex_package(sequence_number, shipment, box, source_doc):
 			if i > 0:
 				commodity_message = box.commodity_information + "<br>" + commodity_message
 
-			frappe.db.set(box, 'commodity_information', unicode(commodity_message))
+			frappe.db.set(box, 'commodity_information', str(commodity_message))
 
 		frappe.db.set(box, 'total_box_custom_value', total_box_custom_value)
 
