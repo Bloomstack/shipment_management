@@ -95,7 +95,7 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 
 	# check item conditions for applying Fedex One Rate pricing
 	rate_settings = frappe.get_single("Shipment Rate Settings")
-	RecipientCountryCode = get_country_code(to_address.get("country"))
+	RecipientCountryCode = get_country_code(to_address.get("country", ""))
 
 	flat_rate = False
 	signature_option = "DIRECT"
@@ -123,10 +123,10 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 		EdtRequestType='NONE',
 		PaymentType='SENDER',
 		# Shipper
-		ShipperPostalCode=from_address.get("pincode").strip(),
+		ShipperPostalCode=(from_address.get("pincode") or "").strip(),
 		ShipperCountryCode=get_country_code(from_address.get("country")),
 		# Recipient
-		RecipientPostalCode=to_address.get("pincode").strip(),
+		RecipientPostalCode=(to_address.get("pincode") or "").strip(),
 		IsResidential=to_address.get("is_residential"),
 		RecipientCountryCode=RecipientCountryCode,
 		# Delivery options
@@ -134,8 +134,8 @@ def get_rates(from_address, to_address, items=None, doc=None, packaging_type="YO
 		ignoreErrors=True,
 		signature_option=signature_option,
 		exceptions=rate_exceptions,
-		delivery_date=doc.get("delivery_date") if doc else "",
-		saturday_delivery=doc.get("saturday_delivery") if doc else "",
+		delivery_date=doc.get("delivery_date", "") if doc else "",
+		saturday_delivery=doc.get("saturday_delivery", "") if doc else "",
 		flat_rate=flat_rate
 	)
 
