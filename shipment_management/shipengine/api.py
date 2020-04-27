@@ -1,6 +1,7 @@
 import json
 from math import ceil
 
+import pycountry
 import requests
 
 import frappe
@@ -18,14 +19,32 @@ SHIPENGINE_BASE_URL = "api.shipengine.com"
 
 @frappe.whitelist()
 def get_rates(doc, address=None, address_obj=None, estimate=False):
+	"""
+	Return shipment rates based on the provided document and target address.
+
+	Args:
+		doc (str): The order details, as a stringified JSON object.
+		address (str, optional): The name of the shipping address. Defaults to None.
+		address_obj (str, optional): The shipping address details, as a stringified JSON object. Defaults to None.
+		estimate (bool, optional): True if estimated shipping rates are required, without any additional
+			charges, such as surcharges, insurance, customs, etc., otherwise False to receive all data.
+			Defaults to False.
+
+	Returns:
+		list of dict: Returns the list of rates based on the shipping address
+	"""
+
 	doc = json.loads(doc)
-	estimate = json.loads(estimate)
+
+	if isinstance(estimate, str):
+		estimate = json.loads(estimate)
 
 	if not any([address, address_obj, doc.get("shipping_address_name")]):
 		frappe.throw(_("The order is missing a shipping address"))
 
 	# get the shipper's address
 	from_address = frappe.get_doc("Address", {"is_your_company_address": 1})
+	from_address = from_address.as_dict()
 
 	# get the receiver's address
 	if address_obj:
@@ -41,6 +60,22 @@ def get_rates(doc, address=None, address_obj=None, estimate=False):
 
 
 def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimate=False):
+	"""
+	Return shipment rates from Fedex using the ShipEngine API.
+
+	Args:
+		from_address (dict): The shipper's address.
+		to_address (dict): The reciever's address.
+		items (list of dict, optional): The list of items to be shipped. Defaults to None.
+		doc (dict): The order details. Defaults to None.
+		estimate (bool, optional): True if estimated shipping rates are required, without
+			any additional charges, such as surcharges, insurance, customs, etc., otherwise
+			False to receive all data. Defaults to False.
+
+	Returns:
+		list of dict: Returns the list of rates based on the shipping address
+	"""
+
 	package = {
 		"weight": {
 			"value": 0,
@@ -79,10 +114,6 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 	package["weight"]["value"] = max(1, ceil(weight_value))
 	package["insured_value"]["amount"] = insured_amount or 0
 
-	# transform address values
-
-	to_country_code = get_country_code(to_address.get("country"))
-
 	# check item conditions for applying Fedex One Rate pricing
 	rate_settings = frappe.get_single("Shipment Rate Settings")
 
@@ -90,6 +121,7 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 	confirmation = DEFAULT_CONFIRMATION_TYPE
 	packaging = DEFAULT_FEDEX_PACKAGE
 
+	to_country_code = get_country_code(to_address.get("country", ""))
 	if to_country_code.lower() == "us":  # One Rate only applies for intra-US deliveries
 		flat_rate_items = {item.item: item.max_qty for item in rate_settings.items}
 		for item in items:
@@ -124,7 +156,7 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 		if to_country_code.lower() == "ca" and rate.get("service_code") == "fedex_ground":
 			continue
 
-		fee = sum([rate.get(rate_type, {}).get("amount", 0.0)
+		fee = sum([(rate.get(rate_type) or {}).get("amount", 0.0)
 			for rate_type in ("shipping_amount", "insurance_amount", "confirmation_amount", "other_amount")])
 
 		if rate_settings.upcharge_type == "Percentage":
@@ -134,8 +166,8 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 
 		fee = round(fee, 2)
 		shipping_rates.append({
+			"name": rate.get("service_code"),
 			"label": rate.get("service_type"),
-			"code": rate.get("service_code"),
 			"fee": fee,
 			"days": rate.get("delivery_days"),
 			"estimated_arrival": rate.get("carrier_delivery_days")
@@ -146,22 +178,24 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 
 
 def get_estimated_rates(from_address, to_address, package, doc, items, confirmation):
-	from_postal_code = from_address.get("pincode", "").strip()
-	from_country_code = get_country_code(from_address.get("country"))
+	from_postal_code = (from_address.get("pincode") or "").strip()
+	from_country_code = get_country_code(from_address.get("country", ""))
+	from_state = validate_state(from_address)
 
-	to_postal_code = to_address.get("pincode", "").strip()
-	to_country_code = get_country_code(to_address.get("country"))
+	to_postal_code = (to_address.get("pincode") or "").strip()
+	to_country_code = get_country_code(to_address.get("country", ""))
+	to_state = validate_state(to_address)
 
 	data = {
 		"carrier_id": frappe.conf.get("shipengine_fedex_carrier_id"),
 		"from_country_code": from_country_code.upper(),
 		"from_postal_code": from_postal_code,
 		"from_city_locality": from_address.get("city"),
-		"from_state_province": from_address.get("state"),
+		"from_state_province": from_state,
 		"to_country_code": to_country_code.upper(),
 		"to_postal_code": to_postal_code,
 		"to_city_locality": to_address.get("city"),
-		"to_state_province": to_address.get("state"),
+		"to_state_province": to_state,
 		"weight": package.get("weight", {}),
 		"confirmation": confirmation,
 		"address_residential_indicator": "unknown",
@@ -183,11 +217,13 @@ def get_estimated_rates(from_address, to_address, package, doc, items, confirmat
 
 
 def get_shipping_rates(from_address, to_address, package, doc, items, confirmation):
-	from_postal_code = from_address.get("pincode", "").strip()
-	from_country_code = get_country_code(from_address.get("country"))
+	from_postal_code = (from_address.get("pincode") or "").strip()
+	from_country_code = get_country_code(from_address.get("country", ""))
+	from_state = validate_state(from_address)
 
-	to_postal_code = to_address.get("pincode", "").strip()
-	to_country_code = get_country_code(to_address.get("country"))
+	to_postal_code = (to_address.get("pincode") or "").strip()
+	to_country_code = get_country_code(to_address.get("country", ""))
+	to_state = validate_state(to_address)
 
 	# build a list of items for international shipments
 	customs_items = []
@@ -211,7 +247,7 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 				"phone": to_address.get("phone"),
 				"address_line1": to_address.get("address_line1"),
 				"city_locality": to_address.get("city"),
-				"state_province": to_address.get("state"),
+				"state_province": to_state,
 				"postal_code": to_postal_code,
 				"country_code": to_country_code.upper(),
 				"address_residential_indicator": "unknown"
@@ -222,7 +258,7 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 				"company_name": get_default_company(),
 				"address_line1": from_address.get("address_line1"),
 				"city_locality": from_address.get("city"),
-				"state_province": from_address.get("state"),
+				"state_province": from_state,
 				"postal_code": from_postal_code,
 				"country_code": from_country_code.upper(),
 				"address_residential_indicator": "unknown"
@@ -236,7 +272,7 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 			},
 			"insurance_provider": "third_party",
 			"advanced_options": {
-				"saturday_delivery": doc.get("saturday_delivery") if doc else False
+				"saturday_delivery": doc.get("saturday_delivery", False) if doc else False
 			}
 		}
 	}
@@ -260,3 +296,32 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 
 	rates = response.get("rate_response").get("rates")
 	return rates
+
+
+def validate_state(address):
+	country_code = frappe.db.get_value("Country", address.get("country"), "code")
+	state = address.get("state", "").upper().strip()
+
+	if not state or country_code.lower() != "us":
+		return address.get("state")
+
+	error_message = _("""{} is not a valid state! Check for typos or enter the ISO code for your state.""".format(address.get("state")))
+
+	# The max length for ISO state codes is 3, excluding the country code
+	if len(state) <= 3:
+		address_state = (country_code + "-" + state).upper()  # PyCountry returns state code as {country_code}-{state-code} (e.g. US-FL)
+
+		states = pycountry.subdivisions.get(country_code=country_code.upper())
+		states = [pystate.code for pystate in states]
+
+		if address_state in states:
+			return state
+
+		frappe.throw(error_message)
+	else:
+		try:
+			lookup_state = pycountry.subdivisions.lookup(state)
+		except LookupError:
+			frappe.throw(error_message)
+		else:
+			return lookup_state.code.split('-')[1]
