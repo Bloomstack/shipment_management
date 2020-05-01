@@ -1,7 +1,6 @@
 import json
 from math import ceil
 
-import pycountry
 import requests
 
 import frappe

@@ -1,3 +1,2 @@
-fedex
 frappe
-pycountry==19.8.18
+fedex
