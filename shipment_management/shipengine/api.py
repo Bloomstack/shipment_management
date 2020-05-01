@@ -18,8 +18,8 @@ SHIPENGINE_BASE_URL = "api.shipengine.com"
 
 @frappe.whitelist()
 def get_rates(doc, address=None, address_obj=None, estimate=False):
-	doc = json.loads(doc)
-	estimate = json.loads(estimate)
+	doc = doc if not isinstance(doc, str) else json.loads(doc)
+	estimate = estimate if isinstance(estimate, bool) else json.loads(estimate)
 
 	if not any([address, address_obj, doc.get("shipping_address_name")]):
 		frappe.throw(_("The order is missing a shipping address"))
@@ -114,10 +114,13 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 	else:
 		rates = get_shipping_rates(from_address, to_address, package, doc, items, confirmation)
 
+	if isinstance(rates, dict) and rates.get("errors"):
+		frappe.throw(rates.get("errors"))
+
 	# process all the returned rates
 	if not rates:
 		frappe.throw("Could not get rates, please re-check your shipping address.")
-
+	
 	shipping_rates = []
 	for rate in rates:
 		# disallow FEDEX GROUND for Canada
