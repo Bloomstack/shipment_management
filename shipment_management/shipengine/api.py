@@ -6,6 +6,7 @@ import requests
 
 import frappe
 from erpnext import get_default_company
+from erpnext.erpnext_integrations.taxjar_integration import get_iso_3166_2_state_code
 from frappe import _
 from frappe.contacts.doctype.address.address import get_address_display
 from shipment_management.utils import get_country_code
@@ -181,11 +182,19 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 def get_estimated_rates(from_address, to_address, package, doc, items, confirmation):
 	from_postal_code = (from_address.get("pincode") or "").strip()
 	from_country_code = get_country_code(from_address.get("country", ""))
-	from_state = validate_state(from_address)
+
+	if from_country_code == "us":
+		from_state = get_iso_3166_2_state_code(from_address)
+	else:
+		from_state = from_address.get("state")
 
 	to_postal_code = (to_address.get("pincode") or "").strip()
 	to_country_code = get_country_code(to_address.get("country", ""))
-	to_state = validate_state(to_address)
+
+	if to_country_code == "us":
+		to_state = get_iso_3166_2_state_code(to_address)
+	else:
+		to_state = to_address.get("state")
 
 	data = {
 		"carrier_id": frappe.conf.get("shipengine_fedex_carrier_id"),
@@ -220,11 +229,19 @@ def get_estimated_rates(from_address, to_address, package, doc, items, confirmat
 def get_shipping_rates(from_address, to_address, package, doc, items, confirmation):
 	from_postal_code = (from_address.get("pincode") or "").strip()
 	from_country_code = get_country_code(from_address.get("country", ""))
-	from_state = validate_state(from_address)
+
+	if from_country_code == "us":
+		from_state = get_iso_3166_2_state_code(from_address)
+	else:
+		from_state = from_address.get("state")
 
 	to_postal_code = (to_address.get("pincode") or "").strip()
 	to_country_code = get_country_code(to_address.get("country", ""))
-	to_state = validate_state(to_address)
+
+	if to_country_code == "us":
+		to_state = get_iso_3166_2_state_code(to_address)
+	else:
+		to_state = to_address.get("state")
 
 	# build a list of items for international shipments
 	customs_items = []
@@ -297,32 +314,3 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 
 	rates = response.get("rate_response").get("rates")
 	return rates
-
-
-def validate_state(address):
-	country_code = frappe.db.get_value("Country", address.get("country"), "code")
-	state = address.get("state", "").upper().strip()
-
-	if not state or country_code.lower() != "us":
-		return address.get("state")
-
-	error_message = _("""{} is not a valid state! Check for typos or enter the ISO code for your state.""".format(address.get("state")))
-
-	# The max length for ISO state codes is 3, excluding the country code
-	if len(state) <= 3:
-		address_state = (country_code + "-" + state).upper()  # PyCountry returns state code as {country_code}-{state-code} (e.g. US-FL)
-
-		states = pycountry.subdivisions.get(country_code=country_code.upper())
-		states = [pystate.code for pystate in states]
-
-		if address_state in states:
-			return state
-
-		frappe.throw(error_message)
-	else:
-		try:
-			lookup_state = pycountry.subdivisions.lookup(state)
-		except LookupError:
-			frappe.throw(error_message)
-		else:
-			return lookup_state.code.split('-')[1]
