@@ -63,7 +63,7 @@ function _get_fedex_rates(frm) {
 				options.push(option);
 				service_dict.push({
 					"label": option,
-					"code": value.code,
+					"name": value.name,
 					"fee": value.fee,
 					"days": value.days,
 					"arrival": value.estimated_arrival
@@ -73,7 +73,7 @@ function _get_fedex_rates(frm) {
 			options.push("Pick Up - $0");
 			service_dict.push({
 				"label": "Pick Up - $0",
-				"code": "pick_up",
+				"name": "pick_up",
 				"fee": 0,
 				"days": null,
 				"arrival": null
@@ -100,7 +100,7 @@ function _get_fedex_rates(frm) {
 					});
 				};
 
-				frm.set_value("fedex_shipping_method", service_data.code);
+				frm.set_value("fedex_shipping_method", service_data.name);
 				refresh_field("taxes");
 				frm.save();
 			}, "Select Service");
