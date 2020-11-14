@@ -247,7 +247,7 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 	items = items or doc.get("items")
 	for item in items:
 		customs_items.append({
-			"description": item.get("description"),
+			"description": item.get("item_name").replace("\"", "")[:100],
 			"quantity": item.get("qty"),
 			"value": item.get("rate"),
 			"country_of_origin": from_country_code.upper(),
@@ -306,7 +306,11 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 	response = response.json()
 
 	# throw any errors to the user
-	errors = response.get("errors")
+	errors = None
+	if response.get("errors"):
+		errors = response.get("errors")
+	elif response.get("rate_response").get("errors"):
+		errors = response.get("rate_response").get("errors")
 
 	if errors:
 		frappe.throw(_(errors[0].get("message", "")))
