@@ -247,7 +247,10 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 	items = items or doc.get("items")
 	for item in items:
 		customs_items.append({
-			"description": item.get("item_name").replace("\"", "")[:100],
+			# TODO: future dev, please use a better description
+			# this currently fails at trying to parse illegal
+			# characters (double-quotes, etc.)
+			"description": item.get("item_code")[:100],
 			"quantity": item.get("qty"),
 			"value": item.get("rate"),
 			"country_of_origin": from_country_code.upper(),
@@ -302,7 +305,7 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 		'Content-Type': 'application/json'
 	}
 
-	response = requests.request("POST", url, headers=headers, data=json.dumps(data))
+	response = requests.post(url, headers=headers, data=json.dumps(data))
 	response = response.json()
 
 	# throw any errors to the user
