@@ -49,7 +49,7 @@ function _get_fedex_rates(frm) {
 		method: 'shipment_management.shipengine.api.get_rates',
 		args: {
 			doc: frm.doc,
-			estimate: false
+			estimate: true
 		},
 		callback: function(response) {
 			let options = [];
