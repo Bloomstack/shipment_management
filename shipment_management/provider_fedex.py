@@ -571,7 +571,7 @@ def parse_items_in_box(box):
 		except ValueError:
 			frappe.msgprint(_("WARNING! Bad lines:%s" % line))
 
-		if items.has_key(item[0]):
+		if item[0] in items:
 			items[item[0]] += int(item[1])
 		else:
 			items.update({item[0]: int(item[1])})
@@ -1045,14 +1045,14 @@ class DictDiffer(object):
 		all_items_in_all_boxes = {}
 		for box in parsed_items_per_box:
 			for item_code in parsed_items_per_box[box]:
-				if all_items_in_all_boxes.has_key(item_code):
+				if item_code in all_items_in_all_boxes:
 					all_items_in_all_boxes[item_code] += parsed_items_per_box[box][item_code]
 				else:
 					all_items_in_all_boxes.update({item_code: int(parsed_items_per_box[box][item_code])})
 
 		delivery_items_dict = {}
 		for item in source_doc.get_all_children("DTI Shipment Note Item"):
-			if delivery_items_dict.has_key(item.item_code):
+			if item.item_code in delivery_items_dict:
 				delivery_items_dict[item.item_code] += int(item.qty)
 			else:
 				delivery_items_dict.update({item.item_code: int(item.qty)})
