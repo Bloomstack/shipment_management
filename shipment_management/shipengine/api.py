@@ -138,6 +138,10 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 
 	package["package_code"] = packaging
 
+	# Temporary fix: Do not use estimation for South Korean addresses as ShipEngine breaks on them.
+	if to_country_code.lower() == "kr":
+		estimate = False
+
 	# make the request to ShipEngine
 	if estimate:
 		rates = get_estimated_rates(from_address, to_address, package, doc, items, confirmation)
@@ -259,7 +263,6 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 
 	data = {
 		"shipment": {
-			"validate_address": "validate_only",
 			"carrier_id": frappe.conf.get("shipengine_fedex_carrier_id"),
 			"ship_date": doc.get("delivery_date") if doc else None,
 			"ship_to": {
