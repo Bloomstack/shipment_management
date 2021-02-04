@@ -255,7 +255,7 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 			# this currently fails at trying to parse illegal
 			# characters (double-quotes, etc.)
 			"description": item.get("item_code")[:100],
-			"quantity": item.get("qty"),
+			"quantity": int(item.get("qty")),
 			"value": item.get("rate"),
 			"country_of_origin": from_country_code.upper(),
 			"sku": item.get("item_code")
@@ -295,7 +295,7 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 			},
 			"insurance_provider": "third_party",
 			"advanced_options": {
-				"saturday_delivery": doc.get("saturday_delivery", False) if doc else False
+				"saturday_delivery": doc.get("saturday_delivery", False) if doc and doc.get("saturday_delivery") else False
 			}
 		}
 	}
