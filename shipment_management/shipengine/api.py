@@ -295,7 +295,7 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 			},
 			"insurance_provider": "third_party",
 			"advanced_options": {
-				"saturday_delivery": doc.get("saturday_delivery", False) if doc and doc.get("saturday_delivery") else False
+				"saturday_delivery": doc and doc.get("saturday_delivery") or False
 			}
 		}
 	}
