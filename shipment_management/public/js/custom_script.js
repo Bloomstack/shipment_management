@@ -1,6 +1,6 @@
 frappe.ui.form.on("Delivery Note", {
     refresh: function (frm) {
-        if (!in_list(["PICK_UP", "PICK UP"], frm.doc.fedex_shipping_method)) {
+        if (!frm.is_new() && !in_list(["PICK_UP", "PICK UP"], frm.doc.fedex_shipping_method)) {
             frm.add_custom_button(__('Shipment'),
                 function () {
                     frappe.call({
