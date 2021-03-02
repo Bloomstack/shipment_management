@@ -57,7 +57,15 @@ class DTIShipmentNote(Document):
 		frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
 		frappe.db.set(self, 'tracking_number', self.box_list[0].tracking_number)
 
-	# def on_cancel(self):
+	def on_cancel(self):
+		tracking_ids_list = frappe.db.get_value("Sales Order", self.sales_order, "tracking_ids").split(',')
+
+		for box in self.box_list:
+			if box.tracking_number in tracking_ids_list:
+				tracking_ids_list.remove(box.tracking_number)
+
+		frappe.db.set_value("Sales Order", self.sales_order, "tracking_ids", ','.join(map(str, tracking_ids_list)))
+
 		# from shipment_management.config.app_config import SupportedProviderList
 		# from shipment_management.shipment import ShipmentNoteOperationalStatus
 
