@@ -55,7 +55,7 @@ class DTIShipmentNote(Document):
 		self.set_tracking_ids()
 
 		frappe.db.set(self, 'fedex_status', ShipmentNoteOperationalStatus.InProgress)
-		if self.box_list:
+		if self.box_list and self.box_list[0].get("tracking_number"):
 			frappe.db.set(self, 'tracking_number', self.box_list[0].tracking_number)
 
 	def on_cancel(self):
