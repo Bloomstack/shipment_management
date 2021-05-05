@@ -153,7 +153,7 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 
 	# process all the returned rates
 	if not rates:
-		frappe.throw("Could not get rates, please re-check your shipping address.")
+		return []
 
 	shipping_rates = []
 	for rate in rates:
