@@ -1,7 +1,12 @@
 frappe.ui.form.on("Delivery Note", {
+    setup: function(frm){
+        frm.custom_make_buttons = {
+            'DTI Shipment Note': 'DTI Shipment Note'
+        }        
+    },
     refresh: function (frm) {
         if (!frm.is_new() && !in_list(["PICK_UP", "PICK UP"], frm.doc.fedex_shipping_method)) {
-            frm.add_custom_button(__('Shipment'),
+            frm.add_custom_button(__('DTI Shipment Note'),
                 function () {
                     frappe.call({
                         method: "shipment_management.utils.get_stock_items",
