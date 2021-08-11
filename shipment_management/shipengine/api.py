@@ -139,7 +139,7 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 	package["package_code"] = packaging
 
 	# Temporary fix: Do not use estimation for South Korean addresses as ShipEngine breaks on them.
-	if to_country_code.lower() == "kr":
+	if to_country_code.lower() in ["kr", "cz"]:
 		estimate = False
 
 	# make the request to ShipEngine
