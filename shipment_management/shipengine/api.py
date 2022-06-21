@@ -319,7 +319,7 @@ def get_shipping_rates(from_address, to_address, package, doc, items, confirmati
 		errors = response.get("rate_response").get("errors")
 
 	if errors:
-		frappe.throw(_(errors[0].get("message", "")))
+		frappe.throw(_("[SHIPENGINE] " + errors[0].get("message", "")))
 
 	rates = response.get("rate_response").get("rates")
 	return rates
