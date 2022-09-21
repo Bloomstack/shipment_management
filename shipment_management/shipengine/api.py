@@ -85,7 +85,7 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 		}
 	}
 
-	item_values = frappe.get_all("Item", fields=["insured_declared_value", "name", "net_weight"])
+	item_values = frappe.get_all("Item", fields=["insured_declared_value", "name", "weight_per_unit"])
 	item_values = {elem.pop("name"): elem for elem in item_values}
 
 	if doc and not items:
@@ -101,13 +101,15 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 			repair_items = list(filter(None, repair_items))
 
 			for repair_item in repair_items:
-				weight_value += item_values.get(repair_item, {}).get("net_weight", 0)
-				insured_amount += item_values.get(repair_item, {}).get("insured_declared_value", 0)
+				item_v = item_values.get(repair_item, {})
+				weight_value += item_v.get("net_weight", item_v.get("weight_per_unit", 0))
+				insured_amount += item_v.get("insured_declared_value", 0)
 
 			processed_claims.append(item.get("warranty_claim"))
 		else:
-			weight_value += item_values.get(item.get("item_code"), {}).get("net_weight", 0) * item.get("qty", 0)
-			insured_amount += item_values.get(item.get("item_code"), {}).get("insured_declared_value", 0) * item.get("qty", 0)
+			item_v = item_values.get(item.get("item_code"), {})
+			weight_value += item_v.get("net_weight", item_v.get("weight_per_unit", 0)) * item.get("qty", 0)
+			insured_amount += item_v.get("insured_declared_value", 0) * item.get("qty", 0)
 
 	package["weight"]["value"] = max(1, ceil(weight_value))
 	package["insured_value"]["amount"] = insured_amount or 0
@@ -174,6 +176,8 @@ def get_shipengine_rates(from_address, to_address, items=None, doc=None, estimat
 			"name": rate.get("service_code"),
 			"label": rate.get("service_type"),
 			"fee": fee,
+			"charges": { rate_type: rate.get(rate_type) for rate_type in ("shipping_amount", "insurance_amount", "confirmation_amount", "other_amount")},
+			"package": package,
 			"days": rate.get("delivery_days"),
 			"estimated_arrival": rate.get("carrier_delivery_days")
 		})
